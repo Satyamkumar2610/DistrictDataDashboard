@@ -1,0 +1,50 @@
+alias_name,canonical_name,state,alias_kind,evidence_type,note
+Quilon,Kollam,Kerala,RENAME,DOCUMENTARY,English name changed by state government
+Trichur,Thrissur,Kerala,RENAME,DOCUMENTARY,English name changed by state government
+Trivandrum,Thiruvananthapuram,Kerala,RENAME,DOCUMENTARY,English name changed by state government
+Cannanore,Kannur,Kerala,RENAME,DOCUMENTARY,English name changed by state government
+Palghat,Palakkad,Kerala,RENAME,DOCUMENTARY,English name changed by state government
+Alleppey,Alappuzha,Kerala,RENAME,DOCUMENTARY,English name changed by state government
+Calicut,Kozhikode,Kerala,RENAME,DOCUMENTARY,English name changed by state government
+Baroda,Vadodara,Gujarat,RENAME,DOCUMENTARY,Renamed by state government
+Broach,Bharuch,Gujarat,RENAME,DOCUMENTARY,Renamed by state government
+Kaira,Kheda,Gujarat,RENAME,DOCUMENTARY,Renamed by state government
+Panch Mahals,Panchmahal,Gujarat,SPELLING,NAME_NORMALIZATION,Spacing variant
+Chingleput,Chengalpattu,Tamil Nadu,RENAME,DOCUMENTARY,Renamed by state government
+Tinnevelly,Tirunelveli,Tamil Nadu,RENAME,DOCUMENTARY,Anglicised name replaced
+Tirunelveli Kattabomman,Tirunelveli,Tamil Nadu,RENAME,DOCUMENTARY,Name used 1974-1997
+North Arcot Ambedkar,North Arcot,Tamil Nadu,RENAME,DOCUMENTARY,Name used before Vellore/Tiruvannamalai reorganisation
+Tanjore,Thanjavur,Tamil Nadu,RENAME,DOCUMENTARY,Anglicised name replaced
+Hoshangabad,Narmadapuram,Madhya Pradesh,RENAME,DOCUMENTARY,Renamed by state government
+South Kanara,Dakshina Kannada,Karnataka,RENAME,DOCUMENTARY,Renamed after transfer to Mysore/Karnataka
+Dakshina Kannara,Dakshina Kannada,Karnataka,SPELLING,NAME_NORMALIZATION,Source spelling variant
+North Kanara,Uttara Kannada,Karnataka,RENAME,DOCUMENTARY,Renamed by state government
+Coorg,Kodagu,Karnataka,RENAME,DOCUMENTARY,Anglicised name replaced
+Bellary,Ballari,Karnataka,RENAME,DOCUMENTARY,Renamed by state government 2014
+Belgaum,Belagavi,Karnataka,RENAME,DOCUMENTARY,Renamed by state government 2014
+Gulbarga,Kalaburagi,Karnataka,RENAME,DOCUMENTARY,Renamed by state government 2014
+Bijapur,Vijayapura,Karnataka,RENAME,DOCUMENTARY,Renamed by state government 2014
+Shimoga,Shivamogga,Karnataka,RENAME,DOCUMENTARY,Renamed by state government 2014
+Tumkur,Tumakuru,Karnataka,RENAME,DOCUMENTARY,Renamed by state government 2014
+Mysore,Mysuru,Karnataka,RENAME,DOCUMENTARY,Renamed by state government 2014
+Chikmagalur,Chikkamagaluru,Karnataka,RENAME,DOCUMENTARY,Renamed by state government 2014
+Bangalore Urban,Bengaluru Urban,Karnataka,RENAME,DOCUMENTARY,Renamed by state government 2014
+Bangalore Rural,Bengaluru Rural,Karnataka,RENAME,DOCUMENTARY,Renamed by state government 2014
+Dharwar,Dharwad,Karnataka,SPELLING,NAME_NORMALIZATION,Transliteration variant
+Cuddapah,Kadapa,Andhra Pradesh,RENAME,DOCUMENTARY,Renamed by state government
+Ysr Kadapa,Kadapa,Andhra Pradesh,RENAME,DOCUMENTARY,Official name includes YSR prefix
+Mahbubnagar,Mahabubnagar,Telangana,SPELLING,NAME_NORMALIZATION,Transliteration variant
+Rangareddi,Rangareddy,Telangana,SPELLING,NAME_NORMALIZATION,Transliteration variant
+Ranga Reddy,Rangareddy,Telangana,SPELLING,NAME_NORMALIZATION,Spacing variant
+Nowgong,Nagaon,Assam,RENAME,DOCUMENTARY,Renamed by state government
+Cooch Behar,Koch Bihar,West Bengal,SPELLING,NAME_NORMALIZATION,Transliteration variant
+Burdwan,Bardhaman,West Bengal,SPELLING,NAME_NORMALIZATION,Transliteration variant
+Midnapore,Medinipur,West Bengal,SPELLING,NAME_NORMALIZATION,Transliteration variant
+Gurgaon,Gurugram,Haryana,RENAME,DOCUMENTARY,Renamed by state government 2016
+Mewat,Nuh,Haryana,RENAME,DOCUMENTARY,Renamed by state government 2016
+Allahabad,Prayagraj,Uttar Pradesh,RENAME,DOCUMENTARY,Renamed by state government 2018
+Faizabad,Ayodhya,Uttar Pradesh,RENAME,DOCUMENTARY,Renamed by state government 2018
+Aurangabad,Chhatrapati Sambhajinagar,Maharashtra,RENAME,DOCUMENTARY,Renamed by state government 2023
+Osmanabad,Dharashiv,Maharashtra,RENAME,DOCUMENTARY,Renamed by state government 2023
+Pondicherry,Puducherry,Puducherry,RENAME,DOCUMENTARY,Renamed 2006
+Balasore,Baleshwar,Odisha,SPELLING,NAME_NORMALIZATION,Transliteration variant

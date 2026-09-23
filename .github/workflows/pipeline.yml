@@ -1,0 +1,55 @@
+name: pipeline
+
+# Every push runs the unit tests, rebuilds the full pipeline from bronze, runs
+# the validation gate (s12 exits non-zero on any ERROR check), checks the
+# golden historical cases against the built warehouse, and proves determinism
+# (V5) by rebuilding a second time and comparing the sha256 output manifests.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PYTHON: python
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install pinned dependencies
+        run: pip install -r requirements.txt
+
+      - name: Unit tests
+        run: pytest -q tests
+
+      - name: Build pipeline (run 1) and validation gate
+        run: bash scripts/pipeline/run_all.sh
+
+      - name: Golden historical cases against the built warehouse
+        run: pytest -q tests/test_golden_history.py
+
+      - name: Determinism (V5) - rebuild and compare output hashes
+        run: |
+          cp outputs/pipeline/s12_output_manifest.csv /tmp/manifest_run1.csv
+          bash scripts/pipeline/run_all.sh
+          diff /tmp/manifest_run1.csv outputs/pipeline/s12_output_manifest.csv
+          echo "all outputs byte-identical across two builds"
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-reports
+          path: |
+            outputs/pipeline/s12_validation_report.md
+            outputs/pipeline/s12_checks.csv
+            outputs/pipeline/s12_output_manifest.csv
+            outputs/pipeline/s11_invariants.csv
+            outputs/events/s08_splink_model.json

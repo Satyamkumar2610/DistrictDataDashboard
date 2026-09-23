@@ -1,38 +1,27 @@
 #!/usr/bin/env bash
-# Runs the full District Evolution Intelligence pipeline (v2) end to end.
-# Reads data/bronze/{stanford,soi,events}/... only; writes to
-# data/silver/geometry/, data/gold/{core,spatial,events}/, data/products/,
-# and outputs/pipeline/. See docs/architecture/lineage_area_redesign.md for
-# the design this implements.
+# Runs the District Evolution pipeline v3 end to end.
+# Setup once: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+# Design: docs/architecture/REVAMP_PLAN_V3.md. Equivalent DAG run: dvc repro
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-# source .venv/bin/activate
+PY="${PYTHON:-.venv/bin/python}"
 
 for stage in \
-  s1_bronze_to_silver \
-  s2_topology_audit \
-  s3_events_aggregate \
-  s4_transition_matrix \
-  s5_identity \
-  s6_lineage \
-  s7_area_ledger \
-  s8_event_area_accounting \
-  s10_event_area_transfer_matrix \
-  s10b_spatial_successor_discovery \
-  s9_validate_and_report
+  s01_bronze_to_silver \
+  s02_topology_audit \
+  s03_transition_matrix \
+  s04_identity \
+  s05_lineage \
+  s06_area_ledger \
+  s07_events_aggregate \
+  s08_event_linkage \
+  s09_event_reconciliation \
+  s10_census_products \
+  s11_warehouse \
+  s12_validate
 do
-  echo ""
-  echo "=================================================================="
-  echo "  STAGE: ${stage}"
-  echo "=================================================================="
-  python3 "scripts/pipeline/${stage}.py"
+  echo "================ ${stage} ================"
+  "$PY" "scripts/pipeline/${stage}.py"
 done
 
-echo ""
-echo "Pipeline complete."
-echo "  Core validation      : outputs/pipeline/s9_validation_report.md"
-echo "  Event accounting     : outputs/event_transfer/s10_qc_report.md"
-echo "  Spatial audit        : outputs/event_transfer/event_residuals.gpkg"
-echo "  Successor discovery  : outputs/event_transfer/spatial_successor_candidates.csv"
-echo "  Reconciliation report: outputs/event_transfer/TERRITORIAL_RECONCILIATION_REPORT.md"
-echo "  QGIS layers          : outputs/event_transfer/event_spatial_candidates.gpkg"
+echo "Pipeline complete. Report: outputs/pipeline/s12_validation_report.md"

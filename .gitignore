@@ -1,11 +1,18 @@
-.phase9_venv/
 .venv/
 __pycache__/
+.pytest_cache/
+.DS_Store
+*.dylib
+*.so
+
+# Generated data: rebuilt by scripts/pipeline/run_all.sh (hashes in dvc.lock)
 *.duckdb
 *.csv
 *.parquet
 *.geoparquet
 *.gpkg
-*.dylib
-*.so
-.DS_Store
+
+# Hand-curated reference data and the one-off CK migration map are source, not output
+!data/reference/state_lineage.csv
+!data/reference/name_aliases.csv
+!data/reference/ck_migration_v2_to_v3.csv

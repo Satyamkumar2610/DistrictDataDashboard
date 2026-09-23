@@ -1,178 +1,89 @@
-"""
-Shared library for the District Evolution Intelligence pipeline (v2).
+"""Shared library for the District Evolution pipeline (v3).
 
-This rebuild fixes the defects documented in
-docs/architecture/lineage_area_redesign.md:
-  - deterministic IDs (sha256 of natural key), never uuid4
-  - one geodesic area method everywhere (pyproj.Geod, WGS84), never mixed
-  - explicit, configured tolerances for "small difference" edge cases,
-    never a silent normalize-to-1.0
+Paths, configuration, the one area method, deterministic IDs, name/state
+normalization, reference tables, and the validated table writer. Every
+threshold lives in config/pipeline.yaml and is read through CFG.
 """
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import re
 import unicodedata
 from pathlib import Path
 
+import networkx as nx
 import numpy as np
 import pandas as pd
+import yaml
 from pyproj import Geod
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+CONFIG_DIR = PROJECT_ROOT / "config"
+REFERENCE_DIR = PROJECT_ROOT / "data" / "reference"
 SILVER_GEOM_DIR = PROJECT_ROOT / "data" / "silver" / "geometry"
 GOLD_SPATIAL_DIR = PROJECT_ROOT / "data" / "gold" / "spatial"
 GOLD_EVENTS_DIR = PROJECT_ROOT / "data" / "gold" / "events"
 GOLD_CORE_DIR = PROJECT_ROOT / "data" / "gold" / "core"
 PRODUCTS_DIR = PROJECT_ROOT / "data" / "products"
+WAREHOUSE_PATH = PROJECT_ROOT / "data" / "gold" / "district_evolution.duckdb"
 OUTPUT_DIR = PROJECT_ROOT / "outputs" / "pipeline"
-EVENT_TRANSFER_DIR = PROJECT_ROOT / "outputs" / "event_transfer"
+EVENTS_OUTPUT_DIR = PROJECT_ROOT / "outputs" / "events"
 EVENTS_CSV = PROJECT_ROOT / "data" / "bronze" / "events" / "district_evolution_master.csv"
-CONFIG_DIR = PROJECT_ROOT / "config"
 
-for d in (SILVER_GEOM_DIR, GOLD_SPATIAL_DIR, GOLD_EVENTS_DIR, GOLD_CORE_DIR, PRODUCTS_DIR, OUTPUT_DIR, EVENT_TRANSFER_DIR):
-    d.mkdir(parents=True, exist_ok=True)
+for _d in (SILVER_GEOM_DIR, GOLD_SPATIAL_DIR, GOLD_EVENTS_DIR, GOLD_CORE_DIR,
+           PRODUCTS_DIR, OUTPUT_DIR, EVENTS_OUTPUT_DIR):
+    _d.mkdir(parents=True, exist_ok=True)
 
-PIPELINE_VERSION = "2.0.0"
+with open(CONFIG_DIR / "pipeline.yaml") as _fh:
+    CFG: dict = yaml.safe_load(_fh)
+
+PIPELINE_VERSION: str = CFG["pipeline_version"]
+VINTAGES: list[tuple[str, int]] = [(s, int(y)) for s, y in CFG["vintages"]]
+YEARS: list[int] = [y for _, y in VINTAGES]
+SOURCE_BY_YEAR: dict[int, str] = {y: s for s, y in VINTAGES}
+REFERENCE_YEAR: int = int(CFG["reference_year"])
+WINDOWS: list[tuple[int, int]] = list(zip(YEARS[:-1], YEARS[1:]))
+
+
+def silver_path(year: int) -> Path:
+    return SILVER_GEOM_DIR / f"{SOURCE_BY_YEAR[year]}_{year}.geoparquet"
+
 
 # ---------------------------------------------------------------------------
-# Tolerances — every "ignore small differences" edge case is named and
-# configured here, not scattered as magic numbers through the code.
+# Area
 # ---------------------------------------------------------------------------
-
-# A parcel from the overlay smaller than this (in km^2 OR as a fraction of
-# both source and target area) is topological noise (snapping/digitization
-# jitter along a shared boundary), not a real territorial transfer.
-SLIVER_ABS_KM2 = 0.5
-SLIVER_REL_FRACTION = 0.0001  # 0.01% of the smaller polygon's area
-
-# Self-overlap / gap budget for a single vintage layer (V1, V2).
-SELF_OVERLAP_WARN_FRACTION = 0.001   # 0.1% of national footprint
-SELF_OVERLAP_ERROR_FRACTION = 0.01   # 1%
-GAP_WARN_FRACTION = 0.01             # 1%
-
-# Stored vs recomputed area agreement (V4). Two computations of the same
-# polygon by the same method should agree far tighter than this; this is a
-# smoke test for method drift (see redesign doc section 2.8), not a
-# measurement-uncertainty tolerance.
-AREA_METHOD_TOLERANCE_PCT = 0.05  # 0.05%
-
-# Row/column closure of the transition matrix (V3). A polygon's geodesic
-# area computed once on the whole ring, versus summed over ~5-15 overlay
-# fragments of it, takes a different floating-point summation path and
-# does not agree to machine precision even though both are the identical
-# ST_Area_Spheroid-equivalent method. Measured empirically on the 1951-1961
-# transition (316 districts): mean 0.31 km2, max 1.13 km2, max relative
-# 0.108%, zero cases above that. This tolerance absorbs exactly that noise
-# source and nothing larger — a genuine topology defect (e.g. an
-# unrepaired self-overlap) produces errors an order of magnitude bigger.
-CLOSURE_TOLERANCE_KM2 = 2.0
-CLOSURE_TOLERANCE_PCT = 0.15  # 0.15%
-
-# Continuity threshold for identity (retention / inheritance share).
-CONTINUITY_THRESHOLD = 0.90
-
-# Conservation tolerance for event area accounting: the same "small
-# difference" principle as CLOSURE, applied at event grain, where vintage
-# geometries (not exact event-date boundaries) introduce real observational
-# slack. Scales with district size per architecture invariant precedent.
-CONSERVATION_ABS_TOLERANCE_KM2 = 5.0
-CONSERVATION_REL_TOLERANCE_PCT = 0.5
-
-# Residual reason taxonomy (Stage 10). Every unaccounted area must carry
-# one of these codes — never a generic "AREA_LOSS". This is the single
-# source of truth; s10_event_area_transfer_matrix imports from here.
-RESIDUAL_REASONS = {
-    "GEOMETRY_INVALID": "Source or target geometry is invalid (ST_IsValid=False)",
-    "TOPOLOGY_GAP": "Gap in planar partition (area not covered by any overlay parcel)",
-    "TOPOLOGY_OVERLAP": "Self-overlap in source vintage layer",
-    "SLIVER": "Residual is below sliver threshold — digitization noise",
-    "CRS_MISMATCH": "Area discrepancy consistent with CRS transformation error",
-    "BOUNDARY_PRECISION": "Residual within boundary-line digitization precision",
-    "VINTAGE_MISMATCH": "Event year falls outside bracketing vintage window",
-    "MISSING_DISTRICT_GEOMETRY": "Predecessor or successor has no geometry in this vintage",
-    "MISSING_PARENT": "Parent district not identified in event_summary",
-    "UNDOCUMENTED_TRANSFER": "Area moved to an administratively unrelated district",
-    "ADJACENT_DISTRICT_CANDIDATE": "Candidate recovery district identified but below confidence threshold",
-    "PARENT_RELATIONSHIP_MISMATCH": "Spatial evidence contradicts stated parent-child relationship",
-    "EVENT_METADATA_INCOMPLETE": "event_summary row lacks sufficient fields to classify transfer",
-    "UNRECOVERED_GEOMETRIC_RESIDUAL": "Residual ≥1% after all recovery levels exhausted",
-    "UNKNOWN": "Reason cannot be determined from available evidence",
-    # --- Stage 10b extended codes ---
-    "NAME_RESOLUTION_FAILURE": "Named successor/predecessor could not be resolved to a CK at the target vintage",
-    "ALIAS_RESOLUTION": "Resolved via name alias (spelling variant / historical name / transliteration)",
-    "CROSS_STATE_IDENTITY_DRIFT": "Predecessor state differs from successor state; resolved via cross-state lookup",
-    "EVENT_SUCCESSOR_NOT_RESOLVED": "Event names a successor that cannot be matched to any geometry CK",
-    "SPATIAL_SUCCESSOR_DISCOVERED": "Successor found via full spatial scan of target vintage (not in declared event participants)",
-    "PARENT_CHILD_RECOVERY": "Residual assigned via parent-child relationship constraint (L4)",
-    "ADJACENCY_RECOVERY": "Residual assigned via shared-boundary / adjacency scoring (L5)",
-    "MISSING_GEOMETRIC_EVIDENCE": "No geometry exists for this CK at the relevant vintage",
-    "TRUE_UNRESOLVED_RESIDUAL": "All six recovery levels failed; residual is genuine missing territory",
-    "VINTAGE_MISMATCH_RECENT": "Event is recent (within vintage_gap_years of latest vintage); geometry may not reflect post-event state",
-    "GEOMETRY_AVAILABLE_NAME_MISMATCH": "Target geometry exists but name in CSV differs from geometry layer",
-    "GEOMETRY_AVAILABLE_IDENTITY_MISMATCH": "Target geometry exists but identity (CK) differs from declared successor",
-    "GEOMETRY_NOT_AVAILABLE": "No geometry polygon found for the target vintage that overlaps this predecessor",
-    "GENUINELY_UNRESOLVED": "Spatial search exhausted; no credible candidate found",
-}
-
-# Administrative relationship types (S10 classification)
-ADMIN_RELATIONSHIP_TYPES = [
-    "NEW_DISTRICT", "SPLIT", "TRIFURCATION", "MULTIWAY_SPLIT",
-    "MERGER", "ABSORPTION", "CARVE_OUT", "AREA_TRANSFER",
-    "BOUNDARY_TRANSFER", "RENAME", "REORGANISATION",
-    "RECLASSIFICATION", "UNKNOWN",
-]
-
-# Candidate status codes (S10b spatial discovery)
-CANDIDATE_STATUS_CODES = [
-    "CONFIRMED_ADMINISTRATIVE_SUCCESSOR",       # admin evidence + geometry agree
-    "SPATIALLY_CONFIRMED_BUT_EVENT_UNLISTED",   # strong geometry; not in event_summary
-    "POSSIBLE_SPATIAL_SUCCESSOR",              # meaningful overlap; insufficient for auto-recovery
-    "NO_VALID_SPATIAL_SUCCESSOR",              # no credible candidate found
-]
-
-# Final event classification codes after S10b (per spec §23)
-FINAL_EVENT_CLASSIFICATIONS = [
-    "FULLY_RECONCILED",
-    "RECONCILED_WITH_IGNORABLE_RESIDUAL",
-    "RECONCILED_BY_SPATIAL_DISCOVERY",
-    "RECONCILED_BY_ALIAS",
-    "RECONCILED_BY_CROSS_STATE_RESOLUTION",
-    "REQUIRES_MANUAL_REVIEW",
-    "UNRESOLVED_GEOMETRIC_RESIDUAL",
-    "EVENT_GEOMETRY_IDENTITY_MISMATCH",
-    "VINTAGE_MISMATCH",
-    "MISSING_SPATIAL_EVIDENCE",
-]
-
-# Alias registry paths — two-stage architecture (§16 of S10b spec):
-#   candidates: spatially-discovered or inferred aliases; require manual review
-#   registry:   approved/evidence-supported aliases only; consumed by S10 resolution
-# A SPATIAL_DISCOVERY entry alone must never auto-promote from candidates → registry.
-NAME_ALIAS_REGISTRY_PATH = GOLD_CORE_DIR / "name_alias_registry.parquet"
-NAME_ALIAS_CANDIDATES_PATH = GOLD_CORE_DIR / "name_alias_candidates.parquet"
-
-# Alias evidence types
-ALIAS_EVIDENCE_TYPES = [
-    "DOCUMENTARY",          # Gazette / official notification
-    "EXISTING_REGISTRY",    # Already confirmed in registry
-    "MANUAL_VERIFIED",      # Human-verified match
-    "NAME_NORMALIZATION",   # Deterministic string normalisation
-    "SPATIAL_DISCOVERY",    # Discovered because polygons overlap — NOT authoritative alone
-]
-ALIAS_APPROVAL_STATUS = ["APPROVED", "CANDIDATE", "REJECTED"]
 
 GEOD = Geod(ellps="WGS84")
 
 
-def geodesic_area_km2(geom) -> float:
-    """The one area method used everywhere in this pipeline."""
+def geodesic_area_perimeter(geom) -> tuple[float, float]:
+    """(area km2, perimeter km) on the WGS84 ellipsoid. The one area method."""
     if geom is None or geom.is_empty:
-        return 0.0
-    area_m2, _ = GEOD.geometry_area_perimeter(geom)
-    return abs(float(area_m2)) / 1_000_000.0
+        return 0.0, 0.0
+    area_m2, perim_m = GEOD.geometry_area_perimeter(geom)
+    return abs(float(area_m2)) / 1e6, float(perim_m) / 1e3
 
+
+def geodesic_area_km2(geom) -> float:
+    return geodesic_area_perimeter(geom)[0]
+
+
+def sliver_threshold_km2(area_a: float, area_b: float) -> float:
+    ov = CFG["overlay"]
+    smaller = min(area_a, area_b)
+    return max(ov["sliver_abs_km2"], smaller * ov["sliver_rel_fraction"])
+
+
+def within_closure(error_km2, area_km2):
+    tol = np.maximum(CFG["closure"]["tol_km2"], np.asarray(area_km2) * CFG["closure"]["tol_pct"] / 100.0)
+    return np.abs(error_km2) <= tol
+
+
+# ---------------------------------------------------------------------------
+# Identifiers
+# ---------------------------------------------------------------------------
 
 def stable_id(*parts: object) -> str:
     """Deterministic identifier: sha256 of a natural key. Reruns are idempotent."""
@@ -180,40 +91,34 @@ def stable_id(*parts: object) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:32]
 
 
+# ---------------------------------------------------------------------------
+# Names
+# ---------------------------------------------------------------------------
+
 _WS_RE = re.compile(r"\s+")
-_PUNCT_RE = re.compile(r"[.’'`]")
-_DASH_RE = re.compile(r"[-–—/]")
+_PUNCT_RE = re.compile(r"[.’'`,()]")
+_SEP_RE = re.compile(r"[-–—/_]")
 
 
 def normalize_name(value: object) -> str:
-    """Normalize a district/state name for matching. Not a display value."""
+    """Matching key for a district or state name. Not a display value."""
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return ""
-    text = unicodedata.normalize("NFKD", str(value))
-    text = text.encode("ascii", "ignore").decode("ascii")
-    text = text.strip().lower()
-    text = text.replace("&", " and ")
+    text = unicodedata.normalize("NFKD", str(value)).encode("ascii", "ignore").decode("ascii")
+    text = text.strip().lower().replace("&", " and ")
     text = _PUNCT_RE.sub("", text)
-    text = _DASH_RE.sub(" ", text)
-    text = _WS_RE.sub(" ", text).strip()
-    # drop a small set of purely administrative suffixes that vary by source
-    text = re.sub(r"\bdistrict\b", "", text).strip()
-    text = _WS_RE.sub(" ", text).strip()
-    return text
+    text = _SEP_RE.sub(" ", text)
+    text = re.sub(r"\bdistrict\b", " ", text)
+    return _WS_RE.sub(" ", text).strip()
 
 
 def display_name(value: object) -> str:
-    """Human-readable canonical form (title case, single spaces)."""
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return ""
-    text = str(value).strip()
-    text = _WS_RE.sub(" ", text)
-    return text.title()
+    return _WS_RE.sub(" ", str(value).replace("_", " ")).strip().title()
 
 
-# Census PC11 state codes -> canonical modern state name. Public, standard
-# Census of India 2011 codes. Used only for the 2011 Stanford layer, which
-# carries state as a numeric code with no name field.
+# Census 2011 state codes, used only for the 2011 Stanford layer.
 PC11_STATE_CODES = {
     "01": "Jammu and Kashmir", "02": "Himachal Pradesh", "03": "Punjab",
     "04": "Chandigarh", "05": "Uttarakhand", "06": "Haryana", "07": "Delhi",
@@ -228,53 +133,187 @@ PC11_STATE_CODES = {
     "35": "Andaman and Nicobar Islands",
 }
 
-# Canonicalization for state name spelling/rename drift observed across the
-# 9 vintages and the events CSV (see audit). This is a DISPLAY / weak-prior
-# aid only — it is never load-bearing for identity, which runs on spatial
-# continuity (lib.CONTINUITY_THRESHOLD), so imperfect coverage here cannot
-# fabricate lineage.
-STATE_ALIASES = {
-    "orissa": "Odisha", "pondicherry": "Puducherry",
-    "uttranchal": "Uttarakhand", "mysore": "Karnataka",
-    "karnatak": "Karnataka", "andamans and nicobars": "Andaman and Nicobar Islands",
+# Pure spelling / rename drift of one state name (1:1). One-to-many historical
+# reorganisations live in data/reference/state_lineage.csv instead.
+STATE_SPELLINGS = {
+    "orissa": "Odisha", "pondicherry": "Puducherry", "uttranchal": "Uttarakhand",
+    "uttaranchal": "Uttarakhand", "karnatak": "Karnataka",
+    "andamans and nicobars": "Andaman and Nicobar Islands",
     "andaman and nicobar": "Andaman and Nicobar Islands",
-    "tamilnadu": "Tamil Nadu", "madras": "Tamil Nadu",
-    "laccadive minicoy and amindiv": "Lakshadweep",
-    "goa daman and diu": "Goa",
-    "andhra pradesh telangana": "Andhra Pradesh",  # pre-2014 combined state
+    "andaman and nicobar island": "Andaman and Nicobar Islands",
+    "tamilnadu": "Tamil Nadu", "laccadive minicoy and amindiv": "Lakshadweep",
+    "laccadive minicoy and amindivi islands": "Lakshadweep",
     "dadra and nagar have": "Dadra and Nagar Haveli",
+    "andhra pradesh telangana": "Andhra Pradesh",
+    "travancore cochin": "Travancore Cochin", "p e p s u": "Pepsu",
+    "delhi": "Delhi", "nct of delhi": "Delhi",
 }
 
 
 def canonical_state(value: object) -> str:
     norm = normalize_name(value)
-    norm = norm.replace(",", "")
-    canon = STATE_ALIASES.get(norm)
-    if canon:
-        return canon
-    return display_name(value)
+    return STATE_SPELLINGS.get(norm) or display_name(norm)
 
 
 def parse_multi_name(value: object) -> list[str]:
     """Split a comma/'and'-joined list of district names (events CSV parent_district)."""
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return []
-    text = str(value).strip()
-    if not text:
-        return []
-    # normalize connector words before splitting
-    text = re.sub(r"\band\b", ",", text, flags=re.IGNORECASE)
-    parts = [p.strip().rstrip(".").strip() for p in text.split(",")]
-    return [p for p in parts if p]
+    text = re.sub(r"\band\b", ",", str(value).strip(), flags=re.IGNORECASE)
+    return [p for p in (x.strip().rstrip(".").strip() for x in text.split(",")) if p]
 
 
-def sliver_threshold_km2(area_a: float, area_b: float) -> float:
-    smaller = min(a for a in (area_a, area_b) if a is not None and a > 0) if (area_a or area_b) else 0.0
-    return max(SLIVER_ABS_KM2, smaller * SLIVER_REL_FRACTION)
+def jaro_winkler(s1: str, s2: str, p: float = 0.1) -> float:
+    if not s1 or not s2:
+        return 0.0
+    if s1 == s2:
+        return 1.0
+    l1, l2 = len(s1), len(s2)
+    md = max(max(l1, l2) // 2 - 1, 0)
+    m1, m2 = [False] * l1, [False] * l2
+    matches = 0
+    for i in range(l1):
+        for j in range(max(0, i - md), min(i + md + 1, l2)):
+            if not m2[j] and s1[i] == s2[j]:
+                m1[i] = m2[j] = True
+                matches += 1
+                break
+    if matches == 0:
+        return 0.0
+    t = k = 0
+    for i in range(l1):
+        if m1[i]:
+            while not m2[k]:
+                k += 1
+            t += s1[i] != s2[k]
+            k += 1
+    jaro = (matches / l1 + matches / l2 + (matches - t / 2) / matches) / 3.0
+    prefix = next((i for i, (a, b) in enumerate(zip(s1[:4], s2[:4])) if a != b), min(4, l1, l2))
+    return jaro + prefix * p * (1.0 - jaro)
 
 
-def within_tolerance(value: float, expected: float, abs_tol: float, rel_tol_pct: float) -> bool:
-    if value is None or expected is None or pd.isna(value) or pd.isna(expected):
+# ---------------------------------------------------------------------------
+# Reference tables
+# ---------------------------------------------------------------------------
+
+@functools.lru_cache(maxsize=1)
+def state_lineage_graph() -> nx.DiGraph:
+    ref = pd.read_csv(REFERENCE_DIR / "state_lineage.csv")
+    g = nx.DiGraph()
+    for _, r in ref.iterrows():
+        g.add_edge(normalize_name(r["parent_state"]), normalize_name(r["child_state"]))
+    return g
+
+
+@functools.lru_cache(maxsize=4096)
+def compatible_states(state_norm: str) -> frozenset[str]:
+    """States a district recorded under `state_norm` may appear under at another
+    date: itself, its ancestors and descendants in the reorganisation graph, and
+    its siblings (states sharing a direct parent, e.g. Tamil Nadu / Andhra Pradesh
+    via Madras)."""
+    g = state_lineage_graph()
+    out = {state_norm}
+    if state_norm in g:
+        out |= nx.ancestors(g, state_norm) | nx.descendants(g, state_norm)
+        for parent in g.predecessors(state_norm):
+            out |= set(g.successors(parent))
+    return frozenset(out)
+
+
+@functools.lru_cache(maxsize=1)
+def name_aliases() -> pd.DataFrame:
+    df = pd.read_csv(REFERENCE_DIR / "name_aliases.csv")
+    df["alias_norm"] = df["alias_name"].map(normalize_name)
+    df["canonical_norm"] = df["canonical_name"].map(normalize_name)
+    df["state_norm"] = df["state"].map(lambda s: normalize_name(canonical_state(s)))
+    return df
+
+
+@functools.lru_cache(maxsize=1)
+def _alias_map() -> dict[str, str]:
+    a = name_aliases()
+    return dict(zip(a["alias_norm"], a["canonical_norm"]))
+
+
+def alias_key(name_norm: str) -> str:
+    """Canonical rename/spelling key: the alias target if `name_norm` is a
+    known alias, else the name itself."""
+    return _alias_map().get(name_norm, name_norm)
+
+
+@functools.lru_cache(maxsize=1)
+def _alias_pairs() -> frozenset[tuple[str, str]]:
+    a = name_aliases()
+    pairs = set(zip(a["alias_norm"], a["canonical_norm"])) | set(zip(a["canonical_norm"], a["alias_norm"]))
+    # aliases sharing a canonical name are aliases of each other
+    for _, grp in a.groupby("canonical_norm"):
+        names = list(grp["alias_norm"])
+        pairs |= {(x, y) for x in names for y in names}
+    return frozenset(pairs)
+
+
+def _token_sort(s: str) -> str:
+    return " ".join(sorted(s.split()))
+
+
+def name_similarity(a_norm: str, b_norm: str) -> float:
+    """Best Jaro-Winkler over raw, alias-canonical, and word-order-insensitive forms."""
+    if not a_norm or not b_norm:
+        return 0.0
+    ka, kb = alias_key(a_norm), alias_key(b_norm)
+    return max(jaro_winkler(a_norm, b_norm), jaro_winkler(ka, kb),
+               jaro_winkler(_token_sort(ka), _token_sort(kb)))
+
+
+# Directional / urban-rural qualifiers that mark a name DERIVED from a parent
+# ("South 24 Parganas", "Purba Bardhaman", "Bangalore Urban"): a child named
+# this way is a new district, not the parent continuing under its old name.
+QUALIFIERS = frozenset({
+    "north", "south", "east", "west", "central", "upper", "lower", "urban", "rural",
+    "purba", "paschim", "pashchim", "pashchimi", "purbi", "uttar", "uttara", "dakshin",
+    "dakshina", "madhya", "new", "greater",
+})
+
+
+def is_qualified_derivative(a_norm: str, b_norm: str) -> bool:
+    """True when one name is the other plus directional qualifier(s)."""
+    ta, tb = set(a_norm.split()), set(b_norm.split())
+    qa, qb = ta & QUALIFIERS, tb & QUALIFIERS
+    if qa == qb:
         return False
-    tol = max(abs_tol, abs(expected) * rel_tol_pct / 100.0)
-    return abs(value - expected) <= tol
+    ra, rb = " ".join(sorted(ta - QUALIFIERS)), " ".join(sorted(tb - QUALIFIERS))
+    return bool(ra and rb) and (ra == rb or jaro_winkler(ra, rb) >= CFG["identity"]["name_jw"])
+
+
+def names_agree(a_norm: str, b_norm: str) -> tuple[bool, float]:
+    """(agree, similarity). Agreement = equal, documentary alias, or similarity >=
+    config, unless one name is a qualified derivative of the other."""
+    if not a_norm or not b_norm:
+        return False, 0.0
+    sim = name_similarity(a_norm, b_norm)
+    if a_norm == b_norm or (a_norm, b_norm) in _alias_pairs():
+        return True, sim
+    return (sim >= CFG["identity"]["name_jw"] and not is_qualified_derivative(a_norm, b_norm)), sim
+
+
+# ---------------------------------------------------------------------------
+# Validated table I/O
+# ---------------------------------------------------------------------------
+
+def write_table(df: pd.DataFrame, path: Path, schema_name: str | None = None,
+                csv_copy: Path | None = None) -> pd.DataFrame:
+    """Validate against its pandera schema (if named) and write parquet (+csv)."""
+    if schema_name is not None:
+        import schemas  # local import: schemas imports lib
+        if "geometry" in df.columns:
+            schemas.validate(schema_name, pd.DataFrame(df.drop(columns="geometry")))
+        else:
+            df = schemas.validate(schema_name, df)
+    df = df.reset_index(drop=True)
+    if path.suffix == ".csv":
+        df.to_csv(path, index=False)
+    else:
+        df.to_parquet(path, index=False)
+    if csv_copy is not None:
+        df.to_csv(csv_copy, index=False)
+    return df

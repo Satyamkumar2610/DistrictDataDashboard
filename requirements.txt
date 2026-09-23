@@ -1,0 +1,17 @@
+# Pinned direct dependencies for pipeline v3. Python 3.13.
+# Install: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+pandas==2.3.3
+numpy==2.5.3
+geopandas==1.1.4
+shapely==2.1.2
+pyproj==3.8.0
+pyogrio==0.13.0
+pyarrow==25.0.1
+PyYAML==6.0.3
+tabulate==0.10.0
+networkx==3.7
+duckdb==1.5.5
+splink==4.0.17
+pandera==0.33.1
+pytest==9.1.1
+dvc==3.67.1

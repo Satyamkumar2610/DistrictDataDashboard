@@ -1,0 +1,98 @@
+"""Stage 05 — Lineage, from geometry only.
+
+Per adjacent window, observation flows are lifted to CK flows. A cross-CK flow
+carrying material (CORE + TRANSFER) area >= lineage.material_km2:
+
+  into a CK established this window -> district_relationship
+      FORMED_FROM   source continues (carve-out)
+      SPLIT_FROM    source closes and is the only closing source of the target
+      MERGED_INTO   source closes and >= 2 closing sources feed the target
+  into a CK that already existed      -> measured_area_transfer (L-3: no edge)
+
+BOUNDARY_DISPLACEMENT and SLIVER area never create edges or transfers; it is
+reported separately. Event corroboration is added by s09 in its own table, so
+geometry-derived lineage is never rewritten by event data. The lineage graph
+is validated as a DAG with networkx (L-1).
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import lib  # noqa: E402
+import lineage_graph  # noqa: E402
+
+
+def ck_flows() -> pd.DataFrame:
+    flow = pd.read_parquet(lib.GOLD_SPATIAL_DIR / "transition_flow.parquet")
+    flow = flow[flow.kind == "ADJACENT"]
+    obs = pd.read_parquet(lib.GOLD_CORE_DIR / "ck_observation.parquet")
+    ck = dict(zip(obs.geom_obs_id, obs.canonical_key))
+    area = dict(zip(obs.geom_obs_id, obs.area_km2))
+    f = flow.assign(from_ck=flow.geom_obs_id_a.map(ck), to_ck=flow.geom_obs_id_b.map(ck),
+                    from_area=flow.geom_obs_id_a.map(area), to_area=flow.geom_obs_id_b.map(area))
+    agg = f.groupby(["year_a", "year_b", "from_ck", "to_ck"], as_index=False).agg(
+        material_km2=("material_km2", "sum"), displacement_km2=("displacement_km2", "sum"),
+        sliver_km2=("sliver_km2", "sum"), total_km2=("total_km2", "sum"),
+        from_area=("from_area", "first"), to_area=("to_area", "first"))
+    return agg
+
+
+def main() -> None:
+    reg = pd.read_parquet(lib.GOLD_CORE_DIR / "ck_registry.parquet")
+    established = dict(zip(reg.canonical_key, reg.established_year))
+    closed = dict(zip(reg.canonical_key, reg.closed_year))
+
+    f = ck_flows()
+    f.to_parquet(lib.GOLD_SPATIAL_DIR / "ck_flow.parquet", index=False)
+    cross = f[(f.from_ck != f.to_ck) & (f.material_km2 >= lib.CFG["lineage"]["material_km2"])].copy()
+    cross["outflow_share"] = (cross.material_km2 / cross.from_area).clip(upper=1.0)
+    cross["inflow_share"] = (cross.material_km2 / cross.to_area).clip(upper=1.0)
+    cross["transfer_km2"] = cross.material_km2
+    is_new = cross.apply(lambda r: established[r.to_ck] == r.year_b, axis=1)
+
+    rel = cross[is_new].copy()
+    rel["source_closes"] = rel.apply(lambda r: closed[r.from_ck] == r.year_b, axis=1)
+    n_closing = rel[rel.source_closes].groupby(["to_ck", "year_b"]).from_ck.nunique()
+    rel["relationship_type"] = [
+        "FORMED_FROM" if not r.source_closes
+        else ("MERGED_INTO" if n_closing.get((r.to_ck, r.year_b), 0) >= 2 else "SPLIT_FROM")
+        for r in rel.itertuples()]
+    rel["rel_id"] = [lib.stable_id("REL", r.from_ck, r.to_ck, r.year_a, r.year_b) for r in rel.itertuples()]
+    rel["lineage_basis"] = "SPATIAL"
+    rel = rel[["rel_id", "from_ck", "to_ck", "relationship_type", "year_a", "year_b",
+               "transfer_km2", "outflow_share", "inflow_share", "lineage_basis"]
+              ].sort_values(["year_b", "from_ck", "to_ck"])
+
+    xfer = cross[~is_new].copy()
+    xfer["transfer_id"] = [lib.stable_id("XFER", r.from_ck, r.to_ck, r.year_a, r.year_b) for r in xfer.itertuples()]
+    xfer = xfer[["transfer_id", "from_ck", "to_ck", "year_a", "year_b", "transfer_km2",
+                 "outflow_share", "inflow_share"]].sort_values(["year_b", "from_ck", "to_ck"])
+
+    disp = f[(f.from_ck != f.to_ck) & (f.displacement_km2 > 0)][
+        ["year_a", "year_b", "from_ck", "to_ck", "displacement_km2"]]
+
+    dag = lineage_graph.lineage_dag(rel, reg)
+    lineage_graph.assert_acyclic(dag)
+    backwards = rel[[established[a] >= established[b] for a, b in zip(rel.from_ck, rel.to_ck)]]
+    if len(backwards):
+        raise AssertionError(f"{len(backwards)} lineage edges do not point forward in time")
+
+    lib.write_table(rel, lib.GOLD_EVENTS_DIR / "district_relationship.parquet", "district_relationship",
+                    csv_copy=lib.OUTPUT_DIR / "s05_district_relationship.csv")
+    lib.write_table(xfer, lib.GOLD_SPATIAL_DIR / "measured_area_transfer.parquet", "measured_area_transfer",
+                    csv_copy=lib.OUTPUT_DIR / "s05_measured_area_transfer.csv")
+    disp.to_parquet(lib.GOLD_SPATIAL_DIR / "boundary_displacement.parquet", index=False)
+    lineage_graph.ancestry(dag).to_csv(lib.OUTPUT_DIR / "s05_district_ancestry.csv", index=False)
+
+    print(rel.relationship_type.value_counts().to_string())
+    print(f"lineage edges: {len(rel)}  measured transfers: {len(xfer)} ({xfer.transfer_km2.sum():,.0f} km2)  "
+          f"displacement pairs: {len(disp)} ({disp.displacement_km2.sum():,.0f} km2)  DAG: acyclic")
+
+
+if __name__ == "__main__":
+    main()

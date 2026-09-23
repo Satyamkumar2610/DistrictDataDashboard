@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use this dataset or pipeline, please cite it as below."
+title: "District Evolution: canonical identity, lineage, and area crosswalks for Indian districts, 1951-2025"
+version: 3.0.0
+authors:
+  - family-names: Kumar
+    given-names: Satyam
+repository-code: "https://github.com/Satyamkumar2610/architecture"
+abstract: >
+  A reproducible pipeline that assigns stable canonical identities to Indian
+  districts across nine boundary vintages (Stanford 1951-2021, Survey of India
+  2025), derives administrative lineage from planar overlays of consecutive
+  maps, links a compiled events register to those identities with a
+  probabilistic (Fellegi-Sunter) model constrained by territorial footprint,
+  and publishes exact area crosswalks from every census year to 2025
+  boundaries. Every output is validated by executable data contracts and SQL
+  invariants and is byte-reproducible.
+keywords:
+  - India
+  - administrative boundaries
+  - districts
+  - historical GIS
+  - crosswalk
+  - record linkage

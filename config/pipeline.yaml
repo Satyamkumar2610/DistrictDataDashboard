@@ -1,0 +1,86 @@
+# Pipeline v3 configuration. Every threshold used by any stage lives here with
+# its rationale; code reads it via lib.CFG. See docs/architecture/REVAMP_PLAN_V3.md.
+
+pipeline_version: "3.0.0"
+
+vintages:
+  # (source, year) in chronological order. The last entry is the reference
+  # geography that census products are expressed in.
+  - [stanford, 1951]
+  - [stanford, 1961]
+  - [stanford, 1971]
+  - [stanford, 1981]
+  - [stanford, 1991]
+  - [stanford, 2001]
+  - [stanford, 2011]
+  - [stanford, 2021]
+  - [soi, 2025]
+reference_year: 2025
+
+overlay:
+  # A parcel is SLIVER when smaller than max(abs, rel * smaller polygon area).
+  # Floating-point / snapping noise along shared boundaries (unchanged from v2).
+  sliver_abs_km2: 0.5
+  sliver_rel_fraction: 0.0001
+  # A non-core parcel whose mean width (2 * area / perimeter) is below this is
+  # BOUNDARY_DISPLACEMENT: two independently digitized editions disagreeing on
+  # where a line runs, not territory changing hands. 1 km ~ positional accuracy
+  # of 1:1,000,000-scale source maps. Measured on the v2 data: same-edition
+  # windows (1951-61, 1981-91) have real transfers >= 3 km wide; cross-edition
+  # windows (2001-11, 2021-25) show jitter strips peaking at 0.1-0.6 km.
+  displacement_width_km: 1.0
+  # A parcel is CORE when it holds at least this share of the smaller of its
+  # two polygons; core parcels are never classified as displacement.
+  core_share: 0.5
+
+closure:
+  # Geodesic area of a whole polygon vs the sum over its overlay fragments
+  # differs by floating-point summation noise: measured mean 0.31 km2, max
+  # 1.13 km2, max 0.108% on 1951-1961. The tolerance absorbs exactly that.
+  tol_km2: 2.0
+  tol_pct: 0.15
+  # Beyond tolerance but under this share of the polygon, a closure excess is
+  # explained by local self-overlap in the other layer (bounded by V1) and is
+  # a WARNING. Above it the overlay itself is broken: ERROR.
+  error_pct: 1.0
+
+topology:
+  self_overlap_warn_fraction: 0.001
+  self_overlap_error_fraction: 0.01
+  gap_warn_fraction: 0.01
+
+identity:
+  # Banded continuity rule (plan section 3.3). r = share of source i going to
+  # j, h = share of target j coming from i; only mutual-best pairs qualify.
+  strong: 0.90          # r >= strong: i is essentially intact in j (name change = rename)
+  core: 0.50            # a continuation must be built mostly (h >= core) from its predecessor
+  # A child lying wholly inside its parent (h >= strong) that keeps the parent's
+  # name continues the parent if it holds at least this share of the parent.
+  # Measured on the v2 data: every such child with 0.16 <= r < 0.30 is a known
+  # administrative continuation of a multi-way carve-out (Darbhanga 1972,
+  # Telangana 2016: Adilabad/Medak/Karimnagar/Khammam, Chhattisgarh 2012:
+  # Durg/Raipur/Surguja); none was a reconstitution.
+  name_retained: 0.15
+  name_jw: 0.90         # similarity threshold for "names agree" (tie-break only)
+
+lineage:
+  # Minimum TRANSFER-class area for a cross-CK flow to count as a lineage edge
+  # or a measured transfer. Displacement and sliver parcels never count.
+  material_km2: 0.5
+
+linkage:
+  # splink event-name -> CK record linkage (s08) and resolution (s09).
+  min_match_probability: 0.50
+  ambiguity_margin: 0.10
+  u_sampling_max_pairs: 2000000
+  seed: 20260923
+  # Fixed m-probability for "state incompatible". EM estimates 0 (no training
+  # match has an incompatible state), which would make a mis-filed state an
+  # absolute veto. 0.01 = strong evidence against, but a name + footprint
+  # match can still win.
+  state_mismatch_m_floor: 0.01
+
+area_check:
+  # pyproj geodesic area vs DuckDB ST_Area_Spheroid (independent GeographicLib
+  # implementation). Same polygon, same ellipsoid: must agree far tighter.
+  max_rel_diff_pct: 0.01
