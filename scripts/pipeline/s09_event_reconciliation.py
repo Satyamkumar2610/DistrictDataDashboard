@@ -2,10 +2,11 @@
 
 Replaces v2's s8, s10 and s10b. For every event:
 
-1. Window. Candidate adjacent windows (a, b) with a < year <= b, plus the
-   window starting at `year` when year is itself a vintage (the map of that
-   year may or may not show the change), plus one lagged window for mapping
-   delay. The window whose maps show the most declared participants wins.
+1. Window. Candidate adjacent windows (a, b) whose DEPICTED dates bracket the
+   event year, d(a) < year <= d(b) (lib.depicted_year: a map labelled 1981
+   can depict later boundaries for a state), plus the window starting at the
+   map depicting exactly `year`, plus one lagged window for mapping delay.
+   The window whose maps show the most declared participants wins.
 2. Predecessors are linked at vintage a from s08's probabilistic candidates.
 3. Footprint. The CKs at vintage b that received material territory from the
    linked predecessors (s05 ck_flow). A successor name is matched ONLY inside
@@ -68,9 +69,12 @@ def best(d: Data, name: str, state: str, year: int, allowed: set[str] | None = N
     return top.canonical_key, float(top.match_probability), bool(ambiguous)
 
 
-def candidate_windows(year: int) -> list[tuple[tuple[int, int], str]]:
-    primary = [w for w in lib.WINDOWS if w[0] < year <= w[1]]
-    primary += [w for w in lib.WINDOWS if w[0] == year]
+def candidate_windows(year: int, state: str = "") -> list[tuple[tuple[int, int], str]]:
+    """Map windows (a, b) whose depicted dates bracket the event: d(a) < year <= d(b),
+    plus the window starting at `year` when a map depicts exactly that year."""
+    d = {v: lib.depicted_year(state, v) for v in lib.YEARS}
+    primary = [w for w in lib.WINDOWS if d[w[0]] < year <= d[w[1]]]
+    primary += [w for w in lib.WINDOWS if d[w[0]] == year]
     if not primary:
         return []
     later = [w for w in lib.WINDOWS if w[0] >= primary[-1][1]]
@@ -154,7 +158,8 @@ def main() -> None:
     for ev in d.events.itertuples():
         parts = d.parts[d.parts.event_id == ev.event_id].sort_values("participant_id")
         preds, succs = parts[parts.role == "PREDECESSOR"], parts[parts.role == "SUCCESSOR"]
-        tries = [(w, tag, *resolve_window(d, preds, succs, *w)) for w, tag in candidate_windows(ev.effective_year)]
+        tries = [(w, tag, *resolve_window(d, preds, succs, *w))
+                 for w, tag in candidate_windows(ev.effective_year, ev.event_state)]
         if not tries:
             links += [{"participant_id": x.participant_id, "event_id": ev.event_id, "role": x.role,
                        "vintage": None, "canonical_key": None, "match_probability": None,

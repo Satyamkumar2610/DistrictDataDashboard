@@ -35,6 +35,14 @@ def test_candidate_windows():
     assert s09.candidate_windows(1948) == []
 
 
+def test_candidate_windows_use_depicted_dates():
+    # the "1981" Assam map depicts ~1989: a 1983 Assam event lies between the 1971
+    # map and that layer, not between the 1981 and 1991 layers
+    assert s09.candidate_windows(1983, "Bihar")[0] == ((1981, 1991), "PRIMARY")
+    assert s09.candidate_windows(1983, "Assam")[0] == ((1971, 1981), "PRIMARY")
+    assert s09.candidate_windows(1990, "Assam")[0] == ((1981, 1991), "PRIMARY")
+
+
 def test_lineage_cycle_is_rejected():
     g = nx.DiGraph([("A", "B"), ("B", "C")])
     lineage_graph.assert_acyclic(g)

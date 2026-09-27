@@ -1,0 +1,3 @@
+state,vintage,depicted_year,status,evidence
+Assam,1981,1989,CONFIRMED,"The layer has the same 23 districts as the 1991 layer; 13 of its 14 new districts were created 1983-1989 per the events compilation (latest: Bongaigaon/Hailakandi/Marigaon/Dhemaji/Tinsukia 1989); Wikidata inception agrees for all 3 dated cases. See outputs/audit/map_date_audit.csv"
+Manipur,1971,,CANDIDATE,"4 of 5 new districts shown before their recorded creation year in the events compilation; no second source yet. Not applied."

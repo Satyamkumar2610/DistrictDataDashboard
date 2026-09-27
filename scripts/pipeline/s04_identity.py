@@ -141,8 +141,20 @@ def main() -> None:
     reg["latest_state"] = reg.canonical_key.map(latest.state)
     reg["n_observations"] = reg.canonical_key.map(ck_obs.groupby("canonical_key").size())
     reg["is_active"] = reg["closed_year"].isna()
+    # When did it really happen? Map years are labels; the interval between the
+    # dates two maps DEPICT (lib.depicted_year) is what the evidence supports.
+    prev = dict(zip(lib.YEARS[1:], lib.YEARS[:-1]))
+    last_seen = latest.year
+    reg["formed_after"] = [lib.depicted_year(s, prev[y]) if y in prev else None
+                           for s, y in zip(reg.state_at_creation, reg.established_year)]
+    reg["formed_by"] = [lib.depicted_year(s, y) for s, y in zip(reg.state_at_creation, reg.established_year)]
+    reg["closed_after"] = [lib.depicted_year(s, last_seen[c]) if pd.notna(y) else None
+                           for c, s, y in zip(reg.canonical_key, reg.latest_state, reg.closed_year)]
+    reg["closed_by"] = [lib.depicted_year(s, int(y)) if pd.notna(y) else None
+                        for s, y in zip(reg.latest_state, reg.closed_year)]
     reg = reg[["canonical_key", "established_year", "closed_year", "is_active", "origin_kind",
-               "display_name", "state_at_creation", "latest_name", "latest_state", "n_observations"]]
+               "display_name", "state_at_creation", "latest_name", "latest_state", "n_observations",
+               "formed_after", "formed_by", "closed_after", "closed_by"]]
 
     decisions = pd.concat(decisions, ignore_index=True)
     lib.write_table(reg, lib.GOLD_CORE_DIR / "ck_registry.parquet", "ck_registry",

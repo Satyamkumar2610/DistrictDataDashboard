@@ -156,23 +156,27 @@ def main(snapshot_path: str | None = None) -> None:
         "rel_diff_2025", key=abs, ascending=False).to_csv(OUT / "area_audit.csv", index=False)
 
     # ---- 3. formation year ------------------------------------------------------
+    # our formation interval (formed_after, formed_by] is in DEPICTED years (s04)
     f = matched[matched.inception.notna() & (matched.inception >= 1947)].copy()
     prev = {y: p for p, y in zip([None] + lib.YEARS[:-1], lib.YEARS)}
     f["our_first_map"] = f.canonical_key.map(reg.established_year)
-    f["window_start"] = f.our_first_map.map(lambda y: prev[y] if prev[y] else 1900)
-    lagged_start = f.window_start.map(lambda y: prev.get(y) or 1900)
+    f["formed_after"] = f.canonical_key.map(reg.formed_after)
+    f["formed_by"] = f.canonical_key.map(reg.formed_by)
+    state = f.canonical_key.map(reg.state_at_creation)
+    lag_start = [lib.depicted_year(s, prev[prev[y]]) if prev.get(y) and prev.get(prev[y]) else 1900
+                 for s, y in zip(state, f.our_first_map)]
 
     def verdict(r, ls):
-        if r.our_first_map == lib.YEARS[0]:
-            return "CONSISTENT" if r.inception <= lib.YEARS[0] else "OURS_EARLIER_THAN_INCEPTION"
-        if r.window_start < r.inception <= r.our_first_map:
+        if pd.isna(r.formed_after):
+            return "CONSISTENT" if r.inception <= r.formed_by else "OURS_EARLIER_THAN_INCEPTION"
+        if r.formed_after < r.inception <= r.formed_by:
             return "CONSISTENT"
-        if ls < r.inception <= r.window_start:
+        if ls < r.inception <= r.formed_after:
             return "CONSISTENT_WITH_ONE_MAP_LAG"
-        return "OURS_EARLIER_THAN_INCEPTION" if r.inception > r.our_first_map else "OURS_LATER_THAN_INCEPTION"
-    f["formation_verdict"] = [verdict(r, ls) for r, ls in zip(f.itertuples(), lagged_start)]
-    f[["qid", "label", "canonical_key", "inception", "window_start", "our_first_map", "formation_verdict"]] \
-        .to_csv(OUT / "formation_audit.csv", index=False)
+        return "OURS_EARLIER_THAN_INCEPTION" if r.inception > r.formed_by else "OURS_LATER_THAN_INCEPTION"
+    f["formation_verdict"] = [verdict(r, ls) for r, ls in zip(f.itertuples(), lag_start)]
+    f[["qid", "label", "canonical_key", "inception", "our_first_map", "formed_after", "formed_by",
+       "formation_verdict"]].to_csv(OUT / "formation_audit.csv", index=False)
 
     # ---- 4. lineage -------------------------------------------------------------
     by_qid = items.set_index("qid")
@@ -204,17 +208,10 @@ def main(snapshot_path: str | None = None) -> None:
 def map_dates(reg: pd.DataFrame, wd_inception: dict) -> pd.DataFrame:
     """5. Does a map show a district before it was created? Creation year from the
     events CSV (independent of the maps), corroborated by Wikidata where it has one."""
-    ev = pd.read_csv(lib.EVENTS_CSV)
-    key = lambda n, s: (lib.alias_key(lib.normalize_name(n)), lib.normalize_name(lib.canonical_state(s)))  # noqa: E731
-    first = ev.assign(k=[key(n, s) for n, s in zip(ev.child_district, ev.state)]).groupby("k").effective_year.min()
-    new = reg[reg.origin_kind == "NEW"].reset_index()
-    new["csv_year"] = [first.get(key(n, s)) for n, s in zip(new.latest_name, new.latest_state)]
-    new["wikidata_inception"] = new.canonical_key.map(wd_inception)
-    d = new[new.csv_year.notna()][["canonical_key", "latest_name", "latest_state", "established_year",
-                                   "csv_year", "wikidata_inception"]].rename(columns={"established_year": "first_map"})
-    d["shown_before_creation"] = d.csv_year > d.first_map
+    d = lib.shown_before_creation(reg.reset_index())
+    d["wikidata_inception"] = d.canonical_key.map(wd_inception)
     d["wikidata_agrees_with_csv"] = (d.wikidata_inception - d.csv_year).abs() <= 1
-    d.sort_values(["latest_state", "first_map", "latest_name"]).to_csv(OUT / "map_date_audit.csv", index=False)
+    d.sort_values(["state", "first_map", "latest_name"]).to_csv(OUT / "map_date_audit.csv", index=False)
     return d
 
 
@@ -281,21 +278,23 @@ coverage.
 
 For each new district we take its creation year from the events compilation. That source is
 independent of the maps. Where Wikidata also has an inception year, it is used to corroborate.
-Of {len(md)} new districts with a recorded creation year, **{int(md.shown_before_creation.sum())}**
-already appear on a map dated before that year.
+Dates confirmed in `data/reference/vintage_depiction.csv` are applied first. Of {len(md)} new
+districts with a recorded creation year, **{int(md.shown_before_creation.sum())}** still appear on a
+map depicting a date before that year.
 
-{md[md.shown_before_creation].groupby(["latest_state", "first_map"]).agg(
+{md[md.shown_before_creation].groupby(["state", "first_map"]).agg(
     new_on_map=("canonical_key", "size"),
     wikidata_confirms=("wikidata_agrees_with_csv", "sum")).reset_index().merge(
-    md.groupby(["latest_state", "first_map"]).size().rename("named_new_districts").reset_index(),
-    on=["latest_state", "first_map"]).sort_values("new_on_map", ascending=False).head(12).to_markdown(index=False)}
+    md.groupby(["state", "first_map"]).size().rename("named_new_districts").reset_index(),
+    on=["state", "first_map"]).sort_values("new_on_map", ascending=False).head(12).to_markdown(index=False)
+ if md.shown_before_creation.any() else "(none)"}
 
-The concentration in one state-year points at the map layer, not at scattered errors. For
-example, the Stanford "1981" Assam layer has the same 23 districts as its 1991 layer, and
-Wikidata's inception years agree with the events compilation there. A layer like that depicts
-later boundaries than its label says. Change in that state is then assigned to the wrong
-decade, and events dated inside the gap cannot be matched to it (compare the research queue in
-the s12 report).
+When the cases concentrate in one state-map, the map layer is the likely problem, not scattered
+event errors. Confirmed case: the Stanford "1981" Assam layer has the same 23 districts as its
+1991 layer, and 13 of its 14 new districts were created 1983–1989. Wikidata's inception years
+agree with the events compilation there. The pipeline therefore treats that layer as depicting
+1989, so the table above no longer shows it. Any remaining concentration is flagged by s12
+check V18 until a second source confirms or rejects it.
 
 ## Files
 

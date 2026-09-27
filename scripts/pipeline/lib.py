@@ -221,6 +221,40 @@ def compatible_states(state_norm: str) -> frozenset[str]:
 
 
 @functools.lru_cache(maxsize=1)
+def _depiction() -> dict[tuple[str, int], int]:
+    ref = pd.read_csv(REFERENCE_DIR / "vintage_depiction.csv")
+    ref = ref[ref.status == "CONFIRMED"]
+    return {(normalize_name(canonical_state(s)), int(v)): int(d)
+            for s, v, d in zip(ref.state, ref.vintage, ref.depicted_year)}
+
+
+def depicted_year(state: str, vintage: int) -> int:
+    """The year a map layer's boundaries actually depict for a state. Equals the
+    vintage label unless data/reference/vintage_depiction.csv confirms otherwise
+    (e.g. the Stanford "1981" Assam layer depicts ~1989 boundaries)."""
+    return _depiction().get((normalize_name(canonical_state(state)), int(vintage)), int(vintage))
+
+
+def shown_before_creation(registry: pd.DataFrame) -> pd.DataFrame:
+    """New districts whose first map is labelled earlier than their creation year in
+    the events compilation (a source independent of the maps). A state-map with
+    many of these depicts later boundaries than its label says."""
+    ev = pd.read_csv(EVENTS_CSV)
+
+    def key(name, state):
+        return alias_key(normalize_name(name)), normalize_name(canonical_state(state))
+    first = ev.assign(k=[key(n, s) for n, s in zip(ev.child_district, ev.state)]).groupby("k").effective_year.min()
+    new = registry[registry.origin_kind == "NEW"]
+    out = pd.DataFrame({"canonical_key": new.canonical_key, "latest_name": new.latest_name,
+                        "state": new.latest_state, "first_map": new.established_year,
+                        "csv_year": [first.get(key(n, s)) for n, s in zip(new.latest_name, new.latest_state)]})
+    out = out[out.csv_year.notna()]
+    out["depicted"] = [depicted_year(s, y) for s, y in zip(out.state, out.first_map)]
+    out["shown_before_creation"] = out.csv_year > out.depicted
+    return out
+
+
+@functools.lru_cache(maxsize=1)
 def name_aliases() -> pd.DataFrame:
     df = pd.read_csv(REFERENCE_DIR / "name_aliases.csv")
     df["alias_norm"] = df["alias_name"].map(normalize_name)

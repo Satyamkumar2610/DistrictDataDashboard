@@ -81,10 +81,18 @@ SCHEMAS: dict[str, DataFrameSchema] = {
         "latest_name": Column(str, Check.str_length(min_value=1)),
         "latest_state": Column(str),
         "n_observations": Column(int, Check.ge(1)),
+        "formed_after": Column(float, nullable=True, coerce=True),
+        "formed_by": Column(int, coerce=True),
+        "closed_after": Column(float, nullable=True, coerce=True),
+        "closed_by": Column(float, nullable=True, coerce=True),
     }, checks=[
         Check(lambda d: d.closed_year.isna() | (d.closed_year > d.established_year),
               error="closed_year after established_year"),
         Check(lambda d: d.is_active == d.closed_year.isna(), error="is_active iff open"),
+        Check(lambda d: d.formed_after.isna() | (d.formed_after < d.formed_by),
+              error="formation window is a real interval"),
+        Check(lambda d: d.closed_by.isna() | (d.closed_after < d.closed_by),
+              error="closure window is a real interval"),
     ]),
     "ck_observation": DataFrameSchema({
         "geom_obs_id": Column(str, SHA, unique=True),
@@ -112,6 +120,7 @@ SCHEMAS: dict[str, DataFrameSchema] = {
         "from_ck": Column(str, CK), "to_ck": Column(str, CK),
         "relationship_type": Column(str, Check.isin(["SPLIT_FROM", "FORMED_FROM", "MERGED_INTO"])),
         "year_a": _year(), "year_b": _year(),
+        "period_start": Column(int), "period_end": Column(int),
         "transfer_km2": Column(float, Check.gt(0)),
         "outflow_share": Column(float, SHARE), "inflow_share": Column(float, SHARE),
         "lineage_basis": Column(str, Check.isin(["SPATIAL"])),
@@ -120,6 +129,7 @@ SCHEMAS: dict[str, DataFrameSchema] = {
         "transfer_id": Column(str, SHA, unique=True),
         "from_ck": Column(str, CK), "to_ck": Column(str, CK),
         "year_a": _year(), "year_b": _year(),
+        "period_start": Column(int), "period_end": Column(int),
         "transfer_km2": Column(float, Check.gt(0)),
         "outflow_share": Column(float, SHARE), "inflow_share": Column(float, SHARE),
     }, checks=[Check(lambda d: d.from_ck != d.to_ck, error="no self edges")]),
@@ -197,6 +207,7 @@ SCHEMAS: dict[str, DataFrameSchema] = {
     # ---- s10 products ------------------------------------------------------
     "district_area_admin": DataFrameSchema({
         "canonical_key": Column(str, CK), "year": _year(),
+        "depicted_year": Column(int, Check.ge(1947)),
         "district_name": Column(str), "state": Column(str),
         "area_km2": Column(float, Check.gt(0)),
     }, unique=["canonical_key", "year"]),
@@ -206,6 +217,7 @@ SCHEMAS: dict[str, DataFrameSchema] = {
         "area_km2": Column(float, Check.gt(0)),
         "share_of_source": Column(float, SHARE),
         "share_of_target": Column(float, SHARE),
+        "source_depicted_year": Column(int, Check.ge(1947)),
     }, unique=["year", "source_ck", "target_ck"]),
     "district_reference_context": DataFrameSchema({
         "target_ck": Column(str, CK), "year": _year(),

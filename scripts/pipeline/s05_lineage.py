@@ -53,6 +53,10 @@ def main() -> None:
     cross["outflow_share"] = (cross.material_km2 / cross.from_area).clip(upper=1.0)
     cross["inflow_share"] = (cross.material_km2 / cross.to_area).clip(upper=1.0)
     cross["transfer_km2"] = cross.material_km2
+    # the change happened between the dates the two maps DEPICT for these districts
+    state = pd.read_parquet(lib.GOLD_CORE_DIR / "ck_observation.parquet").set_index(["canonical_key", "year"]).state
+    cross["period_start"] = [lib.depicted_year(state[(c, y)], y) for c, y in zip(cross.from_ck, cross.year_a)]
+    cross["period_end"] = [lib.depicted_year(state[(c, y)], y) for c, y in zip(cross.to_ck, cross.year_b)]
     is_new = cross.apply(lambda r: established[r.to_ck] == r.year_b, axis=1)
 
     rel = cross[is_new].copy()
@@ -65,13 +69,13 @@ def main() -> None:
     rel["rel_id"] = [lib.stable_id("REL", r.from_ck, r.to_ck, r.year_a, r.year_b) for r in rel.itertuples()]
     rel["lineage_basis"] = "SPATIAL"
     rel = rel[["rel_id", "from_ck", "to_ck", "relationship_type", "year_a", "year_b",
-               "transfer_km2", "outflow_share", "inflow_share", "lineage_basis"]
+               "period_start", "period_end", "transfer_km2", "outflow_share", "inflow_share", "lineage_basis"]
               ].sort_values(["year_b", "from_ck", "to_ck"])
 
     xfer = cross[~is_new].copy()
     xfer["transfer_id"] = [lib.stable_id("XFER", r.from_ck, r.to_ck, r.year_a, r.year_b) for r in xfer.itertuples()]
-    xfer = xfer[["transfer_id", "from_ck", "to_ck", "year_a", "year_b", "transfer_km2",
-                 "outflow_share", "inflow_share"]].sort_values(["year_b", "from_ck", "to_ck"])
+    xfer = xfer[["transfer_id", "from_ck", "to_ck", "year_a", "year_b", "period_start", "period_end",
+                 "transfer_km2", "outflow_share", "inflow_share"]].sort_values(["year_b", "from_ck", "to_ck"])
 
     disp = f[(f.from_ck != f.to_ck) & (f.displacement_km2 > 0)][
         ["year_a", "year_b", "from_ck", "to_ck", "displacement_km2"]]

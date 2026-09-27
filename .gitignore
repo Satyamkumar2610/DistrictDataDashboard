@@ -16,3 +16,4 @@ __pycache__/
 !data/reference/state_lineage.csv
 !data/reference/name_aliases.csv
 !data/reference/ck_migration_v2_to_v3.csv
+!data/reference/vintage_depiction.csv

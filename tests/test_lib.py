@@ -51,6 +51,14 @@ def test_stable_id_is_deterministic_and_order_sensitive():
     assert len(lib.stable_id("x")) == 32
 
 
+def test_depicted_year_applies_only_confirmed_overrides():
+    assert lib.depicted_year("Assam", 1981) == 1989        # CONFIRMED
+    assert lib.depicted_year("ASSAM", 1981) == 1989        # case/spelling insensitive
+    assert lib.depicted_year("Assam", 1991) == 1991
+    assert lib.depicted_year("Manipur", 1971) == 1971      # CANDIDATE only: not applied
+    assert lib.depicted_year("Bihar", 1981) == 1981
+
+
 def test_within_closure_scales_with_area():
     assert lib.within_closure(1.9, 100.0)
     assert not lib.within_closure(2.1, 100.0)

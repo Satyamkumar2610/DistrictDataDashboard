@@ -80,6 +80,16 @@ linkage:
   # match can still win.
   state_mismatch_m_floor: 0.01
 
+map_dates:
+  # A state-map is flagged as possibly depicting later boundaries than its
+  # label when at least this many of its new districts, and at least this share
+  # of those with a recorded creation year, appear before that year. Isolated
+  # cases are more likely event-date noise than a mislabelled layer. Flagged
+  # layers need a second source before a CONFIRMED row goes into
+  # data/reference/vintage_depiction.csv.
+  min_districts: 3
+  min_share: 0.5
+
 area_check:
   # pyproj geodesic area vs DuckDB ST_Area_Spheroid (independent GeographicLib
   # implementation). Same polygon, same ellipsoid: must agree far tighter.

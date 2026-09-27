@@ -49,8 +49,11 @@ CREATE TABLE ck_registry (
   is_active BOOLEAN NOT NULL, origin_kind VARCHAR NOT NULL CHECK (origin_kind IN ('ANCHOR','NEW')),
   display_name VARCHAR NOT NULL, state_at_creation VARCHAR, latest_name VARCHAR NOT NULL, latest_state VARCHAR,
   n_observations INTEGER NOT NULL CHECK (n_observations >= 1),
+  formed_after INTEGER, formed_by INTEGER NOT NULL, closed_after INTEGER, closed_by INTEGER,
   CHECK (closed_year IS NULL OR closed_year > established_year),
-  CHECK (is_active = (closed_year IS NULL)));
+  CHECK (is_active = (closed_year IS NULL)),
+  CHECK (formed_after IS NULL OR formed_after < formed_by),
+  CHECK ((closed_by IS NULL) = (closed_year IS NULL)));
 
 CREATE TABLE ck_observation (
   geom_obs_id VARCHAR PRIMARY KEY REFERENCES geometry_observation(geom_obs_id),
@@ -87,13 +90,16 @@ CREATE TABLE district_relationship (
   rel_id VARCHAR PRIMARY KEY, from_ck VARCHAR NOT NULL REFERENCES ck_registry(canonical_key),
   to_ck VARCHAR NOT NULL REFERENCES ck_registry(canonical_key),
   relationship_type VARCHAR NOT NULL CHECK (relationship_type IN ('SPLIT_FROM','FORMED_FROM','MERGED_INTO')),
-  year_a INTEGER NOT NULL, year_b INTEGER NOT NULL, transfer_km2 DOUBLE NOT NULL CHECK (transfer_km2 > 0),
+  year_a INTEGER NOT NULL, year_b INTEGER NOT NULL,
+  period_start INTEGER NOT NULL, period_end INTEGER NOT NULL CHECK (period_end > period_start),
+  transfer_km2 DOUBLE NOT NULL CHECK (transfer_km2 > 0),
   outflow_share DOUBLE NOT NULL, inflow_share DOUBLE NOT NULL, lineage_basis VARCHAR NOT NULL,
   CHECK (from_ck <> to_ck), UNIQUE (from_ck, to_ck, year_a, year_b));
 
 CREATE TABLE measured_area_transfer (
   transfer_id VARCHAR PRIMARY KEY, from_ck VARCHAR NOT NULL REFERENCES ck_registry(canonical_key),
   to_ck VARCHAR NOT NULL REFERENCES ck_registry(canonical_key), year_a INTEGER NOT NULL, year_b INTEGER NOT NULL,
+  period_start INTEGER NOT NULL, period_end INTEGER NOT NULL CHECK (period_end > period_start),
   transfer_km2 DOUBLE NOT NULL CHECK (transfer_km2 > 0), outflow_share DOUBLE NOT NULL, inflow_share DOUBLE NOT NULL,
   CHECK (from_ck <> to_ck));
 
@@ -128,6 +134,7 @@ CREATE TABLE lineage_corroboration (
 
 CREATE TABLE district_area_admin (
   canonical_key VARCHAR NOT NULL REFERENCES ck_registry(canonical_key), year INTEGER NOT NULL REFERENCES vintage(year),
+  depicted_year INTEGER NOT NULL CHECK (depicted_year >= year),
   district_name VARCHAR, state VARCHAR, area_km2 DOUBLE NOT NULL CHECK (area_km2 > 0), PRIMARY KEY (canonical_key, year));
 
 CREATE TABLE crosswalk_to_reference (
@@ -137,6 +144,7 @@ CREATE TABLE crosswalk_to_reference (
   area_km2 DOUBLE NOT NULL CHECK (area_km2 > 0),
   share_of_source DOUBLE NOT NULL CHECK (share_of_source BETWEEN 0 AND 1),
   share_of_target DOUBLE NOT NULL CHECK (share_of_target BETWEEN 0 AND 1),
+  source_depicted_year INTEGER NOT NULL CHECK (source_depicted_year >= year),
   PRIMARY KEY (year, source_ck, target_ck));
 
 CREATE TABLE validation_result (

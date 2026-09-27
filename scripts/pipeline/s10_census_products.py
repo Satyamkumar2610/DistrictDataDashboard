@@ -38,6 +38,8 @@ def main() -> None:
     ck = dict(zip(obs.geom_obs_id, obs.canonical_key))
 
     admin = obs[["canonical_key", "year", "district_name", "state", "area_km2"]].sort_values(["canonical_key", "year"])
+    # the year these boundaries actually depict (differs from the map label for confirmed cases)
+    admin.insert(2, "depicted_year", [lib.depicted_year(s, y) for s, y in zip(admin.state, admin.year)])
     lib.write_table(admin, lib.PRODUCTS_DIR / "district_area_admin.parquet", "district_area_admin",
                     csv_copy=lib.PRODUCTS_DIR / "district_area_admin.csv")
     wide = admin.pivot(index="canonical_key", columns="year", values="area_km2").add_prefix("area_km2_")
@@ -60,6 +62,8 @@ def main() -> None:
     tgt_area = ref.set_index("canonical_key").area_km2
     xw["share_of_source"] = (xw.area_km2 / [src_area[(c, y)] for c, y in zip(xw.source_ck, xw.year)]).clip(upper=1.0)
     xw["share_of_target"] = (xw.area_km2 / xw.target_ck.map(tgt_area)).clip(upper=1.0)
+    depicted = admin.set_index(["canonical_key", "year"]).depicted_year
+    xw["source_depicted_year"] = [depicted[(c, y)] for c, y in zip(xw.source_ck, xw.year)]
     xw = xw.sort_values(["year", "target_ck", "area_km2"], ascending=[True, True, False])
     lib.write_table(xw, lib.PRODUCTS_DIR / "crosswalk_to_reference.parquet", "crosswalk_to_reference",
                     csv_copy=lib.PRODUCTS_DIR / "crosswalk_to_reference.csv")

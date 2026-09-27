@@ -5,7 +5,7 @@
     "retain_intermediate_calculation_columns": false,
     "additional_columns_to_retain": [],
     "sql_dialect": "duckdb",
-    "linker_uid": "smxa85yq",
+    "linker_uid": "r7k096d9",
     "em_convergence": 0.0001,
     "max_iterations": 25,
     "bayes_factor_column_prefix": "bf_",
@@ -45,7 +45,7 @@
                 {
                     "sql_condition": "\"name_norm_l\" = \"name_norm_r\"",
                     "label_for_charts": "Exact match on name_norm",
-                    "m_probability": 0.6376324424601301,
+                    "m_probability": 0.6376324424601828,
                     "u_probability": 0.000922359264334893,
                     "fix_m_probability": false,
                     "fix_u_probability": false
@@ -53,7 +53,7 @@
                 {
                     "sql_condition": "\"alias_norm_l\" = \"alias_norm_r\"",
                     "label_for_charts": "documentary alias",
-                    "m_probability": 0.044573949941312786,
+                    "m_probability": 0.04457394994131566,
                     "u_probability": 8.487968690198402e-05,
                     "fix_m_probability": false,
                     "fix_u_probability": false
@@ -61,7 +61,7 @@
                 {
                     "sql_condition": "jaro_winkler_similarity(\"name_norm_l\", \"name_norm_r\") >= 0.95",
                     "label_for_charts": "Jaro-Winkler distance of name_norm >= 0.95",
-                    "m_probability": 0.04822873156627426,
+                    "m_probability": 0.04822873156627838,
                     "u_probability": 6.893259421130823e-05,
                     "fix_m_probability": false,
                     "fix_u_probability": false
@@ -69,7 +69,7 @@
                 {
                     "sql_condition": "jaro_winkler_similarity(\"name_norm_l\", \"name_norm_r\") >= 0.88",
                     "label_for_charts": "Jaro-Winkler distance of name_norm >= 0.88",
-                    "m_probability": 0.10714270947918424,
+                    "m_probability": 0.10714270947917284,
                     "u_probability": 0.0006738932717672671,
                     "fix_m_probability": false,
                     "fix_u_probability": false
@@ -77,7 +77,7 @@
                 {
                     "sql_condition": "jaro_winkler_similarity(\"name_norm_l\", \"name_norm_r\") >= 0.8",
                     "label_for_charts": "Jaro-Winkler distance of name_norm >= 0.8",
-                    "m_probability": 0.15390915006947362,
+                    "m_probability": 0.15390915006939762,
                     "u_probability": 0.0037161870192723187,
                     "fix_m_probability": false,
                     "fix_u_probability": false
@@ -85,7 +85,7 @@
                 {
                     "sql_condition": "ELSE",
                     "label_for_charts": "All other comparisons",
-                    "m_probability": 0.008513016483624923,
+                    "m_probability": 0.008513016483652616,
                     "u_probability": 0.9945337481635123,
                     "fix_m_probability": false,
                     "fix_u_probability": false
@@ -106,7 +106,7 @@
                 {
                     "sql_condition": "\"state_norm_l\" = \"state_norm_r\"",
                     "label_for_charts": "Exact match on state_norm",
-                    "m_probability": 0.8934173645199401,
+                    "m_probability": 0.8934173645199396,
                     "u_probability": 0.042597256688519325,
                     "fix_m_probability": false,
                     "fix_u_probability": false
@@ -114,7 +114,7 @@
                 {
                     "sql_condition": "list_contains(state_compat_l, state_norm_r) OR list_contains(state_compat_r, state_norm_l)",
                     "label_for_charts": "compatible via state lineage",
-                    "m_probability": 0.09662203073308957,
+                    "m_probability": 0.09662203073309011,
                     "u_probability": 0.07281956944907425,
                     "fix_m_probability": false,
                     "fix_u_probability": false

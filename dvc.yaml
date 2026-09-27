@@ -50,6 +50,7 @@ stages:
   s04_identity:
     cmd: python scripts/pipeline/s04_identity.py
     deps:
+      - data/reference/vintage_depiction.csv
       - scripts/pipeline/s04_identity.py
       - scripts/pipeline/lib.py
       - scripts/pipeline/schemas.py
@@ -67,6 +68,7 @@ stages:
   s05_lineage:
     cmd: python scripts/pipeline/s05_lineage.py
     deps:
+      - data/reference/vintage_depiction.csv
       - scripts/pipeline/s05_lineage.py
       - scripts/pipeline/lineage_graph.py
       - scripts/pipeline/lib.py
@@ -128,6 +130,7 @@ stages:
   s09_event_reconciliation:
     cmd: python scripts/pipeline/s09_event_reconciliation.py
     deps:
+      - data/reference/vintage_depiction.csv
       - scripts/pipeline/s09_event_reconciliation.py
       - scripts/pipeline/lib.py
       - scripts/pipeline/schemas.py
@@ -155,6 +158,7 @@ stages:
   s10_census_products:
     cmd: python scripts/pipeline/s10_census_products.py
     deps:
+      - data/reference/vintage_depiction.csv
       - scripts/pipeline/s10_census_products.py
       - scripts/pipeline/lib.py
       - scripts/pipeline/schemas.py
@@ -190,6 +194,8 @@ stages:
   s12_validate:
     cmd: python scripts/pipeline/s12_validate.py
     deps:
+      - data/bronze/events/district_evolution_master.csv
+      - data/reference/vintage_depiction.csv
       - scripts/pipeline/s12_validate.py
       - scripts/pipeline/schemas.py
       - scripts/pipeline/lib.py
@@ -199,3 +205,4 @@ stages:
       - outputs/pipeline/s12_checks.csv: {cache: false}
       - outputs/pipeline/s12_output_manifest.csv: {cache: false}
       - outputs/pipeline/s12_validation_report.md: {cache: false}
+      - outputs/pipeline/s12_map_date_check.csv: {cache: false}

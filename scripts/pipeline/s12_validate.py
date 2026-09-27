@@ -61,6 +61,21 @@ def _check(name: str, df: pd.DataFrame, label: str) -> dict:
                 "n_violations": 1, "detail": str(exc)[:500]}
 
 
+def map_date_check() -> dict:
+    """V18: state-maps that look like they depict later boundaries than their label
+    and are not yet covered by a confirmed data/reference/vintage_depiction.csv row."""
+    cfg = lib.CFG["map_dates"]
+    d = lib.shown_before_creation(pd.read_parquet(lib.GOLD_CORE_DIR / "ck_registry.parquet"))
+    g = d.groupby(["state", "first_map"]).agg(n=("shown_before_creation", "size"),
+                                              early=("shown_before_creation", "sum")).reset_index()
+    flagged = g[(g.early >= cfg["min_districts"]) & (g.early / g.n >= cfg["min_share"])]
+    d.to_csv(lib.OUTPUT_DIR / "s12_map_date_check.csv", index=False)
+    return {"check_id": "V18", "description": "state-map depicting later boundaries than its label, unconfirmed",
+            "severity": "WARNING", "n_violations": len(flagged),
+            "detail": "; ".join(f"{s} {y}: {e}/{n}" for s, y, e, n in flagged[["state", "first_map", "early", "n"]]
+                                .itertuples(index=False)) or None}
+
+
 def manifest() -> pd.DataFrame:
     roots = [lib.SILVER_GEOM_DIR, G / "core", G / "spatial", G / "events", lib.PRODUCTS_DIR]
     files = sorted(p for r in roots for p in r.rglob("*") if p.is_file() and p.suffix in {".parquet", ".geoparquet", ".csv"})
@@ -104,6 +119,7 @@ def main() -> None:
     con.execute("LOAD spatial")
     rows += con.execute("SELECT * FROM validation_result").df().to_dict("records")
     rows += contract_checks()
+    rows.append(map_date_check())
     checks = pd.DataFrame(rows)
     checks.to_csv(lib.OUTPUT_DIR / "s12_checks.csv", index=False)
     man = manifest()
