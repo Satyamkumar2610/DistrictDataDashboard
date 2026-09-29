@@ -17,33 +17,29 @@ evidence (via data/reference/state_lineage.csv), never as a join key.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import lib  # noqa: E402
+from district_evolution import core
 
 
 def main() -> None:
-    df = pd.read_csv(lib.EVENTS_CSV)
-    df["event_state"] = df["state"].map(lib.canonical_state)
+    df = pd.read_csv(core.EVENTS_CSV)
+    df["event_state"] = df["state"].map(core.canonical_state)
     events, parts = [], []
 
     def add_participant(event_id: str, role: str, name: str, state: str) -> None:
-        parts.append({"participant_id": lib.stable_id("PART", event_id, role, name),
+        parts.append({"participant_id": core.stable_id("PART", event_id, role, name),
                       "event_id": event_id, "role": role, "district_name_raw": name,
-                      "name_norm": lib.normalize_name(name),
-                      "event_state_norm": lib.normalize_name(state)})
+                      "name_norm": core.normalize_name(name),
+                      "event_state_norm": core.normalize_name(state)})
 
     sub = df[df.event_type.isin(["SPLIT", "NEW_DISTRICT"])]
     for (parent, state, year), grp in sub.groupby(["parent_district", "event_state", "effective_year"],
                                                   dropna=False, sort=True):
         types = sorted(set(grp.event_type))
         etype = "SPLIT" if "SPLIT" in types else "NEW_DISTRICT"
-        eid = lib.stable_id("EVENT", parent, state, year)
-        preds = lib.parse_multi_name(parent)
+        eid = core.stable_id("EVENT", parent, state, year)
+        preds = core.parse_multi_name(parent)
         succs = sorted(set(grp.child_district.dropna().astype(str)))
         events.append({"event_id": eid, "event_type": etype, "recorded_as": "+".join(types),
                        "event_state": state, "parent_district_raw": str(parent), "effective_year": int(year),
@@ -55,7 +51,7 @@ def main() -> None:
             add_participant(eid, "SUCCESSOR", n, state)
 
     for r in df[df.event_type == "RENAME"].sort_values(["effective_year", "parent_district"]).itertuples():
-        eid = lib.stable_id("EVENT", "RENAME", r.parent_district, r.event_state, r.effective_year)
+        eid = core.stable_id("EVENT", "RENAME", r.parent_district, r.event_state, r.effective_year)
         events.append({"event_id": eid, "event_type": "RENAME", "recorded_as": "RENAME",
                        "event_state": r.event_state,
                        "parent_district_raw": str(r.parent_district), "effective_year": int(r.effective_year),
@@ -71,9 +67,9 @@ def main() -> None:
     if missing:
         raise RuntimeError(f"{len(missing)} CSV children lost in aggregation: {sorted(missing)[:5]}")
 
-    lib.write_table(ev, lib.GOLD_EVENTS_DIR / "boundary_event.parquet", "boundary_event",
-                    csv_copy=lib.EVENTS_OUTPUT_DIR / "s07_boundary_event.csv")
-    lib.write_table(pt, lib.GOLD_EVENTS_DIR / "event_participant.parquet", "event_participant")
+    core.write_table(ev, core.GOLD_EVENTS_DIR / "boundary_event.parquet", "boundary_event",
+                    csv_copy=core.EVENTS_OUTPUT_DIR / "s07_boundary_event.csv")
+    core.write_table(pt, core.GOLD_EVENTS_DIR / "event_participant.parquet", "event_participant")
     print(f"{len(df)} CSV rows -> {len(ev)} events, {len(pt)} participants; "
           f"multi-successor events: {(ev.n_successors > 1).sum()}")
 

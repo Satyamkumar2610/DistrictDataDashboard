@@ -6,11 +6,11 @@
 
 stages:
   s01_bronze_to_silver:
-    cmd: python scripts/pipeline/s01_bronze_to_silver.py
+    cmd: python -m district_evolution.stages.s01_bronze_to_silver
     deps:
-      - scripts/pipeline/s01_bronze_to_silver.py
-      - scripts/pipeline/lib.py
-      - scripts/pipeline/schemas.py
+      - district_evolution/stages/s01_bronze_to_silver.py
+      - district_evolution/core
+      - district_evolution/contracts
       - config/pipeline.yaml
       - config/sources.yaml
       - data/reference/state_lineage.csv
@@ -23,21 +23,21 @@ stages:
       - outputs/pipeline/s01_overlap_repairs.csv: {cache: false}
 
   s02_topology_audit:
-    cmd: python scripts/pipeline/s02_topology_audit.py
+    cmd: python -m district_evolution.stages.s02_topology_audit
     deps:
-      - scripts/pipeline/s02_topology_audit.py
-      - scripts/pipeline/lib.py
+      - district_evolution/stages/s02_topology_audit.py
+      - district_evolution/core
       - config/pipeline.yaml
       - data/silver/geometry
     outs:
       - outputs/pipeline/s02_topology_audit.csv: {cache: false}
 
   s03_transition_matrix:
-    cmd: python scripts/pipeline/s03_transition_matrix.py
+    cmd: python -m district_evolution.stages.s03_transition_matrix
     deps:
-      - scripts/pipeline/s03_transition_matrix.py
-      - scripts/pipeline/lib.py
-      - scripts/pipeline/schemas.py
+      - district_evolution/stages/s03_transition_matrix.py
+      - district_evolution/core
+      - district_evolution/contracts
       - config/pipeline.yaml
       - data/silver/geometry
       - outputs/pipeline/s02_topology_audit.csv
@@ -48,12 +48,12 @@ stages:
       - outputs/pipeline/s03_transfer_and_displacement_parts.gpkg: {cache: false}
 
   s04_identity:
-    cmd: python scripts/pipeline/s04_identity.py
+    cmd: python -m district_evolution.stages.s04_identity
     deps:
       - data/reference/vintage_depiction.csv
-      - scripts/pipeline/s04_identity.py
-      - scripts/pipeline/lib.py
-      - scripts/pipeline/schemas.py
+      - district_evolution/stages/s04_identity.py
+      - district_evolution/core
+      - district_evolution/contracts
       - config/pipeline.yaml
       - data/reference/name_aliases.csv
       - data/silver/geometry
@@ -66,13 +66,12 @@ stages:
       - outputs/pipeline/s04_continuity_decisions.csv: {cache: false}
 
   s05_lineage:
-    cmd: python scripts/pipeline/s05_lineage.py
+    cmd: python -m district_evolution.stages.s05_lineage
     deps:
       - data/reference/vintage_depiction.csv
-      - scripts/pipeline/s05_lineage.py
-      - scripts/pipeline/lineage_graph.py
-      - scripts/pipeline/lib.py
-      - scripts/pipeline/schemas.py
+      - district_evolution/stages/s05_lineage.py
+      - district_evolution/core
+      - district_evolution/contracts
       - config/pipeline.yaml
       - data/gold/spatial/transition_flow.parquet
       - data/gold/core/ck_registry.parquet
@@ -87,11 +86,11 @@ stages:
       - outputs/pipeline/s05_district_ancestry.csv: {cache: false}
 
   s06_area_ledger:
-    cmd: python scripts/pipeline/s06_area_ledger.py
+    cmd: python -m district_evolution.stages.s06_area_ledger
     deps:
-      - scripts/pipeline/s06_area_ledger.py
-      - scripts/pipeline/lib.py
-      - scripts/pipeline/schemas.py
+      - district_evolution/stages/s06_area_ledger.py
+      - district_evolution/core
+      - district_evolution/contracts
       - data/gold/spatial/ck_flow.parquet
       - data/gold/spatial/transition_residual.parquet
       - data/gold/core/ck_registry.parquet
@@ -101,11 +100,11 @@ stages:
       - data/products/district_area_ledger.csv: {cache: false}
 
   s07_events_aggregate:
-    cmd: python scripts/pipeline/s07_events_aggregate.py
+    cmd: python -m district_evolution.stages.s07_events_aggregate
     deps:
-      - scripts/pipeline/s07_events_aggregate.py
-      - scripts/pipeline/lib.py
-      - scripts/pipeline/schemas.py
+      - district_evolution/stages/s07_events_aggregate.py
+      - district_evolution/core
+      - district_evolution/contracts
       - data/bronze/events/district_evolution_master.csv
     outs:
       - data/gold/events/boundary_event.parquet: {cache: false}
@@ -113,11 +112,11 @@ stages:
       - outputs/events/s07_boundary_event.csv: {cache: false}
 
   s08_event_linkage:
-    cmd: python scripts/pipeline/s08_event_linkage.py
+    cmd: python -m district_evolution.stages.s08_event_linkage
     deps:
-      - scripts/pipeline/s08_event_linkage.py
-      - scripts/pipeline/lib.py
-      - scripts/pipeline/schemas.py
+      - district_evolution/stages/s08_event_linkage.py
+      - district_evolution/core
+      - district_evolution/contracts
       - config/pipeline.yaml
       - data/reference/state_lineage.csv
       - data/reference/name_aliases.csv
@@ -128,12 +127,12 @@ stages:
       - outputs/events/s08_splink_model.json: {cache: false}
 
   s09_event_reconciliation:
-    cmd: python scripts/pipeline/s09_event_reconciliation.py
+    cmd: python -m district_evolution.stages.s09_event_reconciliation
     deps:
       - data/reference/vintage_depiction.csv
-      - scripts/pipeline/s09_event_reconciliation.py
-      - scripts/pipeline/lib.py
-      - scripts/pipeline/schemas.py
+      - district_evolution/stages/s09_event_reconciliation.py
+      - district_evolution/core
+      - district_evolution/contracts
       - config/pipeline.yaml
       - data/gold/events/boundary_event.parquet
       - data/gold/events/event_participant.parquet
@@ -156,12 +155,12 @@ stages:
       - outputs/events/s09_lineage_corroboration.csv: {cache: false}
 
   s10_census_products:
-    cmd: python scripts/pipeline/s10_census_products.py
+    cmd: python -m district_evolution.stages.s10_census_products
     deps:
       - data/reference/vintage_depiction.csv
-      - scripts/pipeline/s10_census_products.py
-      - scripts/pipeline/lib.py
-      - scripts/pipeline/schemas.py
+      - district_evolution/stages/s10_census_products.py
+      - district_evolution/core
+      - district_evolution/contracts
       - data/gold/spatial/transition_flow.parquet
       - data/gold/core/ck_registry.parquet
       - data/gold/core/ck_observation.parquet
@@ -176,10 +175,10 @@ stages:
       - data/products/district_reference_context_wide.csv: {cache: false}
 
   s11_warehouse:
-    cmd: python scripts/pipeline/s11_warehouse.py
+    cmd: python -m district_evolution.stages.s11_warehouse
     deps:
-      - scripts/pipeline/s11_warehouse.py
-      - scripts/pipeline/lib.py
+      - district_evolution/stages/s11_warehouse.py
+      - district_evolution/core
       - config/pipeline.yaml
       - data/silver/geometry
       - data/gold/core
@@ -192,13 +191,13 @@ stages:
       - outputs/pipeline/s11_invariants.csv: {cache: false}
 
   s12_validate:
-    cmd: python scripts/pipeline/s12_validate.py
+    cmd: python -m district_evolution.stages.s12_validate
     deps:
       - data/bronze/events/district_evolution_master.csv
       - data/reference/vintage_depiction.csv
-      - scripts/pipeline/s12_validate.py
-      - scripts/pipeline/schemas.py
-      - scripts/pipeline/lib.py
+      - district_evolution/stages/s12_validate.py
+      - district_evolution/contracts
+      - district_evolution/core
       - data/gold/district_evolution.duckdb
       - outputs/pipeline/s02_topology_audit.csv
     outs:

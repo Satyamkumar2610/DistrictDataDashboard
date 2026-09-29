@@ -35,16 +35,20 @@ Bronze files are committed and must never be modified.
 ## Running
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt   # once
-bash scripts/pipeline/run_all.sh          # full build + validation gate (~3.5 min)
-.venv/bin/python -m pytest tests          # unit tests + golden history (needs a built warehouse)
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/pip install -e . --no-deps   # once
+bash scripts/run_all.sh                   # full build + validation gate (~3.5 min)
+.venv/bin/python -m pytest tests          # unit tests, golden history, regression baselines (needs a built warehouse)
 source .venv/bin/activate && dvc repro    # same DAG; reruns only what changed; hashes in dvc.lock
 ```
 
 `s12_validate` exits non-zero if any ERROR check fails. The report is
-`outputs/pipeline/s12_validation_report.md`.
+`outputs/pipeline/s12_validation_report.md`. Regression baselines (row counts, class breakdowns,
+gate results) are in `tests/baselines/v<pipeline_version>.yaml`; a PR that changes one updates
+that file and explains the delta.
 
-## Pipeline (`scripts/pipeline/`)
+## Pipeline (`district_evolution/stages/`)
+
+Each stage runs as `python -m district_evolution.stages.<stage>`.
 
 Geometry stages come first. Events enter only after identity and lineage are fixed, so events
 are evidence and never drive geometry.
@@ -64,8 +68,12 @@ are evidence and never drive geometry.
 | s11 warehouse | `data/gold/district_evolution.duckdb`: enforced DDL, SQL invariants, independent ST_Area_Spheroid check |
 | s12 validate | pandera contracts, collect all checks, output hash manifest, report, gate |
 
-Shared modules: `lib.py` (paths, config, area, IDs, names, reference data, `write_table`),
-`schemas.py` (pandera contracts for every table), `lineage_graph.py` (networkx).
+Shared code:
+- `district_evolution/core/`: `config` (paths, `CFG`, vintages), `area` (the one area method),
+  `ids`, `names`, `reference` (curated reference tables), `io` (`write_table`), `lineage_graph`
+  (networkx). Stages import it as `from district_evolution import core`.
+- `district_evolution/contracts/schemas.py`: pandera contracts for every table.
+- `district_evolution/evidence/`: Wikidata snapshot and external audit.
 
 ## Rules for working in this repo
 
@@ -74,13 +82,13 @@ Shared modules: `lib.py` (paths, config, area, IDs, names, reference data, `writ
 - **Every km² gets exactly one classification.** Area is conserved by the s03 partition. Never
   normalize weights to 1, never distribute residuals, never force a residual to zero.
 - **Every product has one stated meaning.** If a column would mix two meanings, make two products.
-- **Write tables through `lib.write_table(df, path, "<schema>")`.** Add or extend the contract in
-  `schemas.py` for any new table. A new invariant goes into s11 as SQL with a severity.
-- **Keep builds deterministic.** Use `lib.stable_id` for IDs (never `uuid4`), explicit sorts before
+- **Write tables through `core.write_table(df, path, "<schema>")`.** Add or extend the contract in
+  `contracts/schemas.py` for any new table. A new invariant goes into s11 as SQL with a severity.
+- **Keep builds deterministic.** Use `core.stable_id` for IDs (never `uuid4`), explicit sorts before
   any tie-break, and a seeded splink. CI rebuilds twice and diffs the output manifests.
 - **Configure every threshold in `config/pipeline.yaml`** with a rationale, ideally measured on the
   data.
-- **Use one area method:** `lib.geodesic_area_km2` (WGS84). DuckDB `ST_Area_Spheroid` is the
+- **Use one area method:** `core.geodesic_area_km2` (WGS84). DuckDB `ST_Area_Spheroid` is the
   independent cross-check.
 - **Aliases record the same entity under another name.** A split (Malabar → Kozhikode) is lineage,
   not an alias.
@@ -96,7 +104,7 @@ Shared modules: `lib.py` (paths, config, area, IDs, names, reference data, `writ
 - Zenodo DOI (`CITATION.cff` is ready) and pushing the CI workflow.
 - Independent ground truth: Wikidata (P1365/P1366 lineage, inception, area) is done —
   `outputs/audit/EXTERNAL_AUDIT_REPORT.md`, reproducible from a frozen snapshot via
-  `scripts/audit/wikidata_snapshot.py` + `external_audit.py`. Census District Handbooks, DataMeet
+  `python -m district_evolution.evidence.wikidata_snapshot` + `wikidata_audit`. Census District Handbooks, DataMeet
   boundaries, and gazettes remain open.
 - OD-01 (reclassification CK rule).
 - SOI 2025 lags Mizoram's 2019 districts (Khawzawl, Saitual; Hnahthial is also absent from the

@@ -8,7 +8,7 @@ source, not ground truth: every area claim is kept with its own reference
 The live query result is written once to a dated JSON file; the audit reads
 the snapshot, so the audit is reproducible even as Wikidata changes.
 
-Usage: python scripts/audit/wikidata_snapshot.py
+Usage: python -m district_evolution.evidence.wikidata_snapshot
 Writes data/reference/external/wikidata_districts_<YYYY-MM-DD>.json
 """
 

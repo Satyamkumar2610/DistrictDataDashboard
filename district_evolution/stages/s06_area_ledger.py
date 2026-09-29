@@ -9,22 +9,18 @@ received_km2 is material territory gained from other districts in the window.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import lib  # noqa: E402
+from district_evolution import core
 
 
 def main() -> None:
-    reg = pd.read_parquet(lib.GOLD_CORE_DIR / "ck_registry.parquet")
+    reg = pd.read_parquet(core.GOLD_CORE_DIR / "ck_registry.parquet")
     established = dict(zip(reg.canonical_key, reg.established_year))
-    obs = pd.read_parquet(lib.GOLD_CORE_DIR / "ck_observation.parquet")
-    f = pd.read_parquet(lib.GOLD_SPATIAL_DIR / "ck_flow.parquet")
-    res = pd.read_parquet(lib.GOLD_SPATIAL_DIR / "transition_residual.parquet")
+    obs = pd.read_parquet(core.GOLD_CORE_DIR / "ck_observation.parquet")
+    f = pd.read_parquet(core.GOLD_SPATIAL_DIR / "ck_flow.parquet")
+    res = pd.read_parquet(core.GOLD_SPATIAL_DIR / "transition_residual.parquet")
     res = res[(res.kind == "ADJACENT") & (res.side == "SOURCE")]
     unmapped = res.set_index(["geom_obs_id", "year_a"]).unmapped_km2
 
@@ -42,7 +38,7 @@ def main() -> None:
                 .rename("received_km2").reset_index())
 
     rows = []
-    for ya, yb in lib.WINDOWS:
+    for ya, yb in core.WINDOWS:
         o = obs[obs.year == ya][["geom_obs_id", "canonical_key", "area_km2"]]
         o = o.merge(out[out.year_a == ya].drop(columns=["year_a", "year_b"]),
                     left_on="canonical_key", right_on="from_ck", how="left").fillna(0.0)
@@ -57,11 +53,11 @@ def main() -> None:
     parts = ["retained_km2", "to_new_districts_km2", "to_existing_districts_km2",
              "displacement_km2", "sliver_km2", "unmapped_km2"]
     led["closure_error_km2"] = (led[parts].sum(axis=1) - led.area_before_km2).abs()
-    led["closure_ok"] = lib.within_closure(led.closure_error_km2, led.area_before_km2)
+    led["closure_ok"] = core.within_closure(led.closure_error_km2, led.area_before_km2)
     led = led[["canonical_key", "year_a", "year_b", "area_before_km2", *parts, "received_km2",
                "closure_error_km2", "closure_ok"]].sort_values(["year_a", "canonical_key"])
-    lib.write_table(led, lib.PRODUCTS_DIR / "district_area_ledger.parquet", "area_ledger",
-                    csv_copy=lib.PRODUCTS_DIR / "district_area_ledger.csv")
+    core.write_table(led, core.PRODUCTS_DIR / "district_area_ledger.parquet", "area_ledger",
+                    csv_copy=core.PRODUCTS_DIR / "district_area_ledger.csv")
     print(f"ledger rows: {len(led)}  closure ok: {led.closure_ok.mean():.4%}  "
           f"max error: {led.closure_error_km2.max():.3f} km2")
 

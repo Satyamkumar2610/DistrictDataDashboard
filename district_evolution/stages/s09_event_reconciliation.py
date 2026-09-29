@@ -3,7 +3,7 @@
 Replaces v2's s8, s10 and s10b. For every event:
 
 1. Window. Candidate adjacent windows (a, b) whose DEPICTED dates bracket the
-   event year, d(a) < year <= d(b) (lib.depicted_year: a map labelled 1981
+   event year, d(a) < year <= d(b) (core.depicted_year: a map labelled 1981
    can depict later boundaries for a state), plus the window starting at the
    map depicting exactly `year`, plus one lagged window for mapping delay.
    The window whose maps show the most declared participants wins.
@@ -23,35 +23,31 @@ Replaces v2's s8, s10 and s10b. For every event:
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import lib  # noqa: E402
+from district_evolution import core
 
-LK = lib.CFG["linkage"]
-MATERIAL = lib.CFG["lineage"]["material_km2"]
+LK = core.CFG["linkage"]
+MATERIAL = core.CFG["lineage"]["material_km2"]
 ACCEPTED = {"LINKED", "LINKED_AMBIGUOUS", "RETAINED_SELF"}
 
 
 class Data:
     def __init__(self) -> None:
-        self.events = pd.read_parquet(lib.GOLD_EVENTS_DIR / "boundary_event.parquet").sort_values("event_id")
-        self.parts = pd.read_parquet(lib.GOLD_EVENTS_DIR / "event_participant.parquet")
-        cand = pd.read_parquet(lib.GOLD_EVENTS_DIR / "participant_ck_candidate.parquet")
+        self.events = pd.read_parquet(core.GOLD_EVENTS_DIR / "boundary_event.parquet").sort_values("event_id")
+        self.parts = pd.read_parquet(core.GOLD_EVENTS_DIR / "event_participant.parquet")
+        cand = pd.read_parquet(core.GOLD_EVENTS_DIR / "participant_ck_candidate.parquet")
         cand = cand[cand.match_probability >= LK["min_match_probability"]]
         self.cand = {k: g for k, g in cand.groupby(["name_norm", "event_state_norm", "year"])}
-        self.reg = pd.read_parquet(lib.GOLD_CORE_DIR / "ck_registry.parquet").set_index("canonical_key")
-        obs = pd.read_parquet(lib.GOLD_CORE_DIR / "ck_observation.parquet")
+        self.reg = pd.read_parquet(core.GOLD_CORE_DIR / "ck_registry.parquet").set_index("canonical_key")
+        obs = pd.read_parquet(core.GOLD_CORE_DIR / "ck_observation.parquet")
         self.area = obs.set_index(["canonical_key", "year"]).area_km2
         self.obs_id = obs.set_index(["canonical_key", "year"]).geom_obs_id
-        self.flow = pd.read_parquet(lib.GOLD_SPATIAL_DIR / "ck_flow.parquet")
-        res = pd.read_parquet(lib.GOLD_SPATIAL_DIR / "transition_residual.parquet")
+        self.flow = pd.read_parquet(core.GOLD_SPATIAL_DIR / "ck_flow.parquet")
+        res = pd.read_parquet(core.GOLD_SPATIAL_DIR / "transition_residual.parquet")
         self.unmapped = res[(res.kind == "ADJACENT") & (res.side == "SOURCE")].set_index(
             ["geom_obs_id", "year_a"]).unmapped_km2
-        self.rel = pd.read_parquet(lib.GOLD_EVENTS_DIR / "district_relationship.parquet")
+        self.rel = pd.read_parquet(core.GOLD_EVENTS_DIR / "district_relationship.parquet")
 
 
 def best(d: Data, name: str, state: str, year: int, allowed: set[str] | None = None):
@@ -72,12 +68,12 @@ def best(d: Data, name: str, state: str, year: int, allowed: set[str] | None = N
 def candidate_windows(year: int, state: str = "") -> list[tuple[tuple[int, int], str]]:
     """Map windows (a, b) whose depicted dates bracket the event: d(a) < year <= d(b),
     plus the window starting at `year` when a map depicts exactly that year."""
-    d = {v: lib.depicted_year(state, v) for v in lib.YEARS}
-    primary = [w for w in lib.WINDOWS if d[w[0]] < year <= d[w[1]]]
-    primary += [w for w in lib.WINDOWS if d[w[0]] == year]
+    d = {v: core.depicted_year(state, v) for v in core.YEARS}
+    primary = [w for w in core.WINDOWS if d[w[0]] < year <= d[w[1]]]
+    primary += [w for w in core.WINDOWS if d[w[0]] == year]
     if not primary:
         return []
-    later = [w for w in lib.WINDOWS if w[0] >= primary[-1][1]]
+    later = [w for w in core.WINDOWS if w[0] >= primary[-1][1]]
     return [(w, "PRIMARY") for w in primary] + [(w, "LAGGED") for w in later[:1]]
 
 
@@ -132,7 +128,7 @@ def account(d: Data, event_id: str, p: str, a: int, b: int, succ_cks: set[str]) 
     err = abs(sum(acc.values()) - source)
     return ({"event_id": event_id, "predecessor_ck": p, "pre_vintage": a, "post_vintage": b,
              "source_area_km2": source, **acc, "closure_error_km2": err,
-             "closure_ok": bool(lib.within_closure(err, source))}, flows)
+             "closure_ok": bool(core.within_closure(err, source))}, flows)
 
 
 def spatial_class(d: Data, etype: str, pred_cks: set, succ: dict, b: int, acc_rows: list[dict]) -> str:
@@ -214,16 +210,16 @@ def main() -> None:
             .rename("supporting_event_ids").reset_index())
     corr["corroboration"] = corr.supporting_event_ids.map(lambda s: "EVENT_CORROBORATED" if s else "GEOMETRY_ONLY")
 
-    lib.write_table(link, lib.GOLD_EVENTS_DIR / "event_linkage.parquet", "event_linkage",
-                    csv_copy=lib.EVENTS_OUTPUT_DIR / "s09_event_linkage.csv")
-    lib.write_table(acc, lib.GOLD_EVENTS_DIR / "event_accounting.parquet", "event_accounting",
-                    csv_copy=lib.EVENTS_OUTPUT_DIR / "s09_event_accounting.csv")
-    pd.DataFrame(flows).to_csv(lib.EVENTS_OUTPUT_DIR / "s09_event_flows.csv", index=False)
-    pd.DataFrame(flows).to_parquet(lib.GOLD_EVENTS_DIR / "event_flow.parquet", index=False)
-    summ.to_csv(lib.EVENTS_OUTPUT_DIR / "s09_event_summary.csv", index=False)
-    summ.to_parquet(lib.GOLD_EVENTS_DIR / "event_summary.parquet", index=False)
-    corr.to_parquet(lib.GOLD_EVENTS_DIR / "lineage_corroboration.parquet", index=False)
-    corr.to_csv(lib.EVENTS_OUTPUT_DIR / "s09_lineage_corroboration.csv", index=False)
+    core.write_table(link, core.GOLD_EVENTS_DIR / "event_linkage.parquet", "event_linkage",
+                    csv_copy=core.EVENTS_OUTPUT_DIR / "s09_event_linkage.csv")
+    core.write_table(acc, core.GOLD_EVENTS_DIR / "event_accounting.parquet", "event_accounting",
+                    csv_copy=core.EVENTS_OUTPUT_DIR / "s09_event_accounting.csv")
+    pd.DataFrame(flows).to_csv(core.EVENTS_OUTPUT_DIR / "s09_event_flows.csv", index=False)
+    pd.DataFrame(flows).to_parquet(core.GOLD_EVENTS_DIR / "event_flow.parquet", index=False)
+    summ.to_csv(core.EVENTS_OUTPUT_DIR / "s09_event_summary.csv", index=False)
+    summ.to_parquet(core.GOLD_EVENTS_DIR / "event_summary.parquet", index=False)
+    corr.to_parquet(core.GOLD_EVENTS_DIR / "lineage_corroboration.parquet", index=False)
+    corr.to_csv(core.EVENTS_OUTPUT_DIR / "s09_lineage_corroboration.csv", index=False)
 
     print(link.groupby("role").link_status.value_counts().unstack(0).fillna(0).astype(int).to_string())
     print(summ.spatial_class.value_counts().to_string())

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Runs the District Evolution pipeline v3 end to end.
-# Setup once: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+# Setup once: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/pip install -e . --no-deps
 # Design: docs/architecture/REVAMP_PLAN_V3.md. Equivalent DAG run: dvc repro
 set -euo pipefail
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/.."
 PY="${PYTHON:-.venv/bin/python}"
 
 for stage in \
@@ -21,7 +21,7 @@ for stage in \
   s12_validate
 do
   echo "================ ${stage} ================"
-  "$PY" "scripts/pipeline/${stage}.py"
+  "$PY" -m "district_evolution.stages.${stage}"
 done
 
 echo "Pipeline complete. Report: outputs/pipeline/s12_validation_report.md"

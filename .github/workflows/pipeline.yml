@@ -23,22 +23,24 @@ jobs:
           python-version: "3.13"
           cache: pip
 
-      - name: Install pinned dependencies
-        run: pip install -r requirements.txt
+      - name: Install pinned dependencies and the package
+        run: |
+          pip install -r requirements.txt
+          pip install -e . --no-deps
 
       - name: Unit tests
         run: pytest -q tests
 
       - name: Build pipeline (run 1) and validation gate
-        run: bash scripts/pipeline/run_all.sh
+        run: bash scripts/run_all.sh
 
-      - name: Golden historical cases against the built warehouse
-        run: pytest -q tests/test_golden_history.py
+      - name: Golden historical cases and regression baselines against the built warehouse
+        run: pytest -q tests/test_golden_history.py tests/test_baselines.py
 
       - name: Determinism (V5) - rebuild and compare output hashes
         run: |
           cp outputs/pipeline/s12_output_manifest.csv /tmp/manifest_run1.csv
-          bash scripts/pipeline/run_all.sh
+          bash scripts/run_all.sh
           diff /tmp/manifest_run1.csv outputs/pipeline/s12_output_manifest.csv
           echo "all outputs byte-identical across two builds"
 

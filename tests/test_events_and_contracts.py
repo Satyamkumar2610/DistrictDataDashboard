@@ -2,12 +2,13 @@
 
 from types import SimpleNamespace
 
-import lineage_graph
 import networkx as nx
 import pandas as pd
 import pytest
-import s09_event_reconciliation as s09
-import schemas
+
+from district_evolution.contracts import schemas
+from district_evolution.core import lineage_graph
+from district_evolution.stages import s09_event_reconciliation as s09
 
 
 def data_with(cands):

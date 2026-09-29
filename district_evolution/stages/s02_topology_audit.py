@@ -11,23 +11,21 @@ second implementation (DuckDB ST_Area_Spheroid) makes it a real test.
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
 from shapely.ops import unary_union
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import lib  # noqa: E402
+from district_evolution import core
 
 
 def audit_layer(source: str, year: int) -> dict:
-    gdf = gpd.read_parquet(lib.silver_path(year))
+    gdf = gpd.read_parquet(core.silver_path(year))
     sum_area = float(gdf["area_km2"].sum())
-    union_area = lib.geodesic_area_km2(unary_union(gdf.geometry.values))
+    union_area = core.geodesic_area_km2(unary_union(gdf.geometry.values))
     overlap = max(0.0, sum_area - union_area)
     frac = overlap / sum_area
-    topo = lib.CFG["topology"]
+    topo = core.CFG["topology"]
     status = ("ERROR" if frac >= topo["self_overlap_error_fraction"]
               else "WARNING" if frac >= topo["self_overlap_warn_fraction"] else "PASS")
     return {"source": source, "year": year, "n_districts": len(gdf),
@@ -37,8 +35,8 @@ def audit_layer(source: str, year: int) -> dict:
 
 
 def main() -> None:
-    report = pd.DataFrame([audit_layer(s, y) for s, y in lib.VINTAGES])
-    report.to_csv(lib.OUTPUT_DIR / "s02_topology_audit.csv", index=False)
+    report = pd.DataFrame([audit_layer(s, y) for s, y in core.VINTAGES])
+    report.to_csv(core.OUTPUT_DIR / "s02_topology_audit.csv", index=False)
     print(report.to_string(index=False))
     if (report["status"] == "ERROR").any():
         sys.exit("V1 FAILED: a vintage layer self-overlaps beyond tolerance; not a partition.")

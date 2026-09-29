@@ -33,18 +33,16 @@ Thresholds: config/pipeline.yaml identity.*
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import lib  # noqa: E402
+from district_evolution import core
 
-ID = lib.CFG["identity"]
+ID = core.CFG["identity"]
 
 
 def load_layer(year: int) -> pd.DataFrame:
-    df = pd.read_parquet(lib.silver_path(year), columns=[
+    df = pd.read_parquet(core.silver_path(year), columns=[
         "geom_obs_id", "district_name_std", "district_name_norm", "state_name_std", "area_km2"])
     return df.sort_values(["state_name_std", "district_name_norm", "geom_obs_id"]).reset_index(drop=True)
 
@@ -54,18 +52,18 @@ def decide(i_name: str, targets: pd.DataFrame, name_b: pd.Series) -> tuple[str, 
     s, c, n = ID["strong"], ID["core"], ID["name_retained"]
     best = targets.iloc[0]
     if best.r >= s and best.h >= c:
-        agree, sim = lib.names_agree(i_name, name_b[best.geom_obs_id_b])
+        agree, sim = core.names_agree(i_name, name_b[best.geom_obs_id_b])
         return ("STRONG" if best.h >= s else "ABSORPTION_CORE"), best, agree, sim
     cands = targets[(targets.h >= c) & (targets.r >= n)]
     for row in cands.itertuples():
-        agree, sim = lib.names_agree(i_name, name_b[row.geom_obs_id_b])
+        agree, sim = core.names_agree(i_name, name_b[row.geom_obs_id_b])
         if agree:
             if row.h < s:
                 cls = "REORGANISED_CORE"
             else:
                 cls = "CARVE_OUT_CORE" if row.r >= c else "NAME_RETAINED_CORE"
             return cls, targets.loc[row.Index], True, sim
-    agree, sim = lib.names_agree(i_name, name_b[best.geom_obs_id_b])
+    agree, sim = core.names_agree(i_name, name_b[best.geom_obs_id_b])
     return ("BREAK_NAME_DIFFERS" if len(cands) else "BREAK_NO_CORE"), best, agree, sim
 
 
@@ -94,8 +92,8 @@ def window_decisions(ya: int, yb: int, flow: pd.DataFrame, a: pd.DataFrame, b: p
 
 
 def main() -> None:
-    flow = pd.read_parquet(lib.GOLD_SPATIAL_DIR / "transition_flow.parquet")
-    layers = {y: load_layer(y) for y in lib.YEARS}
+    flow = pd.read_parquet(core.GOLD_SPATIAL_DIR / "transition_flow.parquet")
+    layers = {y: load_layer(y) for y in core.YEARS}
 
     seq = 0
     registry: dict[str, dict] = {}
@@ -110,12 +108,12 @@ def main() -> None:
                         "state_at_creation": row.state_name_std}
         return ck
 
-    first = lib.YEARS[0]
+    first = core.YEARS[0]
     for row in layers[first].itertuples():
         obs_ck[row.geom_obs_id] = mint(row, first, "ANCHOR")
 
     decisions = []
-    for ya, yb in lib.WINDOWS:
+    for ya, yb in core.WINDOWS:
         d = window_decisions(ya, yb, flow, layers[ya], layers[yb])
         decisions.append(d)
         cont = d[d.continues]
@@ -130,7 +128,7 @@ def main() -> None:
                 registry[ck]["closed_year"] = yb
         print(f"[{ya}->{yb}] " + ", ".join(f"{k}={v}" for k, v in d.continuity_class.value_counts().items()))
 
-    obs = pd.concat([layers[y].assign(year=y) for y in lib.YEARS], ignore_index=True)
+    obs = pd.concat([layers[y].assign(year=y) for y in core.YEARS], ignore_index=True)
     obs["canonical_key"] = obs["geom_obs_id"].map(obs_ck)
     ck_obs = obs.rename(columns={"district_name_std": "district_name", "state_name_std": "state"})[
         ["geom_obs_id", "canonical_key", "year", "district_name", "state", "area_km2"]]
@@ -142,32 +140,32 @@ def main() -> None:
     reg["n_observations"] = reg.canonical_key.map(ck_obs.groupby("canonical_key").size())
     reg["is_active"] = reg["closed_year"].isna()
     # When did it really happen? Map years are labels; the interval between the
-    # dates two maps DEPICT (lib.depicted_year) is what the evidence supports.
-    prev = dict(zip(lib.YEARS[1:], lib.YEARS[:-1]))
+    # dates two maps DEPICT (core.depicted_year) is what the evidence supports.
+    prev = dict(zip(core.YEARS[1:], core.YEARS[:-1]))
     last_seen = latest.year
-    reg["formed_after"] = [lib.depicted_year(s, prev[y]) if y in prev else None
+    reg["formed_after"] = [core.depicted_year(s, prev[y]) if y in prev else None
                            for s, y in zip(reg.state_at_creation, reg.established_year)]
-    reg["formed_by"] = [lib.depicted_year(s, y) for s, y in zip(reg.state_at_creation, reg.established_year)]
-    reg["closed_after"] = [lib.depicted_year(s, last_seen[c]) if pd.notna(y) else None
+    reg["formed_by"] = [core.depicted_year(s, y) for s, y in zip(reg.state_at_creation, reg.established_year)]
+    reg["closed_after"] = [core.depicted_year(s, last_seen[c]) if pd.notna(y) else None
                            for c, s, y in zip(reg.canonical_key, reg.latest_state, reg.closed_year)]
-    reg["closed_by"] = [lib.depicted_year(s, int(y)) if pd.notna(y) else None
+    reg["closed_by"] = [core.depicted_year(s, int(y)) if pd.notna(y) else None
                         for s, y in zip(reg.latest_state, reg.closed_year)]
     reg = reg[["canonical_key", "established_year", "closed_year", "is_active", "origin_kind",
                "display_name", "state_at_creation", "latest_name", "latest_state", "n_observations",
                "formed_after", "formed_by", "closed_after", "closed_by"]]
 
     decisions = pd.concat(decisions, ignore_index=True)
-    lib.write_table(reg, lib.GOLD_CORE_DIR / "ck_registry.parquet", "ck_registry",
-                    csv_copy=lib.OUTPUT_DIR / "s04_ck_registry.csv")
-    lib.write_table(ck_obs, lib.GOLD_CORE_DIR / "ck_observation.parquet", "ck_observation")
-    lib.write_table(decisions, lib.GOLD_CORE_DIR / "continuity_decision.parquet", "continuity_decision",
-                    csv_copy=lib.OUTPUT_DIR / "s04_continuity_decisions.csv")
+    core.write_table(reg, core.GOLD_CORE_DIR / "ck_registry.parquet", "ck_registry",
+                    csv_copy=core.OUTPUT_DIR / "s04_ck_registry.csv")
+    core.write_table(ck_obs, core.GOLD_CORE_DIR / "ck_observation.parquet", "ck_observation")
+    core.write_table(decisions, core.GOLD_CORE_DIR / "continuity_decision.parquet", "continuity_decision",
+                    csv_copy=core.OUTPUT_DIR / "s04_continuity_decisions.csv")
 
     n_active = int(reg.is_active.sum())
-    print(f"CKs: {len(reg)}  active at {lib.YEARS[-1]}: {n_active}  closed: {len(reg) - n_active}")
+    print(f"CKs: {len(reg)}  active at {core.YEARS[-1]}: {n_active}  closed: {len(reg) - n_active}")
     print(decisions.continuity_class.value_counts().to_string())
-    if n_active != len(layers[lib.YEARS[-1]]):
-        sys.exit(f"V13 FAILED: {n_active} active CKs vs {len(layers[lib.YEARS[-1]])} features in {lib.YEARS[-1]}")
+    if n_active != len(layers[core.YEARS[-1]]):
+        sys.exit(f"V13 FAILED: {n_active} active CKs vs {len(layers[core.YEARS[-1]])} features in {core.YEARS[-1]}")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,8 @@
 """The s04 core-continuity rule on synthetic flow tables."""
 
 import pandas as pd
-import s04_identity as s04
+
+from district_evolution.stages import s04_identity as s04
 
 
 def targets(rows):

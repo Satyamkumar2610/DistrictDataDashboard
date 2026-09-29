@@ -12,17 +12,15 @@ Writes data/reference/ck_migration_v2_to_v3.csv (committed; v2 gold is not).
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "pipeline"))
-import lib  # noqa: E402
+from district_evolution import core
 
 
 def main(v2_path: str) -> None:
     v2 = pd.read_parquet(v2_path).rename(columns={"canonical_key": "v2_ck"})
-    v3 = pd.read_parquet(lib.GOLD_CORE_DIR / "ck_observation.parquet")[["geom_obs_id", "canonical_key", "year"]]
+    v3 = pd.read_parquet(core.GOLD_CORE_DIR / "ck_observation.parquet")[["geom_obs_id", "canonical_key", "year"]]
     j = v2.merge(v3.rename(columns={"canonical_key": "v3_ck"}), on="geom_obs_id", how="left")
 
     unmapped = j[j.v3_ck.isna()]
@@ -42,7 +40,7 @@ def main(v2_path: str) -> None:
 
     out = pd.concat([counts, retired.rename(columns={"observations": "shared_observations"})],
                     ignore_index=True).sort_values(["v2_ck", "v3_ck"])
-    out.to_csv(lib.REFERENCE_DIR / "ck_migration_v2_to_v3.csv", index=False)
+    out.to_csv(core.REFERENCE_DIR / "ck_migration_v2_to_v3.csv", index=False)
     print(out.relation.value_counts().to_string())
     print(f"v2 CKs: {v2.v2_ck.nunique()}  mapped: {counts.v2_ck.nunique()}  retired: {len(retired)}")
 

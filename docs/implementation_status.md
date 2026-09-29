@@ -1,9 +1,10 @@
 # Implementation Status: pipeline v3.0.0
 
 The design is in `docs/architecture/REVAMP_PLAN_V3.md`, and §7 there has the measured results.
-The live check results are in `outputs/pipeline/s12_validation_report.md`.
+The live check results are in `outputs/pipeline/s12_validation_report.md`. Stage modules live in
+`district_evolution/stages/`; the module map is in `docs/architecture/implementation_mapping.md`.
 
-| Stage | Script | Status |
+| Stage | Module | Status |
 |---|---|---|
 | s01 | s01_bronze_to_silver.py | Done: exact-partition repair, placeholder exclusion |
 | s02 | s02_topology_audit.py | Done: V1 gate |

@@ -1,11 +1,12 @@
 .venv/
 __pycache__/
 .pytest_cache/
+*.egg-info/
 .DS_Store
 *.dylib
 *.so
 
-# Generated data: rebuilt by scripts/pipeline/run_all.sh (hashes in dvc.lock)
+# Generated data: rebuilt by scripts/run_all.sh or dvc repro (hashes in dvc.lock)
 *.duckdb
 *.csv
 *.parquet

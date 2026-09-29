@@ -11,16 +11,14 @@ from __future__ import annotations
 
 import hashlib
 import sys
-from pathlib import Path
 
 import duckdb
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import lib  # noqa: E402
-import schemas  # noqa: E402
+from district_evolution import core
+from district_evolution.contracts import schemas
 
-G = lib.PROJECT_ROOT / "data" / "gold"
+G = core.PROJECT_ROOT / "data" / "gold"
 CONTRACTS = {
     "transition_flow": G / "spatial/transition_flow.parquet",
     "transition_residual": G / "spatial/transition_residual.parquet",
@@ -29,22 +27,22 @@ CONTRACTS = {
     "continuity_decision": G / "core/continuity_decision.parquet",
     "district_relationship": G / "events/district_relationship.parquet",
     "measured_area_transfer": G / "spatial/measured_area_transfer.parquet",
-    "area_ledger": lib.PRODUCTS_DIR / "district_area_ledger.parquet",
+    "area_ledger": core.PRODUCTS_DIR / "district_area_ledger.parquet",
     "boundary_event": G / "events/boundary_event.parquet",
     "event_participant": G / "events/event_participant.parquet",
     "participant_ck_candidate": G / "events/participant_ck_candidate.parquet",
     "event_linkage": G / "events/event_linkage.parquet",
     "event_accounting": G / "events/event_accounting.parquet",
-    "district_area_admin": lib.PRODUCTS_DIR / "district_area_admin.parquet",
-    "crosswalk_to_reference": lib.PRODUCTS_DIR / "crosswalk_to_reference.parquet",
-    "district_reference_context": lib.PRODUCTS_DIR / "district_reference_context.parquet",
+    "district_area_admin": core.PRODUCTS_DIR / "district_area_admin.parquet",
+    "crosswalk_to_reference": core.PRODUCTS_DIR / "crosswalk_to_reference.parquet",
+    "district_reference_context": core.PRODUCTS_DIR / "district_reference_context.parquet",
 }
 
 
 def contract_checks() -> list[dict]:
     rows = []
-    for year in lib.YEARS:
-        df = pd.read_parquet(lib.silver_path(year)).drop(columns="geometry")
+    for year in core.YEARS:
+        df = pd.read_parquet(core.silver_path(year)).drop(columns="geometry")
         rows.append(_check("silver_geometry", df, f"silver {year}"))
     for name, path in CONTRACTS.items():
         rows.append(_check(name, pd.read_parquet(path), path.name))
@@ -64,12 +62,12 @@ def _check(name: str, df: pd.DataFrame, label: str) -> dict:
 def map_date_check() -> dict:
     """V18: state-maps that look like they depict later boundaries than their label
     and are not yet covered by a confirmed data/reference/vintage_depiction.csv row."""
-    cfg = lib.CFG["map_dates"]
-    d = lib.shown_before_creation(pd.read_parquet(lib.GOLD_CORE_DIR / "ck_registry.parquet"))
+    cfg = core.CFG["map_dates"]
+    d = core.shown_before_creation(pd.read_parquet(core.GOLD_CORE_DIR / "ck_registry.parquet"))
     g = d.groupby(["state", "first_map"]).agg(n=("shown_before_creation", "size"),
                                               early=("shown_before_creation", "sum")).reset_index()
     flagged = g[(g.early >= cfg["min_districts"]) & (g.early / g.n >= cfg["min_share"])]
-    d.to_csv(lib.OUTPUT_DIR / "s12_map_date_check.csv", index=False)
+    d.to_csv(core.OUTPUT_DIR / "s12_map_date_check.csv", index=False)
     return {"check_id": "V18", "description": "state-map depicting later boundaries than its label, unconfirmed",
             "severity": "WARNING", "n_violations": len(flagged),
             "detail": "; ".join(f"{s} {y}: {e}/{n}" for s, y, e, n in flagged[["state", "first_map", "early", "n"]]
@@ -81,11 +79,11 @@ def merge_check() -> dict:
     REVAMP_PLAN_V3 F2) whose target vintage is not a documented geometry gap
     (data/reference/known_geometry_gaps.csv), e.g. SOI 2025 still showing
     Mizoram's pre-2018 8 districts."""
-    rel = pd.read_csv(lib.OUTPUT_DIR / "s05_district_relationship.csv")
-    reg = pd.read_csv(lib.OUTPUT_DIR / "s04_ck_registry.csv").set_index("canonical_key").latest_state
+    rel = pd.read_csv(core.OUTPUT_DIR / "s05_district_relationship.csv")
+    reg = pd.read_csv(core.OUTPUT_DIR / "s04_ck_registry.csv").set_index("canonical_key").latest_state
     m = rel[rel.relationship_type == "MERGED_INTO"].copy()
     m["target_state"] = m.to_ck.map(reg)
-    unexplained = m[[not lib.is_documented_geometry_gap(s, y) for s, y in zip(m.target_state, m.year_b)]]
+    unexplained = m[[not core.is_documented_geometry_gap(s, y) for s, y in zip(m.target_state, m.year_b)]]
     return {"check_id": "V19", "description": "MERGED_INTO edge into an undocumented geometry gap (see known_geometry_gaps.csv)",
             "severity": "WARNING", "n_violations": len(unexplained),
             "detail": "; ".join(f"{a}->{b} ({y})" for a, b, y in
@@ -93,9 +91,9 @@ def merge_check() -> dict:
 
 
 def manifest() -> pd.DataFrame:
-    roots = [lib.SILVER_GEOM_DIR, G / "core", G / "spatial", G / "events", lib.PRODUCTS_DIR]
+    roots = [core.SILVER_GEOM_DIR, G / "core", G / "spatial", G / "events", core.PRODUCTS_DIR]
     files = sorted(p for r in roots for p in r.rglob("*") if p.is_file() and p.suffix in {".parquet", ".geoparquet", ".csv"})
-    return pd.DataFrame({"path": [str(p.relative_to(lib.PROJECT_ROOT)) for p in files],
+    return pd.DataFrame({"path": [str(p.relative_to(core.PROJECT_ROOT)) for p in files],
                          "sha256": [hashlib.sha256(p.read_bytes()).hexdigest() for p in files]})
 
 
@@ -128,19 +126,19 @@ def metrics(con: duckdb.DuckDBPyConnection) -> dict:
 
 
 def main() -> None:
-    topo = pd.read_csv(lib.OUTPUT_DIR / "s02_topology_audit.csv")
+    topo = pd.read_csv(core.OUTPUT_DIR / "s02_topology_audit.csv")
     rows = [{"check_id": "V1", "description": "layer self-overlap beyond error threshold", "severity": "ERROR",
              "n_violations": int((topo.status == "ERROR").sum()), "detail": None}]
-    con = duckdb.connect(str(lib.WAREHOUSE_PATH), read_only=True)
+    con = duckdb.connect(str(core.WAREHOUSE_PATH), read_only=True)
     con.execute("LOAD spatial")
     rows += con.execute("SELECT * FROM validation_result").df().to_dict("records")
     rows += contract_checks()
     rows.append(map_date_check())
     rows.append(merge_check())
     checks = pd.DataFrame(rows)
-    checks.to_csv(lib.OUTPUT_DIR / "s12_checks.csv", index=False)
+    checks.to_csv(core.OUTPUT_DIR / "s12_checks.csv", index=False)
     man = manifest()
-    man.to_csv(lib.OUTPUT_DIR / "s12_output_manifest.csv", index=False)
+    man.to_csv(core.OUTPUT_DIR / "s12_output_manifest.csv", index=False)
     m = metrics(con)
     spatial = con.execute("SELECT spatial_class, count(*) n FROM event_summary GROUP BY 1 ORDER BY 2 DESC").df()
     queue = con.execute("""
@@ -156,7 +154,7 @@ def main() -> None:
     gate = "PASS" if failed.empty else "FAIL"
     table = checks[checks.check_id != "V11"][["check_id", "severity", "n_violations", "description", "detail"]]
     v11 = checks[checks.check_id == "V11"]
-    report = f"""# Validation report — pipeline v{lib.PIPELINE_VERSION}
+    report = f"""# Validation report — pipeline v{core.PIPELINE_VERSION}
 
 **Gate: {gate}** — {len(failed)} ERROR check(s) failing, {len(warn)} WARNING check(s) with findings.
 
@@ -184,7 +182,7 @@ parent, according to the maps. Each case needs a documentary check.
 
 {queue.to_markdown(index=False)}
 """
-    (lib.OUTPUT_DIR / "s12_validation_report.md").write_text(report, encoding="utf-8")
+    (core.OUTPUT_DIR / "s12_validation_report.md").write_text(report, encoding="utf-8")
     print(report[:3000])
     if not failed.empty:
         sys.exit(f"VALIDATION GATE FAILED: {', '.join(sorted(set(failed.check_id)))}")

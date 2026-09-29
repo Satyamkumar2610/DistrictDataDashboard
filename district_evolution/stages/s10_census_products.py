@@ -20,36 +20,32 @@ district_reference_context
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import lib  # noqa: E402
+from district_evolution import core
 
-REF = lib.REFERENCE_YEAR
+REF = core.REFERENCE_YEAR
 MIN_SOURCE_SHARE = 0.01  # a source counts as "drawn on" if it supplies >= 1% of the target
 
 
 def main() -> None:
-    obs = pd.read_parquet(lib.GOLD_CORE_DIR / "ck_observation.parquet")
-    reg = pd.read_parquet(lib.GOLD_CORE_DIR / "ck_registry.parquet").set_index("canonical_key")
+    obs = pd.read_parquet(core.GOLD_CORE_DIR / "ck_observation.parquet")
+    reg = pd.read_parquet(core.GOLD_CORE_DIR / "ck_registry.parquet").set_index("canonical_key")
     ck = dict(zip(obs.geom_obs_id, obs.canonical_key))
 
     admin = obs[["canonical_key", "year", "district_name", "state", "area_km2"]].sort_values(["canonical_key", "year"])
     # the year these boundaries actually depict (differs from the map label for confirmed cases)
-    admin.insert(2, "depicted_year", [lib.depicted_year(s, y) for s, y in zip(admin.state, admin.year)])
-    lib.write_table(admin, lib.PRODUCTS_DIR / "district_area_admin.parquet", "district_area_admin",
-                    csv_copy=lib.PRODUCTS_DIR / "district_area_admin.csv")
+    admin.insert(2, "depicted_year", [core.depicted_year(s, y) for s, y in zip(admin.state, admin.year)])
+    core.write_table(admin, core.PRODUCTS_DIR / "district_area_admin.parquet", "district_area_admin",
+                    csv_copy=core.PRODUCTS_DIR / "district_area_admin.csv")
     wide = admin.pivot(index="canonical_key", columns="year", values="area_km2").add_prefix("area_km2_")
     wide.insert(0, "latest_name", reg.latest_name)
     wide.insert(1, "latest_state", reg.latest_state)
     wide.insert(2, "established_year", reg.established_year)
     wide.insert(3, "closed_year", reg.closed_year)
-    wide.reset_index().to_csv(lib.PRODUCTS_DIR / "district_area_admin_wide.csv", index=False)
+    wide.reset_index().to_csv(core.PRODUCTS_DIR / "district_area_admin_wide.csv", index=False)
 
-    flow = pd.read_parquet(lib.GOLD_SPATIAL_DIR / "transition_flow.parquet")
+    flow = pd.read_parquet(core.GOLD_SPATIAL_DIR / "transition_flow.parquet")
     flow = flow[(flow.kind == "REFERENCE") & (flow.year_b == REF)]
     xw = flow.assign(source_ck=flow.geom_obs_id_a.map(ck), target_ck=flow.geom_obs_id_b.map(ck),
                      area_km2=flow.total_km2 - flow.sliver_km2)
@@ -65,8 +61,8 @@ def main() -> None:
     depicted = admin.set_index(["canonical_key", "year"]).depicted_year
     xw["source_depicted_year"] = [depicted[(c, y)] for c, y in zip(xw.source_ck, xw.year)]
     xw = xw.sort_values(["year", "target_ck", "area_km2"], ascending=[True, True, False])
-    lib.write_table(xw, lib.PRODUCTS_DIR / "crosswalk_to_reference.parquet", "crosswalk_to_reference",
-                    csv_copy=lib.PRODUCTS_DIR / "crosswalk_to_reference.csv")
+    core.write_table(xw, core.PRODUCTS_DIR / "crosswalk_to_reference.parquet", "crosswalk_to_reference",
+                    csv_copy=core.PRODUCTS_DIR / "crosswalk_to_reference.csv")
 
     grp = xw.groupby(["target_ck", "year"])
     primary = xw.drop_duplicates(["target_ck", "year"])  # sorted by area desc within target/year
@@ -74,7 +70,7 @@ def main() -> None:
     ctx["n_source_districts"] = grp.share_of_target.apply(lambda s: int((s >= MIN_SOURCE_SHARE).sum()))
     ctx = ctx.join(primary.set_index(["target_ck", "year"])[["source_ck", "share_of_target"]].rename(
         columns={"source_ck": "primary_source_ck", "share_of_target": "primary_share_of_target"}))
-    full = pd.MultiIndex.from_product([sorted(ref.canonical_key), lib.YEARS], names=["target_ck", "year"])
+    full = pd.MultiIndex.from_product([sorted(ref.canonical_key), core.YEARS], names=["target_ck", "year"])
     ctx = ctx.reindex(full).reset_index()
     ctx["mapped_km2"] = ctx.mapped_km2.fillna(0.0)
     ctx["n_source_districts"] = ctx.n_source_districts.fillna(0).astype(int)
@@ -83,14 +79,14 @@ def main() -> None:
     ctx["primary_source_name"] = ctx.primary_source_ck.map(reg.display_name)
     ctx["target_name"] = ctx.target_ck.map(reg.latest_name)
     ctx["target_state"] = ctx.target_ck.map(reg.latest_state)
-    lib.write_table(ctx, lib.PRODUCTS_DIR / "district_reference_context.parquet", "district_reference_context",
-                    csv_copy=lib.PRODUCTS_DIR / "district_reference_context.csv")
+    core.write_table(ctx, core.PRODUCTS_DIR / "district_reference_context.parquet", "district_reference_context",
+                    csv_copy=core.PRODUCTS_DIR / "district_reference_context.csv")
 
     view = ctx.assign(cell=[f"{n} ({s:.0%})" if isinstance(n, str) else "" for n, s in
                             zip(ctx.primary_source_name, ctx.primary_share_of_target)])
     view = view.pivot(index=["target_ck", "target_name", "target_state"], columns="year", values="cell")
     view.add_prefix("contained_in_").reset_index().to_csv(
-        lib.PRODUCTS_DIR / "district_reference_context_wide.csv", index=False)
+        core.PRODUCTS_DIR / "district_reference_context_wide.csv", index=False)
 
     print(f"admin rows: {len(admin)}  crosswalk rows: {len(xw)}  context rows: {len(ctx)}")
     print(xw.groupby("year").agg(rows=("area_km2", "size"), km2=("area_km2", "sum")).round(0).to_string())

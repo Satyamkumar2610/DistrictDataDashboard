@@ -20,18 +20,16 @@ turns into the pass/fail gate:
 from __future__ import annotations
 
 import hashlib
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 import duckdb
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import lib  # noqa: E402
+from district_evolution import core
 
-G = lib.PROJECT_ROOT / "data" / "gold"
-P = lib.PRODUCTS_DIR
+G = core.PROJECT_ROOT / "data" / "gold"
+P = core.PRODUCTS_DIR
 
 DDL = """
 CREATE TABLE vintage (year INTEGER PRIMARY KEY, ordinal INTEGER NOT NULL UNIQUE, source VARCHAR NOT NULL);
@@ -164,11 +162,11 @@ def pq(path: Path) -> str:
 
 def load(con: duckdb.DuckDBPyConnection) -> None:
     con.executemany("INSERT INTO vintage VALUES (?, ?, ?)",
-                    [(y, i, s) for i, (s, y) in enumerate(lib.VINTAGES)])
-    for s, y in lib.VINTAGES:
+                    [(y, i, s) for i, (s, y) in enumerate(core.VINTAGES)])
+    for s, y in core.VINTAGES:
         con.execute(f"""INSERT INTO geometry_observation
             SELECT geom_obs_id, source_dataset, source_year, source_pk, district_name_std, state_name_std,
-                   area_km2, perimeter_km, geometry FROM {pq(lib.silver_path(y))}""")
+                   area_km2, perimeter_km, geometry FROM {pq(core.silver_path(y))}""")
     tables = {
         "ck_registry": G / "core/ck_registry.parquet",
         "ck_observation": G / "core/ck_observation.parquet",
@@ -197,9 +195,9 @@ def load(con: duckdb.DuckDBPyConnection) -> None:
 
 
 def invariants(con: duckdb.DuckDBPyConnection) -> list[tuple]:
-    err_pct = lib.CFG["closure"]["error_pct"]
-    area_pct = lib.CFG["area_check"]["max_rel_diff_pct"]
-    ref = lib.REFERENCE_YEAR
+    err_pct = core.CFG["closure"]["error_pct"]
+    area_pct = core.CFG["area_check"]["max_rel_diff_pct"]
+    ref = core.REFERENCE_YEAR
     checks = [
         ("V3", "overlay closure broken (excess > closure.error_pct of polygon)", "ERROR",
          f"SELECT count(*) FROM transition_residual WHERE closure_error_km2 > area_km2 * {err_pct} / 100"),
@@ -234,14 +232,14 @@ def invariants(con: duckdb.DuckDBPyConnection) -> list[tuple]:
         ("V15", "crosswalk exceeds source or target area", "ERROR",
          f"""SELECT (SELECT count(*) FROM (SELECT x.year, x.source_ck, sum(x.area_km2) a, max(d.area_km2) s
                   FROM crosswalk_to_reference x JOIN district_area_admin d ON d.canonical_key = x.source_ck AND d.year = x.year
-                  GROUP BY 1, 2) WHERE a > s * (1 + {lib.CFG['closure']['tol_pct']} / 100) + {lib.CFG['closure']['tol_km2']})
+                  GROUP BY 1, 2) WHERE a > s * (1 + {core.CFG['closure']['tol_pct']} / 100) + {core.CFG['closure']['tol_km2']})
              + (SELECT count(*) FROM (SELECT x.year, x.target_ck, sum(x.area_km2) a, max(d.area_km2) t
                   FROM crosswalk_to_reference x JOIN district_area_admin d ON d.canonical_key = x.target_ck AND d.year = {ref}
-                  GROUP BY 1, 2) WHERE a > t * (1 + {lib.CFG['closure']['tol_pct']} / 100) + {lib.CFG['closure']['tol_km2']})"""),
+                  GROUP BY 1, 2) WHERE a > t * (1 + {core.CFG['closure']['tol_pct']} / 100) + {core.CFG['closure']['tol_km2']})"""),
         ("V16", "area ledger closure beyond tolerance", "WARNING",
          "SELECT count(*) FROM district_ledger WHERE NOT closure_ok"),
         ("V17", "overlap repair changed a polygon's area by more than 0.1% (review)", "WARNING",
-         f"""SELECT count(*) FROM read_csv('{(lib.OUTPUT_DIR / "s01_overlap_repairs.csv").as_posix()}')
+         f"""SELECT count(*) FROM read_csv('{(core.OUTPUT_DIR / "s01_overlap_repairs.csv").as_posix()}')
              WHERE area_removed_km2 / area_before_km2 > 0.001"""),
         ("INFO_LINK", "event participants not linked to a district", "INFO",
          "SELECT count(*) FROM event_linkage WHERE link_status IN ('UNRESOLVED_NAME','NO_BRACKETING_VINTAGE')"),
@@ -263,7 +261,7 @@ def sha256(path: Path) -> str:
 
 
 def main() -> None:
-    tmp = lib.WAREHOUSE_PATH.with_suffix(".building.duckdb")
+    tmp = core.WAREHOUSE_PATH.with_suffix(".building.duckdb")
     tmp.unlink(missing_ok=True)
     con = duckdb.connect(str(tmp))
     con.execute("INSTALL spatial; LOAD spatial;")
@@ -272,12 +270,12 @@ def main() -> None:
     results = invariants(con)
     con.executemany("INSERT INTO validation_result VALUES (?, ?, ?, ?, ?)", results)
     con.execute("INSERT INTO pipeline_run VALUES (?, ?, ?, ?)",
-                [lib.PIPELINE_VERSION, datetime.now(timezone.utc).replace(tzinfo=None),
-                 sha256(lib.CONFIG_DIR / "pipeline.yaml"), sha256(lib.EVENTS_CSV)])
+                [core.PIPELINE_VERSION, datetime.now(timezone.utc).replace(tzinfo=None),
+                 sha256(core.CONFIG_DIR / "pipeline.yaml"), sha256(core.EVENTS_CSV)])
     con.close()
-    tmp.replace(lib.WAREHOUSE_PATH)
+    tmp.replace(core.WAREHOUSE_PATH)
     df = pd.DataFrame(results, columns=["check_id", "description", "severity", "n_violations", "detail"])
-    df.to_csv(lib.OUTPUT_DIR / "s11_invariants.csv", index=False)
+    df.to_csv(core.OUTPUT_DIR / "s11_invariants.csv", index=False)
     print(df.to_string(index=False))
 
 

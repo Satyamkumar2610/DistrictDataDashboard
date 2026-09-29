@@ -19,22 +19,18 @@ CORE + TRANSFER is "material" area: the only area lineage and transfers count.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import lib  # noqa: E402
+from district_evolution import core
 
-OV = lib.CFG["overlay"]
+OV = core.CFG["overlay"]
 CLASSES = ["core", "transfer", "displacement", "sliver"]
 
 
 def load(year: int) -> gpd.GeoDataFrame:
-    return gpd.read_parquet(lib.silver_path(year), columns=["geom_obs_id", "area_km2", "geometry"])
+    return gpd.read_parquet(core.silver_path(year), columns=["geom_obs_id", "area_km2", "geometry"])
 
 
 def overlay_parts(year_a: int, year_b: int) -> gpd.GeoDataFrame:
@@ -47,17 +43,17 @@ def classify_parts(layer_a: gpd.GeoDataFrame, layer_b: gpd.GeoDataFrame) -> gpd.
     b = layer_b.rename(columns={"geom_obs_id": "obs_b", "area_km2": "area_b"})
     ov = gpd.overlay(a, b, how="intersection", keep_geom_type=True)
     parts = ov.explode(index_parts=False).reset_index(drop=True)
-    ap = parts.geometry.apply(lib.geodesic_area_perimeter)
+    ap = parts.geometry.apply(core.geodesic_area_perimeter)
     parts["part_km2"] = [x[0] for x in ap]
     parts["perimeter_km"] = [x[1] for x in ap]
     parts = parts[parts["part_km2"] > 0].copy()
     smaller = np.minimum(parts["area_a"], parts["area_b"])
     width = 2.0 * parts["part_km2"] / parts["perimeter_km"]
     sliver = parts["part_km2"] < np.maximum(OV["sliver_abs_km2"], smaller * OV["sliver_rel_fraction"])
-    core = parts["part_km2"] >= OV["core_share"] * smaller
+    is_core = parts["part_km2"] >= OV["core_share"] * smaller
     parts["width_km"] = width
     parts["part_class"] = np.select(
-        [sliver, core, width < OV["displacement_width_km"]],
+        [sliver, is_core, width < OV["displacement_width_km"]],
         ["sliver", "core", "displacement"], default="transfer")
     return parts
 
@@ -83,7 +79,7 @@ def flows_and_residuals(parts, year_a, year_b, kind):
         r["covered_km2"] = r["geom_obs_id"].map(covered).fillna(0.0)
         r["unmapped_km2"] = (r["area_km2"] - r["covered_km2"]).clip(lower=0.0)
         r["closure_error_km2"] = (r["covered_km2"] - r["area_km2"]).clip(lower=0.0)
-        r["closure_ok"] = lib.within_closure(r["closure_error_km2"], r["area_km2"])
+        r["closure_ok"] = core.within_closure(r["closure_error_km2"], r["area_km2"])
         r.insert(0, "kind", kind)
         r.insert(1, "side", side)
         r.insert(2, "year_a", year_a)
@@ -107,8 +103,8 @@ def summarize(flow, res, kind, year_a, year_b) -> dict:
 
 
 def main() -> None:
-    pairs = [("ADJACENT", a, b) for a, b in lib.WINDOWS]
-    pairs += [("REFERENCE", y, lib.REFERENCE_YEAR) for y in lib.YEARS if y != lib.REFERENCE_YEAR]
+    pairs = [("ADJACENT", a, b) for a, b in core.WINDOWS]
+    pairs += [("REFERENCE", y, core.REFERENCE_YEAR) for y in core.YEARS if y != core.REFERENCE_YEAR]
     flows, residuals, summary, inspect = [], [], [], []
     cache: dict[tuple[int, int], gpd.GeoDataFrame] = {}
     for kind, ya, yb in pairs:
@@ -126,14 +122,14 @@ def main() -> None:
             inspect.append(keep.assign(year_a=ya, year_b=yb)[
                 ["year_a", "year_b", "obs_a", "obs_b", "part_km2", "width_km", "part_class", "geometry"]])
 
-    lib.write_table(pd.concat(flows, ignore_index=True), lib.GOLD_SPATIAL_DIR / "transition_flow.parquet",
+    core.write_table(pd.concat(flows, ignore_index=True), core.GOLD_SPATIAL_DIR / "transition_flow.parquet",
                     "transition_flow")
-    lib.write_table(pd.concat(residuals, ignore_index=True), lib.GOLD_SPATIAL_DIR / "transition_residual.parquet",
+    core.write_table(pd.concat(residuals, ignore_index=True), core.GOLD_SPATIAL_DIR / "transition_residual.parquet",
                     "transition_residual")
     summary = pd.DataFrame(summary)
-    summary.to_csv(lib.OUTPUT_DIR / "s03_transition_summary.csv", index=False)
+    summary.to_csv(core.OUTPUT_DIR / "s03_transition_summary.csv", index=False)
     gpd.GeoDataFrame(pd.concat(inspect, ignore_index=True), geometry="geometry", crs="EPSG:4326").to_file(
-        lib.OUTPUT_DIR / "s03_transfer_and_displacement_parts.gpkg", driver="GPKG")
+        core.OUTPUT_DIR / "s03_transfer_and_displacement_parts.gpkg", driver="GPKG")
 
     print(summary.to_string(index=False))
 

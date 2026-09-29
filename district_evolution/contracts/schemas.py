@@ -1,6 +1,6 @@
 """Data contracts (pandera) for every table the pipeline writes.
 
-lib.write_table validates against these before writing; a violation raises
+core.write_table validates against these before writing; a violation raises
 and stops the stage, so a malformed table can never reach a later stage.
 """
 
@@ -10,9 +10,8 @@ import pandas as pd
 import pandera.pandas as pa
 from pandera.pandas import Check, Column, DataFrameSchema
 
-import lib
+from district_evolution.core.config import YEARS
 
-YEARS = lib.YEARS
 CK = Check.str_matches(r"^IND-\d{6}$")
 SHA = Check.str_matches(r"^[0-9a-f]{32}$")
 NONNEG = Check.ge(0)

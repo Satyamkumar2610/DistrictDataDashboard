@@ -14,7 +14,7 @@ Checks, all against sources the pipeline never used:
   4. Lineage    Wikidata "separated from" / "replaces" / "replaced by" links vs
                 our district_relationship edges or CK continuity.
 
-Usage: python scripts/audit/external_audit.py [snapshot.json]
+Usage: python -m district_evolution.evidence.wikidata_audit [snapshot.json]
 Writes outputs/audit/*.csv and outputs/audit/EXTERNAL_AUDIT_REPORT.md
 """
 
@@ -29,10 +29,9 @@ import numpy as np
 import pandas as pd
 from shapely import wkt
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "pipeline"))
-import lib  # noqa: E402
+from district_evolution import core
 
-OUT = lib.PROJECT_ROOT / "outputs" / "audit"
+OUT = core.PROJECT_ROOT / "outputs" / "audit"
 UNIT_TO_KM2 = {"Q712226": 1.0, "Q232291": 2.589988110336, "Q25343": 1e-6}  # km2, sq mi, m2
 NEAR_KM = 10.0
 AREA_AGREE, AREA_MINOR = 0.02, 0.10
@@ -71,7 +70,7 @@ def load_snapshot(path: Path) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame,
 
 def locate(points: gpd.GeoDataFrame, year: int, obs: pd.DataFrame) -> pd.DataFrame:
     """For each point: the CK whose polygon at `year` contains it (or the nearest within NEAR_KM)."""
-    layer = gpd.read_parquet(lib.silver_path(year), columns=["geom_obs_id", "district_name_norm", "geometry"])
+    layer = gpd.read_parquet(core.silver_path(year), columns=["geom_obs_id", "district_name_norm", "geometry"])
     layer = layer.merge(obs[["geom_obs_id", "canonical_key"]], on="geom_obs_id")
     inside = gpd.sjoin(points, layer, how="left", predicate="within")
     inside = inside[~inside.index.duplicated()]
@@ -92,23 +91,23 @@ def locate(points: gpd.GeoDataFrame, year: int, obs: pd.DataFrame) -> pd.DataFra
 def main(snapshot_path: str | None = None) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     path = Path(snapshot_path) if snapshot_path else sorted(
-        (lib.REFERENCE_DIR / "external").glob("wikidata_districts_*.json"))[-1]
+        (core.REFERENCE_DIR / "external").glob("wikidata_districts_*.json"))[-1]
     items, lineage, _, meta = load_snapshot(path)
-    obs = pd.read_parquet(lib.GOLD_CORE_DIR / "ck_observation.parquet")
-    reg = pd.read_parquet(lib.GOLD_CORE_DIR / "ck_registry.parquet").set_index("canonical_key")
-    rel = pd.read_parquet(lib.GOLD_EVENTS_DIR / "district_relationship.parquet")
+    obs = pd.read_parquet(core.GOLD_CORE_DIR / "ck_observation.parquet")
+    reg = pd.read_parquet(core.GOLD_CORE_DIR / "ck_registry.parquet").set_index("canonical_key")
+    rel = pd.read_parquet(core.GOLD_EVENTS_DIR / "district_relationship.parquet")
     area = obs.set_index(["canonical_key", "year"]).area_km2
-    ref = lib.REFERENCE_YEAR
+    ref = core.REFERENCE_YEAR
 
     items = items[items.coord.notna()].copy()
     items["geometry"] = items.coord.map(wkt.loads)
-    items["label_norm"] = items.label.map(lib.normalize_name)
+    items["label_norm"] = items.label.map(core.normalize_name)
     pts = gpd.GeoDataFrame(items, geometry="geometry", crs="EPSG:4326")
     current = pts[pts.dissolved.isna()]
 
     # ---- 1. coverage / matching -------------------------------------------
     m = current.join(locate(current, ref, obs))
-    m["name_agree"] = [bool(o) and lib.names_agree(a, o)[0] for a, o in zip(m.label_norm, m.our_name_norm.fillna(""))]
+    m["name_agree"] = [bool(o) and core.names_agree(a, o)[0] for a, o in zip(m.label_norm, m.our_name_norm.fillna(""))]
     m["match_status"] = np.select(
         [m.canonical_key.isna(), m.name_agree],
         ["NO_POLYGON", "GEOMETRY_AND_NAME"], default="GEOMETRY_ONLY_NAME_DIFFERS")
@@ -130,12 +129,12 @@ def main(snapshot_path: str | None = None) -> None:
     a["rel_diff_2011"] = (a.our_area_2011_km2 - a.wd_area_km2) / a.wd_area_km2
     # a stale figure: Wikidata matches this same district's area on one of our earlier maps
     def earlier_match(ck, wd):
-        hits = [y for y in lib.YEARS[:-1] if (ck, y) in area.index and abs(area[(ck, y)] - wd) / wd <= AREA_AGREE]
+        hits = [y for y in core.YEARS[:-1] if (ck, y) in area.index and abs(area[(ck, y)] - wd) / wd <= AREA_AGREE]
         return max(hits) if hits else np.nan
     a["matches_our_year"] = [earlier_match(c, w) for c, w in zip(a.canonical_key, a.wd_area_km2)]
     # a magnitude slip: one of our areas for this district is within 2% of Wikidata x 10^k (k != 0)
     def slip(ck, wd):
-        for y in lib.YEARS:
+        for y in core.YEARS:
             if (ck, y) in area.index:
                 k = round(np.log10(area[(ck, y)] / wd))
                 if k != 0 and abs(area[(ck, y)] / (wd * 10.0 ** k) - 1) <= AREA_AGREE:
@@ -158,12 +157,12 @@ def main(snapshot_path: str | None = None) -> None:
     # ---- 3. formation year ------------------------------------------------------
     # our formation interval (formed_after, formed_by] is in DEPICTED years (s04)
     f = matched[matched.inception.notna() & (matched.inception >= 1947)].copy()
-    prev = {y: p for p, y in zip([None] + lib.YEARS[:-1], lib.YEARS)}
+    prev = {y: p for p, y in zip([None] + core.YEARS[:-1], core.YEARS)}
     f["our_first_map"] = f.canonical_key.map(reg.established_year)
     f["formed_after"] = f.canonical_key.map(reg.formed_after)
     f["formed_by"] = f.canonical_key.map(reg.formed_by)
     state = f.canonical_key.map(reg.state_at_creation)
-    lag_start = [lib.depicted_year(s, prev[prev[y]]) if prev.get(y) and prev.get(prev[y]) else 1900
+    lag_start = [core.depicted_year(s, prev[prev[y]]) if prev.get(y) and prev.get(prev[y]) else 1900
                  for s, y in zip(state, f.our_first_map)]
 
     def verdict(r, ls):
@@ -208,7 +207,7 @@ def main(snapshot_path: str | None = None) -> None:
 def map_dates(reg: pd.DataFrame, wd_inception: dict) -> pd.DataFrame:
     """5. Does a map show a district before it was created? Creation year from the
     events CSV (independent of the maps), corroborated by Wikidata where it has one."""
-    d = lib.shown_before_creation(reg.reset_index())
+    d = core.shown_before_creation(reg.reset_index())
     d["wikidata_inception"] = d.canonical_key.map(wd_inception)
     d["wikidata_agrees_with_csv"] = (d.wikidata_inception - d.csv_year).abs() <= 1
     d.sort_values(["state", "first_map", "latest_name"]).to_csv(OUT / "map_date_audit.csv", index=False)
@@ -226,7 +225,7 @@ agreement here is external corroboration. It is crowd-maintained: of its distric
 area claims, only {int(a.area_referenced.sum())} of those matched carry a source reference, and almost none
 carry a date. A disagreement is therefore a lead to check, not proof of our error.
 
-## 1. Coverage (reference year {lib.REFERENCE_YEAR})
+## 1. Coverage (reference year {core.REFERENCE_YEAR})
 
 Current Wikidata district items with coordinates: {len(m)}.
 
