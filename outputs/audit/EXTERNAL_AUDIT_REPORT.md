@@ -88,9 +88,9 @@ Compared: 141 districts with inception ≥ 1947.
 
 | verdict                     |   n |
 |:----------------------------|----:|
-| CONSISTENT                  | 121 |
+| CONSISTENT                  | 125 |
 | CONSISTENT_WITH_ONE_MAP_LAG |  10 |
-| OURS_EARLIER_THAN_INCEPTION |   8 |
+| OURS_EARLIER_THAN_INCEPTION |   4 |
 | OURS_LATER_THAN_INCEPTION   |   2 |
 
 ## 4. Lineage (Wikidata separated-from / replaces / replaced-by)
@@ -107,30 +107,31 @@ coverage.
 
 For each new district we take its creation year from the events compilation. That source is
 independent of the maps. Where Wikidata also has an inception year, it is used to corroborate.
-Of 402 new districts with a recorded creation year, **32**
-already appear on a map dated before that year.
+Dates confirmed in `data/reference/vintage_depiction.csv` are applied first. Of 402 new
+districts with a recorded creation year, **20** still appear on a
+map depicting a date before that year.
 
-| latest_state      |   first_map |   new_on_map |   wikidata_confirms |   named_new_districts |
+| state             |   first_map |   new_on_map |   wikidata_confirms |   named_new_districts |
 |:------------------|------------:|-------------:|--------------------:|----------------------:|
-| Assam             |        1981 |           13 |                   3 |                    14 |
 | Manipur           |        1971 |            4 |                   0 |                     5 |
 | Arunachal Pradesh |        1981 |            2 |                   0 |                     6 |
 | Jammu And Kashmir |        1961 |            2 |                   0 |                     8 |
 | Uttar Pradesh     |        2001 |            2 |                   0 |                    13 |
 | Arunachal Pradesh |        1961 |            1 |                   0 |                     2 |
 | Assam             |        1971 |            1 |                   0 |                     2 |
+| Assam             |        1981 |            1 |                   0 |                    14 |
 | Jharkhand         |        1991 |            1 |                   0 |                     7 |
 | Manipur           |        1981 |            1 |                   0 |                     2 |
 | Punjab            |        1961 |            1 |                   0 |                     1 |
 | Punjab            |        2001 |            1 |                   0 |                     5 |
 | Rajasthan         |        1961 |            1 |                   0 |                     1 |
 
-The concentration in one state-year points at the map layer, not at scattered errors. For
-example, the Stanford "1981" Assam layer has the same 23 districts as its 1991 layer, and
-Wikidata's inception years agree with the events compilation there. A layer like that depicts
-later boundaries than its label says. Change in that state is then assigned to the wrong
-decade, and events dated inside the gap cannot be matched to it (compare the research queue in
-the s12 report).
+When the cases concentrate in one state-map, the map layer is the likely problem, not scattered
+event errors. Confirmed case: the Stanford "1981" Assam layer has the same 23 districts as its
+1991 layer, and 13 of its 14 new districts were created 1983–1989. Wikidata's inception years
+agree with the events compilation there. The pipeline therefore treats that layer as depicting
+1989, so the table above no longer shows it. Any remaining concentration is flagged by s12
+check V18 until a second source confirms or rejects it.
 
 ## Files
 
