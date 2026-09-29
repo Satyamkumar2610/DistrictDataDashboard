@@ -76,6 +76,22 @@ def map_date_check() -> dict:
                                 .itertuples(index=False)) or None}
 
 
+def merge_check() -> dict:
+    """V19: MERGED_INTO edges (real district mergers are rare in India, see
+    REVAMP_PLAN_V3 F2) whose target vintage is not a documented geometry gap
+    (data/reference/known_geometry_gaps.csv), e.g. SOI 2025 still showing
+    Mizoram's pre-2018 8 districts."""
+    rel = pd.read_csv(lib.OUTPUT_DIR / "s05_district_relationship.csv")
+    reg = pd.read_csv(lib.OUTPUT_DIR / "s04_ck_registry.csv").set_index("canonical_key").latest_state
+    m = rel[rel.relationship_type == "MERGED_INTO"].copy()
+    m["target_state"] = m.to_ck.map(reg)
+    unexplained = m[[not lib.is_documented_geometry_gap(s, y) for s, y in zip(m.target_state, m.year_b)]]
+    return {"check_id": "V19", "description": "MERGED_INTO edge into an undocumented geometry gap (see known_geometry_gaps.csv)",
+            "severity": "WARNING", "n_violations": len(unexplained),
+            "detail": "; ".join(f"{a}->{b} ({y})" for a, b, y in
+                                 unexplained[["from_ck", "to_ck", "year_b"]].itertuples(index=False)) or None}
+
+
 def manifest() -> pd.DataFrame:
     roots = [lib.SILVER_GEOM_DIR, G / "core", G / "spatial", G / "events", lib.PRODUCTS_DIR]
     files = sorted(p for r in roots for p in r.rglob("*") if p.is_file() and p.suffix in {".parquet", ".geoparquet", ".csv"})
@@ -120,6 +136,7 @@ def main() -> None:
     rows += con.execute("SELECT * FROM validation_result").df().to_dict("records")
     rows += contract_checks()
     rows.append(map_date_check())
+    rows.append(merge_check())
     checks = pd.DataFrame(rows)
     checks.to_csv(lib.OUTPUT_DIR / "s12_checks.csv", index=False)
     man = manifest()

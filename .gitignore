@@ -17,3 +17,4 @@ __pycache__/
 !data/reference/name_aliases.csv
 !data/reference/ck_migration_v2_to_v3.csv
 !data/reference/vintage_depiction.csv
+!data/reference/known_geometry_gaps.csv

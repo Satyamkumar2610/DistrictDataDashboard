@@ -27,6 +27,8 @@ semantics.
 | State reorganisations (curated) | `data/reference/state_lineage.csv` | Which states a district can appear under at other dates |
 | Renames and spellings (curated, same entity only) | `data/reference/name_aliases.csv` | Name equivalence. Splits are never aliases. |
 | v2 → v3 key map | `data/reference/ck_migration_v2_to_v3.csv` | Resolves every old v2 key |
+| Mislabelled vintages (curated, confirmed only) | `data/reference/vintage_depiction.csv` | A map's boundaries depict a later year than its own label (e.g. Stanford "1981" Assam depicts ~1989) |
+| Known geometry gaps (curated, confirmed only) | `data/reference/known_geometry_gaps.csv` | A vintage is missing districts other evidence confirms already existed (e.g. SOI 2025 still shows Mizoram's pre-2018 8 districts) |
 
 Bronze files are committed and must never be modified.
 
@@ -92,7 +94,12 @@ Shared modules: `lib.py` (paths, config, area, IDs, names, reference data, `writ
 - DVC remote and moving bronze out of git history (the `.git` directory is 691 MB). Needs a remote
   and a force-push coordinated with collaborators.
 - Zenodo DOI (`CITATION.cff` is ready) and pushing the CI workflow.
-- Independent ground truth: Census District Handbooks, Wikidata P1365/P1366, DataMeet boundaries,
-  gazettes.
-- OD-01 (reclassification CK rule). Also: SOI 2025 lags Mizoram's 2019 districts, producing 3
-  `MERGED_INTO` edges into Champhai.
+- Independent ground truth: Wikidata (P1365/P1366 lineage, inception, area) is done —
+  `outputs/audit/EXTERNAL_AUDIT_REPORT.md`, reproducible from a frozen snapshot via
+  `scripts/audit/wikidata_snapshot.py` + `external_audit.py`. Census District Handbooks, DataMeet
+  boundaries, and gazettes remain open.
+- OD-01 (reclassification CK rule).
+- SOI 2025 lags Mizoram's 2019 districts (Khawzawl, Saitual; Hnahthial is also absent from the
+  events compilation), producing 3 `MERGED_INTO` edges into Champhai. Documented, not silently
+  fixed: `data/reference/known_geometry_gaps.csv` records the evidence, and `s12` check V19 fails
+  WARNING if a future build produces an undocumented `MERGED_INTO` edge of this kind.

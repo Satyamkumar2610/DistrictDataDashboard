@@ -27,8 +27,8 @@ stages:
       size: 2634
     - path: scripts/pipeline/lib.py
       hash: md5
-      md5: ce35760c49fed84b0ad56b253cdf2a30
-      size: 14336
+      md5: e0e596b0e26463a9cb2909627d2a71b2
+      size: 15387
     - path: scripts/pipeline/s01_bronze_to_silver.py
       hash: md5
       md5: 7466deb85e67a1a4d31442adc682b12c
@@ -69,8 +69,8 @@ stages:
       nfiles: 9
     - path: scripts/pipeline/lib.py
       hash: md5
-      md5: ce35760c49fed84b0ad56b253cdf2a30
-      size: 14336
+      md5: e0e596b0e26463a9cb2909627d2a71b2
+      size: 15387
     - path: scripts/pipeline/s02_topology_audit.py
       hash: md5
       md5: c725c1d703ede609add1abd30a2d4a71
@@ -98,8 +98,8 @@ stages:
       size: 576
     - path: scripts/pipeline/lib.py
       hash: md5
-      md5: ce35760c49fed84b0ad56b253cdf2a30
-      size: 14336
+      md5: e0e596b0e26463a9cb2909627d2a71b2
+      size: 15387
     - path: scripts/pipeline/s03_transition_matrix.py
       hash: md5
       md5: 61556025f6ae586d0ce32b36a6d6f121
@@ -119,7 +119,7 @@ stages:
       size: 523647
     - path: outputs/pipeline/s03_transfer_and_displacement_parts.gpkg
       hash: md5
-      md5: 228c5258c9dc084728a57567a5a19f5d
+      md5: 28fca935e3db6c54dfe415fa7027e7e9
       size: 32722944
     - path: outputs/pipeline/s03_transition_summary.csv
       hash: md5
@@ -151,8 +151,8 @@ stages:
       nfiles: 9
     - path: scripts/pipeline/lib.py
       hash: md5
-      md5: ce35760c49fed84b0ad56b253cdf2a30
-      size: 14336
+      md5: e0e596b0e26463a9cb2909627d2a71b2
+      size: 15387
     - path: scripts/pipeline/s04_identity.py
       hash: md5
       md5: b991da791b40b236967768f72ec4508b
@@ -207,8 +207,8 @@ stages:
       size: 505
     - path: scripts/pipeline/lib.py
       hash: md5
-      md5: ce35760c49fed84b0ad56b253cdf2a30
-      size: 14336
+      md5: e0e596b0e26463a9cb2909627d2a71b2
+      size: 15387
     - path: scripts/pipeline/lineage_graph.py
       hash: md5
       md5: ae02b391c79cb60902dfd7462b5d3689
@@ -271,8 +271,8 @@ stages:
       size: 523647
     - path: scripts/pipeline/lib.py
       hash: md5
-      md5: ce35760c49fed84b0ad56b253cdf2a30
-      size: 14336
+      md5: e0e596b0e26463a9cb2909627d2a71b2
+      size: 15387
     - path: scripts/pipeline/s06_area_ledger.py
       hash: md5
       md5: cd9f6f155bc4f75d087d23762c20e7d4
@@ -299,8 +299,8 @@ stages:
       size: 170629
     - path: scripts/pipeline/lib.py
       hash: md5
-      md5: ce35760c49fed84b0ad56b253cdf2a30
-      size: 14336
+      md5: e0e596b0e26463a9cb2909627d2a71b2
+      size: 15387
     - path: scripts/pipeline/s07_events_aggregate.py
       hash: md5
       md5: 2857481b17849978c88d04167580a557
@@ -347,8 +347,8 @@ stages:
       size: 2634
     - path: scripts/pipeline/lib.py
       hash: md5
-      md5: ce35760c49fed84b0ad56b253cdf2a30
-      size: 14336
+      md5: e0e596b0e26463a9cb2909627d2a71b2
+      size: 15387
     - path: scripts/pipeline/s08_event_linkage.py
       hash: md5
       md5: a89fb89ef3e9f54a10735ecd66d93138
@@ -364,8 +364,8 @@ stages:
       size: 56493
     - path: outputs/events/s08_splink_model.json
       hash: md5
-      md5: 3086ca719c06d71daf27e1dd61b66708
-      size: 5842
+      md5: 13b38e3dcd261af9db51810e0edbd2e0
+      size: 5841
   s09_event_reconciliation:
     cmd: python scripts/pipeline/s09_event_reconciliation.py
     deps:
@@ -411,8 +411,8 @@ stages:
       size: 505
     - path: scripts/pipeline/lib.py
       hash: md5
-      md5: ce35760c49fed84b0ad56b253cdf2a30
-      size: 14336
+      md5: e0e596b0e26463a9cb2909627d2a71b2
+      size: 15387
     - path: scripts/pipeline/s09_event_reconciliation.py
       hash: md5
       md5: 15c70dd2bacd14b71bd1100e85d57394
@@ -483,8 +483,8 @@ stages:
       size: 505
     - path: scripts/pipeline/lib.py
       hash: md5
-      md5: ce35760c49fed84b0ad56b253cdf2a30
-      size: 14336
+      md5: e0e596b0e26463a9cb2909627d2a71b2
+      size: 15387
     - path: scripts/pipeline/s10_census_products.py
       hash: md5
       md5: 7c4e5697ca7c66339e4d7de45829c6cc
@@ -535,24 +535,24 @@ stages:
       size: 4226
     - path: data/gold/core
       hash: md5
-      md5: cfa5f26698d3fcb56cd2255cb396533a.dir
-      size: 593467
-      nfiles: 3
+      md5: 7e8c4966147f24b73e95e364792bd5f3.dir
+      size: 851719
+      nfiles: 5
     - path: data/gold/events
       hash: md5
-      md5: a50396969eecd2f0a2a65cf5acc505c9.dir
-      size: 596823
-      nfiles: 9
+      md5: 1e48af3b19f75acda2dfefa478ed3ab2.dir
+      size: 1192020
+      nfiles: 18
     - path: data/gold/spatial
       hash: md5
-      md5: 4eefb8ddf84d516a695c9b0137c79ced.dir
-      size: 3009231
-      nfiles: 5
+      md5: c3f835474dac2c25891561df252b0de7.dir
+      size: 5493506
+      nfiles: 9
     - path: data/products
       hash: md5
-      md5: 071020da96940d364bc7934c9307f507.dir
-      size: 4998262
-      nfiles: 10
+      md5: 40516bd2c4f8b4ecf7bc0ed56be5bfa9.dir
+      size: 9854373
+      nfiles: 20
     - path: data/silver/geometry
       hash: md5
       md5: e4fb49e470cadf70917d9ac6fd87d369.dir
@@ -564,8 +564,8 @@ stages:
       size: 275880
     - path: scripts/pipeline/lib.py
       hash: md5
-      md5: ce35760c49fed84b0ad56b253cdf2a30
-      size: 14336
+      md5: e0e596b0e26463a9cb2909627d2a71b2
+      size: 15387
     - path: scripts/pipeline/s11_warehouse.py
       hash: md5
       md5: 707e4632db3d6b028bb4e26bb0b91afb
@@ -573,8 +573,8 @@ stages:
     outs:
     - path: data/gold/district_evolution.duckdb
       hash: md5
-      md5: c8789a2f811ae9642dc6d8b7f5f26c8c
-      size: 168570880
+      md5: 36a38ae69bb0cc4a9ae132f1d1adf977
+      size: 168308736
     - path: outputs/pipeline/s11_invariants.csv
       hash: md5
       md5: e96cc028ef4a345e8ede8353981b553d
@@ -588,8 +588,8 @@ stages:
       size: 170629
     - path: data/gold/district_evolution.duckdb
       hash: md5
-      md5: c8789a2f811ae9642dc6d8b7f5f26c8c
-      size: 168570880
+      md5: 36a38ae69bb0cc4a9ae132f1d1adf977
+      size: 168308736
     - path: data/reference/vintage_depiction.csv
       hash: md5
       md5: 55477814bec998f8a59f6518066aca0a
@@ -600,12 +600,12 @@ stages:
       size: 576
     - path: scripts/pipeline/lib.py
       hash: md5
-      md5: ce35760c49fed84b0ad56b253cdf2a30
-      size: 14336
+      md5: e0e596b0e26463a9cb2909627d2a71b2
+      size: 15387
     - path: scripts/pipeline/s12_validate.py
       hash: md5
-      md5: 9038ae01bc434d4abecf1923900e362e
-      size: 8884
+      md5: a63a7c2e91ed104037c3185118fff511
+      size: 9965
     - path: scripts/pipeline/schemas.py
       hash: md5
       md5: 0c45632b3a8bd0fec8174a9ecf98ff8b
@@ -613,17 +613,17 @@ stages:
     outs:
     - path: outputs/pipeline/s12_checks.csv
       hash: md5
-      md5: 8a08bf18fe4c0977838297b8ec137f3f
-      size: 2814
+      md5: 2b89461794795e185a7ea3a6ecb17728
+      size: 2910
     - path: outputs/pipeline/s12_map_date_check.csv
       hash: md5
       md5: 357b06e453374e94fcdb58e1d78fdcdc
       size: 21968
     - path: outputs/pipeline/s12_output_manifest.csv
       hash: md5
-      md5: 30d697e8746e3f602815a39a8879d876
-      size: 3914
+      md5: 2aad37fafba4c82dcf780d3ed99bb2bf
+      size: 6653
     - path: outputs/pipeline/s12_validation_report.md
       hash: md5
-      md5: dfe56bc3ee4aa6df80e5b9a2ed75bbdb
-      size: 7540
+      md5: aff92fcb3def2c94edd689fefdb91133
+      size: 7692

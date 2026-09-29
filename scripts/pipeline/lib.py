@@ -235,6 +235,26 @@ def depicted_year(state: str, vintage: int) -> int:
     return _depiction().get((normalize_name(canonical_state(state)), int(vintage)), int(vintage))
 
 
+@functools.lru_cache(maxsize=1)
+def known_geometry_gaps() -> pd.DataFrame:
+    """Vintages confirmed to be missing districts that other evidence (events
+    compilation, Wikidata) says already existed by that map's label year. Unlike
+    vintage_depiction.csv this never touches depicted_year: a gap here is the map
+    lagging its own label (SOI 2025 still showing Mizoram's pre-2018 8 districts),
+    not the map's label being an early alias for a later, internally consistent
+    boundary set. Forcing a lag into depicted_year would invert vintage ordering
+    (s11 CHECK depicted_year >= year; s09 assumes d(a) < event_year <= d(b))."""
+    ref = pd.read_csv(REFERENCE_DIR / "known_geometry_gaps.csv")
+    return ref[ref.status == "CONFIRMED"]
+
+
+def is_documented_geometry_gap(state: str, vintage: int) -> bool:
+    gaps = known_geometry_gaps()
+    key = (normalize_name(canonical_state(state)), int(vintage))
+    documented = {(normalize_name(canonical_state(s)), int(v)) for s, v in zip(gaps.state, gaps.vintage)}
+    return key in documented
+
+
 def shown_before_creation(registry: pd.DataFrame) -> pd.DataFrame:
     """New districts whose first map is labelled earlier than their creation year in
     the events compilation (a source independent of the maps). A state-map with

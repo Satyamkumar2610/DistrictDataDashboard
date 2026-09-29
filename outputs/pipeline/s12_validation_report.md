@@ -23,11 +23,12 @@
 | INFO_FOOTPRINT | INFO       |             42 | successor name matched only outside the predecessor's footprint (research queue) |                   |
 | V4_MAX         | INFO       |              0 | max relative area difference pyproj vs DuckDB (%)                                | 6.68e-03          |
 | V18            | WARNING    |              1 | state-map depicting later boundaries than its label, unconfirmed                 | Manipur 1971: 4/5 |
+| V19            | WARNING    |              0 | MERGED_INTO edge into an undocumented geometry gap (see known_geometry_gaps.csv) |                   |
 
 V11 data contracts (pandera): 25 / 25 tables pass.
 
 V5 determinism: `outputs/pipeline/s12_output_manifest.csv` holds the sha256 of every one of
-36 output files. Two runs on the same inputs must produce identical manifests (checked in CI).
+61 output files. Two runs on the same inputs must produce identical manifests (checked in CI).
 
 ## Key figures
 
