@@ -59,7 +59,7 @@ are evidence and never drive geometry.
 | s02 topology | V1 gate: layer self-overlap |
 | s03 transition matrix | Overlay adjacent vintages and each vintage against 2025. Classify every part as CORE / TRANSFER / BOUNDARY_DISPLACEMENT / SLIVER. |
 | s04 identity | Canonical keys (CKs) by core-territory continuity. Names break ties only when the geometry is ambiguous. |
-| s05 lineage | FORMED_FROM / SPLIT_FROM / MERGED_INTO into new CKs. Measured transfers between existing CKs. networkx DAG check. |
+| s05 lineage | FORMED_FROM / SPLIT_FROM / MERGED_INTO into new CKs; RECONSTITUTED_FROM across a gap (OD-01). Measured transfers between existing CKs. networkx DAG check. |
 | s06 ledger | Per-CK, per-window area accounting that closes exactly |
 | s07 events | CSV → administrative event grain. A change recorded as both NEW_DISTRICT and SPLIT is one event. |
 | s08 linkage | splink Fellegi-Sunter model linking event names to CK records (name + state-lineage evidence) |
@@ -112,9 +112,9 @@ Shared code:
   `outputs/audit/EXTERNAL_AUDIT_REPORT.md`, reproducible from a frozen snapshot via
   `python -m district_evolution.evidence.wikidata_snapshot` + `wikidata_audit`. Census District Handbooks, DataMeet
   boundaries, and gazettes remain open.
-- OD-01 (reclassification CK rule): decision memo with measured evidence in
-  `docs/decisions/OD-01_reclassification.md` (one real case in the data: Fatehgarh Sahib).
-  Awaiting the owner's decision; nothing implemented.
+- OD-01 decided (3.2.0): a restored district gets a new key and a `RECONSTITUTED_FROM` edge
+  (Fatehgarh Sahib, Barnala). `docs/decisions/OD-01_reclassification.md`. Six rename-plus-boundary
+  breaks listed there are alias candidates for a future MAJOR version, pending documents.
 - Do not keep the working copy in an iCloud-synced folder (e.g. Desktop with iCloud Drive).
   iCloud duplicates rewritten outputs as `<name> 2.<ext>` (V20 now fails on them) and marks
   `.pth` files hidden, which Python 3.13 skips, so `pip install -e .` silently has no effect.

@@ -58,3 +58,13 @@ def test_no_error_level_invariant_fails(warehouse):
     bad = warehouse.execute(
         "SELECT check_id FROM validation_result WHERE severity = 'ERROR' AND n_violations > 0").fetchall()
     assert bad == []
+
+
+@pytest.mark.parametrize("name", ["Fatehgarh Sahib", "Barnala"])
+def test_restored_district_links_back_across_the_gap(warehouse, name):
+    """PEPSU districts absorbed in the 1950s and restored decades later (OD-01): new key, one edge."""
+    old, new = sorted(cks_named(warehouse, name), key=lambda ck: span(warehouse, ck))
+    assert span(warehouse, old) == (1951, 1951)
+    edge = warehouse.execute("SELECT relationship_type FROM district_relationship WHERE from_ck = ? AND to_ck = ?",
+                             [old, new]).fetchall()
+    assert edge == [("RECONSTITUTED_FROM",)]

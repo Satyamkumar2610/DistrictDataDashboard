@@ -87,7 +87,7 @@ CREATE TABLE transition_residual (
 CREATE TABLE district_relationship (
   rel_id VARCHAR PRIMARY KEY, from_ck VARCHAR NOT NULL REFERENCES ck_registry(canonical_key),
   to_ck VARCHAR NOT NULL REFERENCES ck_registry(canonical_key),
-  relationship_type VARCHAR NOT NULL CHECK (relationship_type IN ('SPLIT_FROM','FORMED_FROM','MERGED_INTO')),
+  relationship_type VARCHAR NOT NULL CHECK (relationship_type IN ('SPLIT_FROM','FORMED_FROM','MERGED_INTO','RECONSTITUTED_FROM')),
   year_a INTEGER NOT NULL, year_b INTEGER NOT NULL,
   period_start INTEGER NOT NULL, period_end INTEGER NOT NULL CHECK (period_end > period_start),
   transfer_km2 DOUBLE NOT NULL CHECK (transfer_km2 > 0),

@@ -1,4 +1,4 @@
-# Validation report — pipeline v3.1.0
+# Validation report — pipeline v3.2.0
 
 **Gate: PASS** — 0 ERROR check(s) failing, 1 WARNING check(s) with findings.
 
@@ -39,7 +39,7 @@ must produce identical manifests (checked in CI).
 | canonical keys                                          | 804           |
 | active at reference year                                | 742           |
 | closed identities                                       | 62            |
-| lineage edges                                           | 631           |
+| lineage edges                                           | 633           |
 | FORMED_FROM / SPLIT_FROM / MERGED_INTO                  | 494 / 134 / 3 |
 | lineage edges corroborated by an event                  | 431           |
 | measured transfers between existing districts           | 1358          |

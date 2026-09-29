@@ -3,6 +3,17 @@
 Versions follow semantic versioning of `pipeline_version` (config/pipeline.yaml).
 A MAJOR change can renumber canonical keys or change the meaning of a product.
 
+## 3.2.0
+
+OD-01 decided: a district that is absorbed and later restored keeps a new key and gains a
+`RECONSTITUTED_FROM` lineage edge. No key, product or area changes.
+
+### Added
+- s05 writes `RECONSTITUTED_FROM` when a closed identity with no lineage successor (absorbed into
+  existing districts) returns as a new identity at least one map later that is mostly its land
+  (`lineage.reconstitution_share`). Two edges: Fatehgarh Sahib 1951 → 2001, Barnala 1951 → 2011.
+  `district_relationship` 631 → 633; baselines in `tests/baselines/v3.2.0.yaml`.
+
 ## 3.1.0
 
 No canonical key, product or data output changed. One gate result changed: V18 has no

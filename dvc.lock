@@ -5,8 +5,8 @@ stages:
     deps:
     - path: config/pipeline.yaml
       hash: md5
-      md5: 0e6492c3e4cf28572d9e1efa4dac483a
-      size: 4691
+      md5: 94eded38a3bfe49b97ddb3e6b27f269c
+      size: 5058
     - path: config/sources.yaml
       hash: md5
       md5: 2678c0a66030117843ca151d099900c3
@@ -27,8 +27,8 @@ stages:
       size: 2634
     - path: district_evolution/contracts
       hash: md5
-      md5: 6960d2140604c0ca36ebde9f34576345.dir
-      size: 12313
+      md5: 50f371a16e27a8e45c64675c33f9fad1.dir
+      size: 12335
       nfiles: 2
     - path: district_evolution/core
       hash: md5
@@ -98,8 +98,8 @@ stages:
     deps:
     - path: config/pipeline.yaml
       hash: md5
-      md5: 0e6492c3e4cf28572d9e1efa4dac483a
-      size: 4691
+      md5: 94eded38a3bfe49b97ddb3e6b27f269c
+      size: 5058
     - path: data/silver/geometry
       hash: md5
       md5: e4fb49e470cadf70917d9ac6fd87d369.dir
@@ -124,8 +124,8 @@ stages:
     deps:
     - path: config/pipeline.yaml
       hash: md5
-      md5: 0e6492c3e4cf28572d9e1efa4dac483a
-      size: 4691
+      md5: 94eded38a3bfe49b97ddb3e6b27f269c
+      size: 5058
     - path: data/silver/geometry
       hash: md5
       md5: e4fb49e470cadf70917d9ac6fd87d369.dir
@@ -133,8 +133,8 @@ stages:
       nfiles: 9
     - path: district_evolution/contracts
       hash: md5
-      md5: 6960d2140604c0ca36ebde9f34576345.dir
-      size: 12313
+      md5: 50f371a16e27a8e45c64675c33f9fad1.dir
+      size: 12335
       nfiles: 2
     - path: district_evolution/core
       hash: md5
@@ -171,8 +171,8 @@ stages:
     deps:
     - path: config/pipeline.yaml
       hash: md5
-      md5: 0e6492c3e4cf28572d9e1efa4dac483a
-      size: 4691
+      md5: 94eded38a3bfe49b97ddb3e6b27f269c
+      size: 5058
     - path: data/gold/spatial/transition_flow.parquet
       hash: md5
       md5: e282e277de6cfe3d7875122181b640ce
@@ -192,8 +192,8 @@ stages:
       nfiles: 9
     - path: district_evolution/contracts
       hash: md5
-      md5: 6960d2140604c0ca36ebde9f34576345.dir
-      size: 12313
+      md5: 50f371a16e27a8e45c64675c33f9fad1.dir
+      size: 12335
       nfiles: 2
     - path: district_evolution/core
       hash: md5
@@ -230,8 +230,8 @@ stages:
     deps:
     - path: config/pipeline.yaml
       hash: md5
-      md5: 0e6492c3e4cf28572d9e1efa4dac483a
-      size: 4691
+      md5: 94eded38a3bfe49b97ddb3e6b27f269c
+      size: 5058
     - path: data/gold/core/ck_observation.parquet
       hash: md5
       md5: c04c236087fa1c1c05fcd3f29a622c8b
@@ -248,10 +248,46 @@ stages:
       hash: md5
       md5: 55477814bec998f8a59f6518066aca0a
       size: 505
+    - path: data/silver/geometry/soi_2025.geoparquet
+      hash: md5
+      md5: 1e276406825a990be19514c21701b2dc
+      size: 68968264
+    - path: data/silver/geometry/stanford_1951.geoparquet
+      hash: md5
+      md5: 64a12cc9aa67465bebe6d5793e3713c5
+      size: 4229970
+    - path: data/silver/geometry/stanford_1961.geoparquet
+      hash: md5
+      md5: 20f42b08956b89852482a2167b8056d8
+      size: 4518440
+    - path: data/silver/geometry/stanford_1971.geoparquet
+      hash: md5
+      md5: e7e9d2b2ddef40c6ea6084fa13815df5
+      size: 4379684
+    - path: data/silver/geometry/stanford_1981.geoparquet
+      hash: md5
+      md5: 2b414f43c1203d52b9e4f49ccb2adb8a
+      size: 4682292
+    - path: data/silver/geometry/stanford_1991.geoparquet
+      hash: md5
+      md5: 74599381f9ab4521b4207b1fe3fc77a7
+      size: 7285686
+    - path: data/silver/geometry/stanford_2001.geoparquet
+      hash: md5
+      md5: 177239e212bab482c14abdb1f5acbe2f
+      size: 8012652
+    - path: data/silver/geometry/stanford_2011.geoparquet
+      hash: md5
+      md5: 8000904858202c62b89b3982c19cc96d
+      size: 8622175
+    - path: data/silver/geometry/stanford_2021.geoparquet
+      hash: md5
+      md5: e9f628360f1faf2e32a8880c2ec0005b
+      size: 11271971
     - path: district_evolution/contracts
       hash: md5
-      md5: 6960d2140604c0ca36ebde9f34576345.dir
-      size: 12313
+      md5: 50f371a16e27a8e45c64675c33f9fad1.dir
+      size: 12335
       nfiles: 2
     - path: district_evolution/core
       hash: md5
@@ -260,13 +296,13 @@ stages:
       nfiles: 9
     - path: district_evolution/stages/s05_lineage.py
       hash: md5
-      md5: 2518f7b854323a38012b54bbec1dd9d4
-      size: 5437
+      md5: d1aa15122a3a85a63080d0d7bec49857
+      size: 7839
     outs:
     - path: data/gold/events/district_relationship.parquet
       hash: md5
-      md5: a7ab8fb16e9ee98d2dd305372200eadb
-      size: 52492
+      md5: 0154032f7c4a354bfb68f679a128193b
+      size: 52709
     - path: data/gold/spatial/boundary_displacement.parquet
       hash: md5
       md5: 3f09c1ba220780071a9ec4e6e58d52a4
@@ -281,12 +317,12 @@ stages:
       size: 99172
     - path: outputs/pipeline/s05_district_ancestry.csv
       hash: md5
-      md5: 1b899925720c7694fac081047838c62a
-      size: 19862
+      md5: c41bba2fa2f4c4f85918ac68bc2921cb
+      size: 19910
     - path: outputs/pipeline/s05_district_relationship.csv
       hash: md5
-      md5: 39157adbd1759fa7392e7fe7700b6abb
-      size: 95830
+      md5: a9ae0e1bbbbb92e932c62e7a6d695008
+      size: 96147
     - path: outputs/pipeline/s05_measured_area_transfer.csv
       hash: md5
       md5: c3c3505f2584a63a6e2f43e3ba1e9079
@@ -312,8 +348,8 @@ stages:
       size: 523647
     - path: district_evolution/contracts
       hash: md5
-      md5: 6960d2140604c0ca36ebde9f34576345.dir
-      size: 12313
+      md5: 50f371a16e27a8e45c64675c33f9fad1.dir
+      size: 12335
       nfiles: 2
     - path: district_evolution/core
       hash: md5
@@ -342,8 +378,8 @@ stages:
       size: 170629
     - path: district_evolution/contracts
       hash: md5
-      md5: 6960d2140604c0ca36ebde9f34576345.dir
-      size: 12313
+      md5: 50f371a16e27a8e45c64675c33f9fad1.dir
+      size: 12335
       nfiles: 2
     - path: district_evolution/core
       hash: md5
@@ -372,8 +408,8 @@ stages:
     deps:
     - path: config/pipeline.yaml
       hash: md5
-      md5: 0e6492c3e4cf28572d9e1efa4dac483a
-      size: 4691
+      md5: 94eded38a3bfe49b97ddb3e6b27f269c
+      size: 5058
     - path: data/gold/core/ck_observation.parquet
       hash: md5
       md5: c04c236087fa1c1c05fcd3f29a622c8b
@@ -392,8 +428,8 @@ stages:
       size: 2634
     - path: district_evolution/contracts
       hash: md5
-      md5: 6960d2140604c0ca36ebde9f34576345.dir
-      size: 12313
+      md5: 50f371a16e27a8e45c64675c33f9fad1.dir
+      size: 12335
       nfiles: 2
     - path: district_evolution/core
       hash: md5
@@ -418,8 +454,8 @@ stages:
     deps:
     - path: config/pipeline.yaml
       hash: md5
-      md5: 0e6492c3e4cf28572d9e1efa4dac483a
-      size: 4691
+      md5: 94eded38a3bfe49b97ddb3e6b27f269c
+      size: 5058
     - path: data/gold/core/ck_observation.parquet
       hash: md5
       md5: c04c236087fa1c1c05fcd3f29a622c8b
@@ -434,8 +470,8 @@ stages:
       size: 35448
     - path: data/gold/events/district_relationship.parquet
       hash: md5
-      md5: a7ab8fb16e9ee98d2dd305372200eadb
-      size: 52492
+      md5: 0154032f7c4a354bfb68f679a128193b
+      size: 52709
     - path: data/gold/events/event_participant.parquet
       hash: md5
       md5: 8c0cbec808de503e68e77defc8a9a138
@@ -458,8 +494,8 @@ stages:
       size: 505
     - path: district_evolution/contracts
       hash: md5
-      md5: 6960d2140604c0ca36ebde9f34576345.dir
-      size: 12313
+      md5: 50f371a16e27a8e45c64675c33f9fad1.dir
+      size: 12335
       nfiles: 2
     - path: district_evolution/core
       hash: md5
@@ -489,8 +525,8 @@ stages:
       size: 53073
     - path: data/gold/events/lineage_corroboration.parquet
       hash: md5
-      md5: 7d322ee68d8a16129c915e79646b5632
-      size: 37801
+      md5: 968bc162a834336fceecff5117bee7ac
+      size: 37884
     - path: outputs/events/s09_event_accounting.csv
       hash: md5
       md5: 3f7d04d8a3c48471289122045b9d2f84
@@ -509,8 +545,8 @@ stages:
       size: 140253
     - path: outputs/events/s09_lineage_corroboration.csv
       hash: md5
-      md5: 83f1d508a42607480d4613ed34603578
-      size: 48521
+      md5: 1e6be5b660931ffec7b66f5b6f6fc755
+      size: 48617
   s10_census_products:
     cmd: python -m district_evolution.stages.s10_census_products
     deps:
@@ -532,8 +568,8 @@ stages:
       size: 505
     - path: district_evolution/contracts
       hash: md5
-      md5: 6960d2140604c0ca36ebde9f34576345.dir
-      size: 12313
+      md5: 50f371a16e27a8e45c64675c33f9fad1.dir
+      size: 12335
       nfiles: 2
     - path: district_evolution/core
       hash: md5
@@ -582,8 +618,8 @@ stages:
     deps:
     - path: config/pipeline.yaml
       hash: md5
-      md5: 0e6492c3e4cf28572d9e1efa4dac483a
-      size: 4691
+      md5: 94eded38a3bfe49b97ddb3e6b27f269c
+      size: 5058
     - path: data/gold/core
       hash: md5
       md5: cfa5f26698d3fcb56cd2255cb396533a.dir
@@ -591,8 +627,8 @@ stages:
       nfiles: 3
     - path: data/gold/events
       hash: md5
-      md5: a50396969eecd2f0a2a65cf5acc505c9.dir
-      size: 596823
+      md5: 01a383072181280d4ad8a8c6c7258fc7.dir
+      size: 597123
       nfiles: 9
     - path: data/gold/spatial
       hash: md5
@@ -616,8 +652,8 @@ stages:
       nfiles: 9
     - path: district_evolution/stages/s11_warehouse.py
       hash: md5
-      md5: 3b74c8f0c88229ad2141a53310a24083
-      size: 17261
+      md5: 64338400cf86760e5bfc810d963355af
+      size: 17282
     - path: outputs/pipeline/s01_overlap_repairs.csv
       hash: md5
       md5: d12aa8ca1c72eb4eaab0bdd783aeb202
@@ -625,8 +661,8 @@ stages:
     outs:
     - path: data/gold/district_evolution.duckdb
       hash: md5
-      md5: 182fe5c20e4da2702ec10d79828f8f6b
-      size: 168308736
+      md5: 8fdf9405ff1b893ef7722d58f31bdf18
+      size: 168570880
     - path: outputs/pipeline/s11_invariants.csv
       hash: md5
       md5: e96cc028ef4a345e8ede8353981b553d
@@ -640,16 +676,16 @@ stages:
       size: 170629
     - path: data/gold/district_evolution.duckdb
       hash: md5
-      md5: 182fe5c20e4da2702ec10d79828f8f6b
-      size: 168308736
+      md5: 8fdf9405ff1b893ef7722d58f31bdf18
+      size: 168570880
     - path: data/reference/vintage_depiction.csv
       hash: md5
       md5: 55477814bec998f8a59f6518066aca0a
       size: 505
     - path: district_evolution/contracts
       hash: md5
-      md5: 6960d2140604c0ca36ebde9f34576345.dir
-      size: 12313
+      md5: 50f371a16e27a8e45c64675c33f9fad1.dir
+      size: 12335
       nfiles: 2
     - path: district_evolution/core
       hash: md5
@@ -675,11 +711,11 @@ stages:
       size: 21320
     - path: outputs/pipeline/s12_output_manifest.csv
       hash: md5
-      md5: 30d697e8746e3f602815a39a8879d876
+      md5: 48d5bcca2debd186608e9a1faf9ff791
       size: 3914
     - path: outputs/pipeline/s12_validation_report.md
       hash: md5
-      md5: c30e8792ee30a3487d606775feedf949
+      md5: 265bed4e4a95c4099644a49ae80298d1
       size: 7744
   a01_external_audit:
     cmd: python -m district_evolution.evidence.wikidata_audit
@@ -698,8 +734,8 @@ stages:
       size: 33848
     - path: data/gold/events/district_relationship.parquet
       hash: md5
-      md5: a7ab8fb16e9ee98d2dd305372200eadb
-      size: 52492
+      md5: 0154032f7c4a354bfb68f679a128193b
+      size: 52709
     - path: data/reference
       hash: md5
       md5: a74fb3d03919a61504a355d87bad0ba3.dir

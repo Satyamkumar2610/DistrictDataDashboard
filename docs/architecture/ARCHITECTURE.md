@@ -1237,7 +1237,8 @@ Recommendation: A (same CK) if the Census of India treated the entity as continu
 
 Evidence needed: At least one documented case from Census of India district handbooks. Contact Prof. Patel for domain ruling.
 
-Status: BLOCKING — must resolve before entity matching module is coded.
+Status: DECIDED 2026-09-29 (pipeline 3.2.0): option B, a new CK with a RECONSTITUTED_FROM edge detected
+from geometry. Evidence and rule: docs/decisions/OD-01_reclassification.md.
 
 ### OD-02: Graph traversal mechanism — NON-BLOCKING
 

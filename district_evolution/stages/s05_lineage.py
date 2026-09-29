@@ -9,6 +9,11 @@ carrying material (CORE + TRANSFER) area >= lineage.material_km2:
       MERGED_INTO   source closes and >= 2 closing sources feed the target
   into a CK that already existed      -> measured_area_transfer (L-3: no edge)
 
+Across a gap (OD-01, docs/decisions/OD-01_reclassification.md): RECONSTITUTED_FROM
+links a closed CK that had no successor (its land was absorbed into districts that
+already existed) to a new CK first mapped at least one map later and built mostly
+(>= lineage.reconstitution_share) from its land.
+
 BOUNDARY_DISPLACEMENT and SLIVER area never create edges or transfers; it is
 reported separately. Event corroboration is added by s09 in its own table, so
 geometry-derived lineage is never rewritten by event data. The lineage graph
@@ -17,7 +22,9 @@ is validated as a DAG with networkx (L-1).
 
 from __future__ import annotations
 
+import geopandas as gpd
 import pandas as pd
+from shapely import STRtree
 
 from district_evolution import core
 from district_evolution.core import lineage_graph
@@ -36,6 +43,34 @@ def ck_flows() -> pd.DataFrame:
         sliver_km2=("sliver_km2", "sum"), total_km2=("total_km2", "sum"),
         from_area=("from_area", "first"), to_area=("to_area", "first"))
     return agg
+
+
+def reconstitutions(reg: pd.DataFrame, rel: pd.DataFrame) -> pd.DataFrame:
+    obs = pd.read_parquet(core.GOLD_CORE_DIR / "ck_observation.parquet").sort_values(["canonical_key", "year"])
+    geom = pd.concat([gpd.read_parquet(core.silver_path(y), columns=["geom_obs_id", "geometry"])
+                      for y in core.YEARS]).set_index("geom_obs_id").geometry
+    order = {y: i for i, y in enumerate(core.YEARS)}
+    last = obs.groupby("canonical_key").tail(1).set_index("canonical_key")
+    first = obs.groupby("canonical_key").head(1).set_index("canonical_key")
+    absorbed = sorted(set(reg.canonical_key[reg.closed_year.notna()]) - set(rel.from_ck))
+    new = first.loc[sorted(reg.canonical_key[reg.origin_kind == "NEW"])]
+    tree = STRtree(list(geom[new.geom_obs_id]))
+    rows = []
+    for c in absorbed:
+        lc = last.loc[c]
+        gc = geom[lc.geom_obs_id]
+        for j in sorted(tree.query(gc, predicate="intersects")):
+            fn = new.iloc[j]
+            if order[fn.year] - order[lc.year] < 2:
+                continue
+            km2 = core.geodesic_area_km2(gc.intersection(geom[fn.geom_obs_id]))
+            if km2 < core.CFG["lineage"]["material_km2"] or km2 / fn.area_km2 < core.CFG["lineage"]["reconstitution_share"]:
+                continue
+            rows.append({"from_ck": c, "to_ck": new.index[j], "year_a": int(lc.year), "year_b": int(fn.year),
+                         "transfer_km2": km2, "outflow_share": min(km2 / lc.area_km2, 1.0),
+                         "inflow_share": min(km2 / fn.area_km2, 1.0)})
+    cols = ["from_ck", "to_ck", "year_a", "year_b", "transfer_km2", "outflow_share", "inflow_share"]
+    return pd.DataFrame(rows, columns=cols).assign(relationship_type="RECONSTITUTED_FROM")
 
 
 def main() -> None:
@@ -62,6 +97,10 @@ def main() -> None:
         "FORMED_FROM" if not r.source_closes
         else ("MERGED_INTO" if n_closing.get((r.to_ck, r.year_b), 0) >= 2 else "SPLIT_FROM")
         for r in rel.itertuples()]
+    recon = reconstitutions(reg, rel)
+    recon["period_start"] = [core.depicted_year(state[(c, y)], y) for c, y in zip(recon.from_ck, recon.year_a)]
+    recon["period_end"] = [core.depicted_year(state[(c, y)], y) for c, y in zip(recon.to_ck, recon.year_b)]
+    rel = pd.concat([rel, recon], ignore_index=True)
     rel["rel_id"] = [core.stable_id("REL", r.from_ck, r.to_ck, r.year_a, r.year_b) for r in rel.itertuples()]
     rel["lineage_basis"] = "SPATIAL"
     rel = rel[["rel_id", "from_ck", "to_ck", "relationship_type", "year_a", "year_b",

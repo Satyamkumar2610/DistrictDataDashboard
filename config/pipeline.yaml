@@ -1,7 +1,7 @@
 # Pipeline v3 configuration. Every threshold used by any stage lives here with
 # its rationale; code reads it via lib.CFG. See docs/architecture/REVAMP_PLAN_V3.md.
 
-pipeline_version: "3.1.0"
+pipeline_version: "3.2.0"
 
 vintages:
   # (source, year) in chronological order. The last entry is the reference
@@ -67,6 +67,11 @@ lineage:
   # Minimum TRANSFER-class area for a cross-CK flow to count as a lineage edge
   # or a measured transfer. Displacement and sliver parcels never count.
   material_km2: 0.5
+  # RECONSTITUTED_FROM (OD-01): a new district first mapped at least one map after an absorbed
+  # district closed is linked to it when at least this share of the new district is its land.
+  # Measured: the two cases in the data (Fatehgarh Sahib 0.63, Barnala 0.96, both PEPSU 1951)
+  # clear it; docs/decisions/OD-01_reclassification.md.
+  reconstitution_share: 0.5
 
 linkage:
   # splink event-name -> CK record linkage (s08) and resolution (s09).

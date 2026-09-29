@@ -79,6 +79,15 @@ stages:
     deps:
       - data/reference/vintage_depiction.csv
       - district_evolution/stages/s05_lineage.py
+      - data/silver/geometry/stanford_1951.geoparquet
+      - data/silver/geometry/stanford_1961.geoparquet
+      - data/silver/geometry/stanford_1971.geoparquet
+      - data/silver/geometry/stanford_1981.geoparquet
+      - data/silver/geometry/stanford_1991.geoparquet
+      - data/silver/geometry/stanford_2001.geoparquet
+      - data/silver/geometry/stanford_2011.geoparquet
+      - data/silver/geometry/stanford_2021.geoparquet
+      - data/silver/geometry/soi_2025.geoparquet
       - district_evolution/core
       - district_evolution/contracts
       - config/pipeline.yaml

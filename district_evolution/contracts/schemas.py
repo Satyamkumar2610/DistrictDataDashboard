@@ -124,7 +124,7 @@ SCHEMAS: dict[str, DataFrameSchema] = {
     "district_relationship": DataFrameSchema({
         "rel_id": Column(str, SHA, unique=True),
         "from_ck": Column(str, CK), "to_ck": Column(str, CK),
-        "relationship_type": Column(str, Check.isin(["SPLIT_FROM", "FORMED_FROM", "MERGED_INTO"])),
+        "relationship_type": Column(str, Check.isin(["SPLIT_FROM", "FORMED_FROM", "MERGED_INTO", "RECONSTITUTED_FROM"])),
         "year_a": _year(), "year_b": _year(),
         "period_start": Column(int), "period_end": Column(int),
         "transfer_km2": Column(float, Check.gt(0)),

@@ -1,6 +1,6 @@
 # OD-01 — Reclassification: does a restored district keep its key?
 
-Status: **decision needed from the project owner.** Nothing is implemented.
+Status: **decided 2026-09-29 by the project owner: B, with the edge. Implemented in pipeline 3.2.0.**
 Evidence: `outputs/research/od01_reconstitution_candidates.csv` (pipeline 3.1.0 outputs).
 
 ## The question
@@ -36,12 +36,12 @@ The two gap cases:
 
 - **Fatehgarh Sahib** (IND-000186, PEPSU, 1951): absent from the 1961–1991 maps, restored as
   IND-000587 (Punjab), first mapped 2001. All of the 1951 district lies inside the restored one
-  (share 1.00; it makes up 0.63 of the new district). This is the one real reclassification case
-  in 74 years of maps.
+  (share 1.00; it makes up 0.63 of the new district). It is the only case this first test finds; the refined rule below also finds
+  Barnala.
 - Jammu & Kashmir 1951 → Leh 2021: the 1951 layer maps a coarse unit whose land later falls
   mostly in Leh. Not a reclassification.
 
-So OD-01 changes the identity of one district. It is not blocking.
+So OD-01 affects very few districts (the refined rule below finds two). It is not blocking.
 
 ## Recommendation: B, with the edge
 
@@ -49,14 +49,34 @@ So OD-01 changes the identity of one district. It is not blocking.
    statistics of its own; its figures were reported inside another district. One key across the
    gap would claim a continuous series that does not exist, and harmonization would inherit that
    claim.
-2. Add the missing link: in s05, when a closed identity's territory returns after at least one
-   missing map with both shares ≥ 0.5, write a `RECONSTITUTED_FROM` edge (the fourth type
-   Architecture v0.3 already defines). Threshold goes in `config/pipeline.yaml` with this memo as
-   its rationale. Expected result on current data: one edge (Fatehgarh Sahib).
+2. Add the missing link: in s05, write a `RECONSTITUTED_FROM` edge (the fourth type
+   Architecture v0.3 already defines).
 3. Downgrade OD-01 to non-blocking in `ARCHITECTURE.md`.
 
 Keys do not change, so this is a MINOR version. Option A would renumber keys (MAJOR) and, per
 v0.3, needs a Census District Handbook showing the series was continuous.
+
+## As implemented (3.2.0)
+
+The "both shares ≥ 0.5" test above is too loose and too strict at once. It would link the 1951
+Jammu & Kashmir unit to Leh 2021, although J&K 1951 split into nine new districts and its lineage
+already continues through them. And it misses Barnala, which returned smaller than it was.
+The rule that separates a reclassification from a split is how the district closed:
+
+- the closed identity has **no lineage successor**: its land was absorbed into districts that
+  already existed (5 identities in the data: Barnala, Fatehgarh Sahib, Simla, Central Delhi,
+  Hnahthial);
+- a new identity is first mapped **at least one map later**;
+- that new identity is **mostly its land** (share ≥ `lineage.reconstitution_share` = 0.5).
+
+Result: two edges, both 1951 PEPSU districts absorbed in the 1950s and restored decades later.
+
+| from | to | first mapped again | km² | share of old | share of new |
+|---|---|---|---|---|---|
+| Fatehgarh Sahib (IND-000186) | Fatehgarh Sahib (IND-000587) | 2001 | 731 | 1.00 | 0.63 |
+| Barnala (IND-000184) | Barnala (IND-000676) | 2011 | 1,308 | 0.31 | 0.96 |
+
+Tested in `tests/test_golden_history.py`.
 
 ## Side finding: renames the identity rule does not recognise
 
