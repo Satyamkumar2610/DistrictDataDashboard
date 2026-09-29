@@ -5,7 +5,7 @@
     "retain_intermediate_calculation_columns": false,
     "additional_columns_to_retain": [],
     "sql_dialect": "duckdb",
-    "linker_uid": "ahvnhp01",
+    "linker_uid": "duxf41fx",
     "em_convergence": 0.0001,
     "max_iterations": 25,
     "bayes_factor_column_prefix": "bf_",
@@ -45,7 +45,7 @@
                 {
                     "sql_condition": "\"name_norm_l\" = \"name_norm_r\"",
                     "label_for_charts": "Exact match on name_norm",
-                    "m_probability": 0.6376324424601366,
+                    "m_probability": 0.6376324424601119,
                     "u_probability": 0.000922359264334893,
                     "fix_m_probability": false,
                     "fix_u_probability": false
@@ -53,7 +53,7 @@
                 {
                     "sql_condition": "\"alias_norm_l\" = \"alias_norm_r\"",
                     "label_for_charts": "documentary alias",
-                    "m_probability": 0.04457394994131326,
+                    "m_probability": 0.04457394994131162,
                     "u_probability": 8.487968690198402e-05,
                     "fix_m_probability": false,
                     "fix_u_probability": false
@@ -61,7 +61,7 @@
                 {
                     "sql_condition": "jaro_winkler_similarity(\"name_norm_l\", \"name_norm_r\") >= 0.95",
                     "label_for_charts": "Jaro-Winkler distance of name_norm >= 0.95",
-                    "m_probability": 0.04822873156627462,
+                    "m_probability": 0.04822873156627279,
                     "u_probability": 6.893259421130823e-05,
                     "fix_m_probability": false,
                     "fix_u_probability": false
@@ -69,7 +69,7 @@
                 {
                     "sql_condition": "jaro_winkler_similarity(\"name_norm_l\", \"name_norm_r\") >= 0.88",
                     "label_for_charts": "Jaro-Winkler distance of name_norm >= 0.88",
-                    "m_probability": 0.10714270947918876,
+                    "m_probability": 0.1071427094791854,
                     "u_probability": 0.0006738932717672671,
                     "fix_m_probability": false,
                     "fix_u_probability": false
@@ -77,7 +77,7 @@
                 {
                     "sql_condition": "jaro_winkler_similarity(\"name_norm_l\", \"name_norm_r\") >= 0.8",
                     "label_for_charts": "Jaro-Winkler distance of name_norm >= 0.8",
-                    "m_probability": 0.15390915006948908,
+                    "m_probability": 0.1539091500694933,
                     "u_probability": 0.0037161870192723187,
                     "fix_m_probability": false,
                     "fix_u_probability": false
@@ -85,7 +85,7 @@
                 {
                     "sql_condition": "ELSE",
                     "label_for_charts": "All other comparisons",
-                    "m_probability": 0.008513016483597506,
+                    "m_probability": 0.008513016483624954,
                     "u_probability": 0.9945337481635123,
                     "fix_m_probability": false,
                     "fix_u_probability": false

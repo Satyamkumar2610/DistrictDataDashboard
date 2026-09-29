@@ -9,6 +9,7 @@ stages:
     cmd: python -m district_evolution.stages.s01_bronze_to_silver
     deps:
       - district_evolution/stages/s01_bronze_to_silver.py
+      - district_evolution/sources
       - district_evolution/core
       - district_evolution/contracts
       - config/pipeline.yaml

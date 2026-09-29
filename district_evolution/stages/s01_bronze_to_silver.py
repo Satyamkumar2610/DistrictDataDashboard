@@ -1,7 +1,8 @@
 """Stage 01 — Bronze to Silver.
 
-Reads each source GPKG (config/sources.yaml), standardizes to one schema,
-reprojects to EPSG:4326, repairs invalid geometry, computes geodesic area and
+Reads each vintage through its boundary source adapter (district_evolution/sources,
+configured in config/sources.yaml; checked against the boundary_layer contract,
+EPSG:4326), repairs invalid geometry, computes geodesic area and
 perimeter with the one method used everywhere, and writes one GeoParquet per
 vintage. Bronze is only read.
 
@@ -20,12 +21,11 @@ from __future__ import annotations
 
 import geopandas as gpd
 import pandas as pd
-import yaml
 from shapely import STRtree, make_valid
 from shapely.geometry import GeometryCollection, MultiPolygon, Polygon
 from shapely.ops import unary_union
 
-from district_evolution import core
+from district_evolution import core, sources
 
 SENTINEL_RE = r"^(nan|none|data not available|not available|n/?a|unknown|no data|unnamed|-+)?$"
 
@@ -72,27 +72,8 @@ def resolve_overlaps(geoms: list, areas: list[float], ids: list[str]) -> tuple[l
     return out, log
 
 
-def read_source(source: str, cfg: dict) -> gpd.GeoDataFrame:
-    gdf = gpd.read_file(core.PROJECT_ROOT / cfg["path"], layer=cfg["primary_layer"])
-    if cfg.get("state_field"):
-        state = gdf[cfg["state_field"]]
-    else:
-        codes = gdf[cfg["state_code_field"]].astype(str).str.zfill(2)
-        unmapped = sorted(set(codes) - set(core.PC11_STATE_CODES))
-        if unmapped:
-            raise ValueError(f"unmapped PC11 state codes: {unmapped}")
-        state = codes.map(core.PC11_STATE_CODES)
-    out = gpd.GeoDataFrame({
-        "source_pk": gdf[cfg["source_pk"]].astype(str),
-        "district_name_original": gdf[cfg["name_field"]].astype(str).str.strip(),
-        "state_name_original": state.astype(str).str.strip(),
-        "geometry": gdf.geometry,
-    }, geometry="geometry", crs=gdf.crs)
-    return out.to_crs(epsg=4326) if source == "soi" else out
-
-
-def process_vintage(source: str, year: int, cfg: dict) -> tuple[dict, list[dict]]:
-    gdf = read_source(source, cfg)
+def process_vintage(source: str, year: int) -> tuple[dict, list[dict]]:
+    gdf = sources.load(source, year)
     n_raw = len(gdf)
 
     unnamed = gdf["district_name_original"].str.lower().str.match(SENTINEL_RE)
@@ -154,11 +135,9 @@ def process_vintage(source: str, year: int, cfg: dict) -> tuple[dict, list[dict]
 
 
 def main() -> None:
-    with open(core.CONFIG_DIR / "sources.yaml") as fh:
-        sources = yaml.safe_load(fh)["sources"]
     summaries, excluded, repairs = [], [], []
     for source, year in core.VINTAGES:
-        s, e, o = process_vintage(source, year, sources[source]["datasets"][str(year)])
+        s, e, o = process_vintage(source, year)
         summaries.append(s)
         excluded.extend(e)
         repairs.extend(o)

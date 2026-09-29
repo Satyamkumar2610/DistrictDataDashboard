@@ -12,6 +12,8 @@ Paths are relative to `district_evolution/`. Tables are in `data/gold/district_e
 | Curated reference tables | `core/reference.py` | — | `test_core.py` |
 | Validated writes | `core/io.py`, `contracts/schemas.py` | every gold and product table | `test_events_and_contracts.py` |
 | Lineage DAG | `core/lineage_graph.py` | — | `test_events_and_contracts.py` |
+| Extension points | `core/interfaces.py` | — | — |
+| Boundary map adapters | `sources/stanford.py`, `sources/soi.py`, `sources/gpkg.py` | (in memory, `boundary_layer` contract) | `test_sources.py` |
 | Bronze → silver, partition repair | `stages/s01_bronze_to_silver.py` | `data/silver/geometry/*.geoparquet` | `test_geometry_rules.py` |
 | Topology gate (V1) | `stages/s02_topology_audit.py` | `outputs/pipeline/s02_topology_audit.csv` | — |
 | Transition matrix | `stages/s03_transition_matrix.py` | `transition_flow`, `transition_residual` | `test_geometry_rules.py` |

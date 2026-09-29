@@ -73,6 +73,11 @@ Shared code:
   `ids`, `names`, `reference` (curated reference tables), `io` (`write_table`), `lineage_graph`
   (networkx). Stages import it as `from district_evolution import core`.
 - `district_evolution/contracts/schemas.py`: pandera contracts for every table.
+- `district_evolution/sources/`: boundary map adapters (Stanford, SOI). A new map series is one
+  adapter returning the `boundary_layer` contract in EPSG:4326; s01 keeps placeholder exclusion,
+  partition repair and area, so no source can bypass them.
+- `district_evolution/core/interfaces.py`: the extension points (`BoundarySource`,
+  `EvidenceSource`, `Indicator`, `WeightMethod`).
 - `district_evolution/evidence/`: Wikidata snapshot and external audit.
 
 ## Rules for working in this repo

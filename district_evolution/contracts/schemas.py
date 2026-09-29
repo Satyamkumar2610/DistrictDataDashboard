@@ -28,6 +28,13 @@ def _km2(nullable: bool = False) -> Column:
 
 
 SCHEMAS: dict[str, DataFrameSchema] = {
+    # ---- boundary source adapters (district_evolution/sources) --------------
+    "boundary_layer": DataFrameSchema({
+        "source_pk": Column(str, unique=True),
+        "district_name_original": Column(str),
+        "state_name_original": Column(str),
+    }, strict=True),
+
     # ---- silver -----------------------------------------------------------
     "silver_geometry": DataFrameSchema({
         "geom_obs_id": Column(str, SHA, unique=True),
