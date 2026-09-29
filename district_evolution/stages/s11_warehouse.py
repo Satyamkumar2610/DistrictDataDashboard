@@ -15,6 +15,7 @@ turns into the pass/fail gate:
   V12  an event's declared transfer never exceeds its predecessors' area
   V13  active CKs == features in the reference vintage
   V15  crosswalk rows never exceed source or target area
+  V21  every evidence claim links to an existing CK (evidence never creates identities)
 """
 
 from __future__ import annotations
@@ -190,7 +191,11 @@ def load(con: duckdb.DuckDBPyConnection) -> None:
                         "district_reference_context": P / "district_reference_context.parquet",
                         "event_summary": G / "events/event_summary.parquet",
                         "participant_ck_candidate": G / "events/participant_ck_candidate.parquet",
-                        "ck_flow": G / "spatial/ck_flow.parquet"}.items():
+                        "ck_flow": G / "spatial/ck_flow.parquet",
+                        "evidence_claim": G / "evidence/evidence_claim.parquet",
+                        "claim_ck_link": G / "evidence/claim_ck_link.parquet",
+                        "claim_verdict": G / "evidence/claim_verdict.parquet",
+                        "research_queue": G / "evidence/research_queue.parquet"}.items():
         con.execute(f"CREATE TABLE {table} AS SELECT * FROM {pq(path)}")
 
 
@@ -241,6 +246,9 @@ def invariants(con: duckdb.DuckDBPyConnection) -> list[tuple]:
         ("V17", "overlap repair changed a polygon's area by more than 0.1% (review)", "WARNING",
          f"""SELECT count(*) FROM read_csv('{(core.OUTPUT_DIR / "s01_overlap_repairs.csv").as_posix()}')
              WHERE area_removed_km2 / area_before_km2 > 0.001"""),
+        ("V21", "evidence claim linked to a CK that does not exist", "ERROR",
+         """SELECT count(*) FROM claim_ck_link l LEFT JOIN ck_registry r USING (canonical_key)
+             WHERE l.canonical_key IS NOT NULL AND r.canonical_key IS NULL"""),
         ("INFO_LINK", "event participants not linked to a district", "INFO",
          "SELECT count(*) FROM event_linkage WHERE link_status IN ('UNRESOLVED_NAME','NO_BRACKETING_VINTAGE')"),
         ("INFO_FOOTPRINT", "successor name matched only outside the predecessor's footprint (research queue)", "INFO",

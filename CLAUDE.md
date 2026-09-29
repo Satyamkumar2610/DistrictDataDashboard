@@ -28,6 +28,7 @@ semantics.
 | Renames and spellings (curated, same entity only) | `data/reference/name_aliases.csv` | Name equivalence. Splits are never aliases. |
 | v2 → v3 key map | `data/reference/ck_migration_v2_to_v3.csv` | Resolves every old v2 key |
 | Mislabelled vintages (curated, confirmed only) | `data/reference/vintage_depiction.csv` | A map's boundaries depict a later year than its own label (e.g. Stanford "1981" Assam depicts ~1989) |
+| Research findings (curated, with evidence and citation) | `data/reference/research_findings.csv` | Settled research questions; the only way a research-queue item is closed |
 | Known geometry gaps (curated, confirmed only) | `data/reference/known_geometry_gaps.csv` | A vintage is missing districts other evidence confirms already existed (e.g. SOI 2025 still shows Mizoram's pre-2018 8 districts) |
 
 Bronze files are committed and must never be modified.
@@ -65,6 +66,10 @@ are evidence and never drive geometry.
 | s08 linkage | splink Fellegi-Sunter model linking event names to CK records (name + state-lineage evidence) |
 | s09 reconciliation | Link successors only within the predecessor's territorial footprint. Partition-exact accounting. MEASURED only when there is one event per window. |
 | s10 products | `district_area_admin`, `crosswalk_to_reference`, `district_reference_context` |
+| e01 evidence claims | Every statement of every evidence source (now: the frozen Wikidata snapshot) as a cited claim: NAME, AREA, INCEPTION, PARENT |
+| e02 claim linkage | Locate each claim's subject by its coordinate on the map of its date; the name only qualifies the link |
+| e03 claim verdicts | AGREE / EXPLAINED / CONFLICT / NOT_CHECKABLE with a reason, using the rules the audit uses; PARENT by the footprint rule |
+| e04 research queue | Every open question in one table; closed only by a curated row in `data/reference/research_findings.csv` |
 | s11 warehouse | `data/gold/district_evolution.duckdb`: enforced DDL, SQL invariants, independent ST_Area_Spheroid check |
 | s12 validate | pandera contracts, collect all checks, output hash manifest, report, gate |
 
@@ -78,7 +83,10 @@ Shared code:
   partition repair and area, so no source can bypass them.
 - `district_evolution/core/interfaces.py`: the extension points (`BoundarySource`,
   `EvidenceSource`, `Indicator`, `WeightMethod`).
-- `district_evolution/evidence/`: Wikidata snapshot and external audit.
+- `district_evolution/evidence/`: evidence sources (`EVIDENCE_SOURCES`), shared verdict rules
+  (`rules.py`), point location (`geo.py`), the Wikidata snapshot and the external audit (a01).
+  Evidence stages write only to `data/gold/evidence` and `outputs/evidence`, and no s01–s10 stage
+  reads them (`tests/test_evidence.py`).
 
 ## Rules for working in this repo
 

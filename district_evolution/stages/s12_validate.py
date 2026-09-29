@@ -41,6 +41,10 @@ CONTRACTS = {
     "district_area_admin": core.PRODUCTS_DIR / "district_area_admin.parquet",
     "crosswalk_to_reference": core.PRODUCTS_DIR / "crosswalk_to_reference.parquet",
     "district_reference_context": core.PRODUCTS_DIR / "district_reference_context.parquet",
+    "evidence_claim": G / "evidence/evidence_claim.parquet",
+    "claim_ck_link": G / "evidence/claim_ck_link.parquet",
+    "claim_verdict": G / "evidence/claim_verdict.parquet",
+    "research_queue": G / "evidence/research_queue.parquet",
 }
 
 
@@ -107,6 +111,19 @@ def declared_outputs() -> set[str]:
     return out
 
 
+def research_checks() -> list[dict]:
+    """V22: open research questions (e04). V23: a curated finding whose queue item no longer exists."""
+    q = pd.read_parquet(core.GOLD_EVIDENCE_DIR / "research_queue.parquet")
+    f = pd.read_csv(core.REFERENCE_DIR / "research_findings.csv", dtype=str)
+    open_ = q[q.status == "OPEN"]
+    stale = f[f.queue_item_id.notna() & ~f.queue_item_id.isin(q.queue_item_id)]
+    return [{"check_id": "V22", "description": "open research questions (outputs/evidence/e04_research_queue.csv)",
+             "severity": "INFO", "n_violations": len(open_),
+             "detail": "; ".join(f"{t}: {n}" for t, n in open_.topic.value_counts().sort_index().items()) or None},
+            {"check_id": "V23", "description": "curated finding refers to a research question that no longer exists",
+             "severity": "WARNING", "n_violations": len(stale), "detail": "; ".join(stale.finding_id) or None}]
+
+
 def manifest(declared: set[str]) -> pd.DataFrame:
     """V5 scope: the declared data outputs (silver, gold, products)."""
     files = sorted(f for f in declared if f.startswith(MANIFEST_ROOTS) and f.endswith(MANIFEST_SUFFIXES))
@@ -169,6 +186,7 @@ def main() -> None:
     rows.append(merge_check())
     declared = declared_outputs()
     rows.append(undeclared_check(declared))
+    rows += research_checks()
     checks = pd.DataFrame(rows)
     checks.to_csv(core.OUTPUT_DIR / "s12_checks.csv", index=False)
     man = manifest(declared)

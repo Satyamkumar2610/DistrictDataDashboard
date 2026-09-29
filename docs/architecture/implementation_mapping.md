@@ -26,4 +26,8 @@ Paths are relative to `district_evolution/`. Tables are in `data/gold/district_e
 | Census products | `stages/s10_census_products.py` | `district_area_admin`, `crosswalk_to_reference`, `district_reference_context` | — |
 | Warehouse and SQL invariants | `stages/s11_warehouse.py` | `district_evolution.duckdb`, `outputs/pipeline/s11_invariants.csv` | `test_golden_history.py`, `test_baselines.py` |
 | Validation gate | `stages/s12_validate.py` | `outputs/pipeline/s12_*` | `test_baselines.py` |
+| Evidence claims | `stages/e01_evidence_claims.py`, `evidence/wikidata.py` | `evidence_claim` | `test_evidence.py` |
+| Claim linkage | `stages/e02_claim_linkage.py`, `evidence/geo.py` | `claim_ck_link` | `test_evidence.py` |
+| Claim verdicts | `stages/e03_claim_verdicts.py`, `evidence/rules.py` | `claim_verdict` | `test_evidence.py` |
+| Research queue | `stages/e04_research_queue.py` | `research_queue` (closed by `data/reference/research_findings.csv`) | `test_baselines.py` |
 | External audit (Wikidata) | `evidence/wikidata_snapshot.py`, `evidence/wikidata_audit.py` | `data/reference/external/*.json`, `outputs/audit/*` | — |

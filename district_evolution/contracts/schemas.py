@@ -236,6 +236,63 @@ SCHEMAS: dict[str, DataFrameSchema] = {
 }
 
 
+# ---- evidence (e01-e04): corroboration only, never read by s01-s10 -------------------
+CLAIM_TYPES = ["NAME", "AREA", "INCEPTION", "PARENT"]
+QUEUE_TOPICS = ["EVENT_NAME_OUTSIDE_FOOTPRINT", "EVENT_NAME_UNRESOLVED", "CLAIM_CONFLICT", "MAP_DATE"]
+TEXT = Check.str_length(min_value=1)
+SCHEMAS.update({
+    "evidence_claim": DataFrameSchema({
+        "claim_id": Column(str, SHA, unique=True),
+        "source_id": Column(str, TEXT), "source_ref": Column(str, TEXT),
+        "claim_type": Column(str, Check.isin(CLAIM_TYPES)),
+        "value": Column(str), "value_num": Column(float, nullable=True),
+        "unit": Column(str, nullable=True), "qualifier": Column(str, nullable=True),
+        "value_label": Column(str, nullable=True),
+        "citation": Column(str, TEXT),
+        "subject_name": Column(str, nullable=True), "subject_state": Column(str, nullable=True),
+        "lon": Column(float, Check.in_range(60, 100), nullable=True),
+        "lat": Column(float, Check.in_range(5, 40), nullable=True),
+        "dissolved_year": Column(float, nullable=True),
+        "retrieved_at": Column(str, TEXT),
+    }),
+    "claim_ck_link": DataFrameSchema({
+        "claim_id": Column(str, SHA, unique=True),
+        "canonical_key": Column(str, CK, nullable=True),
+        "vintage": Column(float, Check.isin(YEARS), nullable=True),
+        "method": Column(str, Check.isin(["INSIDE", "NEAR"]), nullable=True),
+        "name_agrees": Column(bool),
+        "link_status": Column(str, Check.isin(["LINKED", "LINKED_GEOMETRY_ONLY", "UNLINKED"])),
+        "unlinked_reason": Column(str, Check.isin(["NO_COORDINATE", "DISSOLVED_BEFORE_FIRST_MAP",
+                                                   "NO_POLYGON_NEARBY"]), nullable=True),
+    }, checks=[Check(lambda d: (d.link_status == "UNLINKED") == d.canonical_key.isna(),
+                     error="a claim is linked exactly when it has a canonical key")]),
+    "claim_verdict": DataFrameSchema({
+        "claim_id": Column(str, SHA, unique=True),
+        "source_id": Column(str, TEXT),
+        "claim_type": Column(str, Check.isin(CLAIM_TYPES)),
+        "canonical_key": Column(str, CK, nullable=True),
+        "verdict": Column(str, Check.isin(["AGREE", "EXPLAINED", "CONFLICT", "NOT_CHECKABLE"])),
+        "reason": Column(str, TEXT),
+        "our_value": Column(str, nullable=True),
+    }),
+    "research_finding": DataFrameSchema({
+        "finding_id": Column(str, Check.str_matches(r"^F-\d{4}$"), unique=True),
+        "queue_item_id": Column(str, SHA, nullable=True),
+        "topic": Column(str, TEXT), "subject": Column(str, TEXT),
+        "status": Column(str, Check.isin(["CONFIRMED", "REJECTED"])),
+        "summary": Column(str, TEXT), "evidence": Column(str, TEXT), "citation": Column(str, TEXT),
+        "decided_on": Column(str, Check.str_matches(r"^\d{4}-\d{2}-\d{2}$")),
+    }, strict=True),
+    "research_queue": DataFrameSchema({
+        "queue_item_id": Column(str, SHA, unique=True),
+        "topic": Column(str, Check.isin(QUEUE_TOPICS)),
+        "ref": Column(str, TEXT), "subject": Column(str), "state": Column(str, nullable=True),
+        "detail": Column(str, TEXT),
+        "status": Column(str, Check.isin(["OPEN", "CONFIRMED", "REJECTED"])),
+        "finding_id": Column(str, nullable=True),
+    }),
+})
+
 def validate(name: str, df: pd.DataFrame) -> pd.DataFrame:
     """Validate lazily so the error lists every failing check, not just the first."""
     schema = SCHEMAS[name]

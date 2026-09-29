@@ -20,7 +20,6 @@ Writes outputs/audit/*.csv and outputs/audit/EXTERNAL_AUDIT_REPORT.md
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
@@ -30,69 +29,16 @@ import pandas as pd
 from shapely import wkt
 
 from district_evolution import core
+from district_evolution.evidence import rules
+from district_evolution.evidence.geo import locate
+from district_evolution.evidence import wikidata
 
 OUT = core.PROJECT_ROOT / "outputs" / "audit"
-UNIT_TO_KM2 = {"Q712226": 1.0, "Q232291": 2.589988110336, "Q25343": 1e-6}  # km2, sq mi, m2
-NEAR_KM = 10.0
-AREA_AGREE, AREA_MINOR = 0.02, 0.10
-
-
-def year_of(v) -> float:
-    return float(str(v)[:4]) if isinstance(v, str) and str(v)[:4].isdigit() else np.nan
-
-
-def load_snapshot(path: Path) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
-    snap = json.loads(path.read_text())
-    r = snap["results"]
-    it = pd.DataFrame(r["items"])
-    it["qid"] = it.d.str.rsplit("/", n=1).str[-1]
-    items = it.sort_values(["qid", "coord", "inception"], na_position="last").groupby("qid").agg(
-        label=("label", "first"), coord=("coord", "first"),
-        inception=("inception", lambda s: np.nanmin([year_of(v) for v in s]) if s.notna().any() else np.nan),
-        dissolved=("dissolved", lambda s: np.nanmin([year_of(v) for v in s]) if s.notna().any() else np.nan),
-        states=("stateLabel", lambda s: "; ".join(sorted(set(s.dropna()))))).reset_index()
-    ar = pd.DataFrame(r["areas"])
-    ar["qid"] = ar.d.str.rsplit("/", n=1).str[-1]
-    ar["unit_q"] = ar.unit.str.rsplit("/", n=1).str[-1]
-    ar = ar[ar.unit_q.isin(UNIT_TO_KM2)]
-    ar["wd_area_km2"] = ar.amount.astype(float) * ar.unit_q.map(UNIT_TO_KM2)
-    ar["area_referenced"] = ar.get("statedInLabel", pd.Series(index=ar.index, dtype=str)).notna()
-    # one claim per item: prefer referenced, then undated (current), then the latest dated
-    ar["pit"] = ar.get("pointInTime", pd.Series(index=ar.index, dtype=str)).map(year_of)
-    areas = (ar.sort_values(["qid", "area_referenced", "pit"], ascending=[True, False, False], na_position="first")
-             .drop_duplicates("qid")[["qid", "wd_area_km2", "area_referenced", "pit"]])
-    ln = pd.DataFrame(r["lineage"])
-    ln["qid"] = ln.d.str.rsplit("/", n=1).str[-1]
-    ln["prop"] = ln.prop.str.rsplit("/", n=1).str[-1]
-    ln["target_qid"] = ln.target.str.rsplit("/", n=1).str[-1]
-    return items.merge(areas, on="qid", how="left"), ln, snap, {"retrieved": snap["retrieved"]}
-
-
-def locate(points: gpd.GeoDataFrame, year: int, obs: pd.DataFrame) -> pd.DataFrame:
-    """For each point: the CK whose polygon at `year` contains it (or the nearest within NEAR_KM)."""
-    layer = gpd.read_parquet(core.silver_path(year), columns=["geom_obs_id", "district_name_norm", "geometry"])
-    layer = layer.merge(obs[["geom_obs_id", "canonical_key"]], on="geom_obs_id")
-    inside = gpd.sjoin(points, layer, how="left", predicate="within")
-    inside = inside[~inside.index.duplicated()]
-    res = pd.DataFrame({"canonical_key": inside.canonical_key, "our_name_norm": inside.district_name_norm,
-                        "match_geom": np.where(inside.canonical_key.notna(), "INSIDE", None)}, index=points.index)
-    miss = res.canonical_key.isna()
-    if miss.any():
-        pm = points[miss].to_crs(7755)  # WGS 84 / India NSF LCC, metres
-        near = gpd.sjoin_nearest(pm, layer.to_crs(7755), how="left", max_distance=NEAR_KM * 1000,
-                                 distance_col="dist_m")
-        near = near[~near.index.duplicated()]
-        res.loc[near.index[near.canonical_key.notna()], ["canonical_key", "our_name_norm"]] = \
-            near.loc[near.canonical_key.notna(), ["canonical_key", "district_name_norm"]].values
-        res.loc[near.index[near.canonical_key.notna()], "match_geom"] = "NEAR"
-    return res
-
 
 def main(snapshot_path: str | None = None) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
-    path = Path(snapshot_path) if snapshot_path else sorted(
-        (core.REFERENCE_DIR / "external").glob("wikidata_districts_*.json"))[-1]
-    items, lineage, _, meta = load_snapshot(path)
+    path = Path(snapshot_path) if snapshot_path else wikidata.snapshot_path()
+    items, lineage, _, meta = wikidata.load_snapshot(path)
     obs = pd.read_parquet(core.GOLD_CORE_DIR / "ck_observation.parquet")
     reg = pd.read_parquet(core.GOLD_CORE_DIR / "ck_registry.parquet").set_index("canonical_key")
     rel = pd.read_parquet(core.GOLD_EVENTS_DIR / "district_relationship.parquet")
@@ -127,29 +73,11 @@ def main(snapshot_path: str | None = None) -> None:
     a["our_area_2011_km2"] = [area.get((c, 2011), np.nan) for c in a.canonical_key]
     a["rel_diff_2025"] = (a.our_area_2025_km2 - a.wd_area_km2) / a.wd_area_km2
     a["rel_diff_2011"] = (a.our_area_2011_km2 - a.wd_area_km2) / a.wd_area_km2
-    # a stale figure: Wikidata matches this same district's area on one of our earlier maps
-    def earlier_match(ck, wd):
-        hits = [y for y in core.YEARS[:-1] if (ck, y) in area.index and abs(area[(ck, y)] - wd) / wd <= AREA_AGREE]
-        return max(hits) if hits else np.nan
-    a["matches_our_year"] = [earlier_match(c, w) for c, w in zip(a.canonical_key, a.wd_area_km2)]
-    # a magnitude slip: one of our areas for this district is within 2% of Wikidata x 10^k (k != 0)
-    def slip(ck, wd):
-        for y in core.YEARS:
-            if (ck, y) in area.index:
-                k = round(np.log10(area[(ck, y)] / wd))
-                if k != 0 and abs(area[(ck, y)] / (wd * 10.0 ** k) - 1) <= AREA_AGREE:
-                    return True
-        return False
-    a["magnitude_slip"] = [slip(c, w) for c, w in zip(a.canonical_key, a.wd_area_km2)]
-    changed_after_2011 = set(rel[rel.year_b >= 2021].from_ck) | set(rel[rel.year_b >= 2021].to_ck) | \
-        set(reg[reg.established_year >= 2021].index)
-    ad = a.rel_diff_2025.abs()
-    a["area_verdict"] = np.select(
-        [ad <= AREA_AGREE, ad <= AREA_MINOR, a.magnitude_slip, a.matches_our_year.notna(),
-         a.canonical_key.isin(changed_after_2011)],
-        ["AGREE_WITHIN_2PCT", "MINOR_2_TO_10PCT", "WIKIDATA_MAGNITUDE_ERROR",
-         "WIKIDATA_MATCHES_OUR_EARLIER_AREA", "DISTRICT_REORGANISED_AFTER_2011"],
-        default="UNEXPLAINED_OVER_10PCT")
+    a["matches_our_year"] = [rules.earlier_area_match(c, w, area) for c, w in zip(a.canonical_key, a.wd_area_km2)]
+    a["magnitude_slip"] = [rules.magnitude_slip(c, w, area) for c, w in zip(a.canonical_key, a.wd_area_km2)]
+    reorganised = rules.reorganised_after_2011(rel, reg)
+    a["area_verdict"] = [rules.area_label(d, s, e, c in reorganised) for d, s, e, c in
+                         zip(a.rel_diff_2025, a.magnitude_slip, a.matches_our_year, a.canonical_key)]
     a[["qid", "label", "canonical_key", "our_name", "wd_area_km2", "area_referenced", "our_area_2025_km2",
        "our_area_2011_km2", "rel_diff_2025", "matches_our_year", "magnitude_slip", "area_verdict"]].sort_values(
         "rel_diff_2025", key=abs, ascending=False).to_csv(OUT / "area_audit.csv", index=False)
@@ -157,23 +85,14 @@ def main(snapshot_path: str | None = None) -> None:
     # ---- 3. formation year ------------------------------------------------------
     # our formation interval (formed_after, formed_by] is in DEPICTED years (s04)
     f = matched[matched.inception.notna() & (matched.inception >= 1947)].copy()
-    prev = {y: p for p, y in zip([None] + core.YEARS[:-1], core.YEARS)}
+    prev = rules.PREV_MAP
     f["our_first_map"] = f.canonical_key.map(reg.established_year)
     f["formed_after"] = f.canonical_key.map(reg.formed_after)
     f["formed_by"] = f.canonical_key.map(reg.formed_by)
     state = f.canonical_key.map(reg.state_at_creation)
-    lag_start = [core.depicted_year(s, prev[prev[y]]) if prev.get(y) and prev.get(prev[y]) else 1900
-                 for s, y in zip(state, f.our_first_map)]
-
-    def verdict(r, ls):
-        if pd.isna(r.formed_after):
-            return "CONSISTENT" if r.inception <= r.formed_by else "OURS_EARLIER_THAN_INCEPTION"
-        if r.formed_after < r.inception <= r.formed_by:
-            return "CONSISTENT"
-        if ls < r.inception <= r.formed_after:
-            return "CONSISTENT_WITH_ONE_MAP_LAG"
-        return "OURS_EARLIER_THAN_INCEPTION" if r.inception > r.formed_by else "OURS_LATER_THAN_INCEPTION"
-    f["formation_verdict"] = [verdict(r, ls) for r, ls in zip(f.itertuples(), lag_start)]
+    lags = [rules.lag_start(s, y) for s, y in zip(state, f.our_first_map)]
+    f["formation_verdict"] = [rules.formation_label(r.inception, r.formed_after, r.formed_by, ls)
+                              for r, ls in zip(f.itertuples(), lags)]
     f[["qid", "label", "canonical_key", "inception", "our_first_map", "formed_after", "formed_by",
        "formation_verdict"]].to_csv(OUT / "formation_audit.csv", index=False)
 

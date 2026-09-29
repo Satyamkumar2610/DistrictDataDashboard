@@ -192,6 +192,72 @@ stages:
       - data/products/district_reference_context.csv: {cache: false}
       - data/products/district_reference_context_wide.csv: {cache: false}
 
+  e01_evidence_claims:
+    cmd: python -m district_evolution.stages.e01_evidence_claims
+    deps:
+      - district_evolution/stages/e01_evidence_claims.py
+      - district_evolution/evidence
+      - district_evolution/core
+      - district_evolution/contracts
+      - data/reference/external
+    outs:
+      - data/gold/evidence/evidence_claim.parquet: {cache: false}
+      - outputs/evidence/e01_evidence_claim.csv: {cache: false}
+
+  e02_claim_linkage:
+    cmd: python -m district_evolution.stages.e02_claim_linkage
+    deps:
+      - district_evolution/stages/e02_claim_linkage.py
+      - district_evolution/evidence
+      - district_evolution/core
+      - district_evolution/contracts
+      - config/pipeline.yaml
+      - data/reference
+      - data/gold/evidence/evidence_claim.parquet
+      - data/silver/geometry
+      - data/gold/core/ck_observation.parquet
+    outs:
+      - data/gold/evidence/claim_ck_link.parquet: {cache: false}
+      - outputs/evidence/e02_claim_ck_link.csv: {cache: false}
+
+  e03_claim_verdicts:
+    cmd: python -m district_evolution.stages.e03_claim_verdicts
+    deps:
+      - district_evolution/stages/e03_claim_verdicts.py
+      - district_evolution/evidence
+      - district_evolution/core
+      - district_evolution/contracts
+      - config/pipeline.yaml
+      - data/reference
+      - data/gold/evidence/evidence_claim.parquet
+      - data/gold/evidence/claim_ck_link.parquet
+      - data/silver/geometry
+      - data/gold/core/ck_observation.parquet
+      - data/gold/core/ck_registry.parquet
+      - data/gold/events/district_relationship.parquet
+      - data/gold/spatial/ck_flow.parquet
+    outs:
+      - data/gold/evidence/claim_verdict.parquet: {cache: false}
+      - outputs/evidence/e03_claim_verdict.csv: {cache: false}
+
+  e04_research_queue:
+    cmd: python -m district_evolution.stages.e04_research_queue
+    deps:
+      - district_evolution/stages/e04_research_queue.py
+      - district_evolution/core
+      - district_evolution/contracts
+      - data/reference
+      - data/bronze/events/district_evolution_master.csv
+      - data/gold/evidence/evidence_claim.parquet
+      - data/gold/evidence/claim_verdict.parquet
+      - data/gold/events/event_linkage.parquet
+      - data/gold/events/event_participant.parquet
+      - data/gold/events/boundary_event.parquet
+      - data/gold/core/ck_registry.parquet
+    outs:
+      - data/gold/evidence/research_queue.parquet: {cache: false}
+      - outputs/evidence/e04_research_queue.csv: {cache: false}
+
   s11_warehouse:
     cmd: python -m district_evolution.stages.s11_warehouse
     deps:
@@ -203,6 +269,7 @@ stages:
       - data/gold/spatial
       - data/gold/events
       - data/products
+      - data/gold/evidence
       - outputs/pipeline/s01_overlap_repairs.csv
     outs:
       - data/gold/district_evolution.duckdb: {cache: false}
@@ -218,6 +285,8 @@ stages:
       - district_evolution/core
       - data/gold/district_evolution.duckdb
       - outputs/pipeline/s02_topology_audit.csv
+      - data/gold/evidence/research_queue.parquet
+      - data/reference/research_findings.csv
     outs:
       - outputs/pipeline/s12_checks.csv: {cache: false}
       - outputs/pipeline/s12_output_manifest.csv: {cache: false}
@@ -227,7 +296,8 @@ stages:
   a01_external_audit:
     cmd: python -m district_evolution.evidence.wikidata_audit
     deps:
-      - district_evolution/evidence/wikidata_audit.py
+      - district_evolution/evidence
+      - config/pipeline.yaml
       - district_evolution/core
       - data/reference
       - data/bronze/events/district_evolution_master.csv

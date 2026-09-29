@@ -20,3 +20,4 @@ __pycache__/
 !data/reference/vintage_depiction.csv
 !data/reference/known_geometry_gaps.csv
 !outputs/research/*.csv
+!data/reference/research_findings.csv

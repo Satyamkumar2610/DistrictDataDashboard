@@ -3,6 +3,26 @@
 Versions follow semantic versioning of `pipeline_version` (config/pipeline.yaml).
 A MAJOR change can renumber canonical keys or change the meaning of a product.
 
+## 3.3.0
+
+Phase 2: an evidence layer. No key, lineage, area or product changes.
+
+### Added
+- Stages e01–e04. e01 turns every statement of an evidence source into a cited claim (1,771 from
+  the frozen 2026-09-23 Wikidata snapshot). e02 locates each claim's subject by coordinate on the
+  map of its date (633 subjects linked by geometry and name, 161 by geometry only, 28 without a
+  coordinate). e03 gives each claim a verdict: 1,213 agree, 105 explained, 214 conflict, 239 not
+  checkable. e04 gathers 395 open research questions.
+- `data/reference/research_findings.csv`: the curated register that closes research questions
+  (3 settled findings). Checks V21 (claim linked to an unknown key, ERROR), V22 (open questions,
+  INFO), V23 (finding pointing at a vanished question, WARNING). 29 contracts (was 25).
+- The external audit and e03 share one set of verdict rules (`evidence/rules.py`); the audit
+  output is byte-identical after the refactor. Evidence thresholds moved to `config/pipeline.yaml`.
+
+### Not done (by decision)
+- DataMeet boundaries, Census District Handbooks and gazettes: no files yet (the owner will provide
+  them). Each plugs in as an `EvidenceSource` (or a `BoundarySource` for audit) without core changes.
+
 ## 3.2.0
 
 OD-01 decided: a district that is absorbed and later restored keeps a new key and gains a

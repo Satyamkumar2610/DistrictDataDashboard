@@ -1,7 +1,7 @@
 # Pipeline v3 configuration. Every threshold used by any stage lives here with
 # its rationale; code reads it via lib.CFG. See docs/architecture/REVAMP_PLAN_V3.md.
 
-pipeline_version: "3.2.0"
+pipeline_version: "3.3.0"
 
 vintages:
   # (source, year) in chronological order. The last entry is the reference
@@ -99,6 +99,16 @@ area_check:
   # pyproj geodesic area vs DuckDB ST_Area_Spheroid (independent GeographicLib
   # implementation). Same polygon, same ellipsoid: must agree far tighter.
   max_rel_diff_pct: 0.01
+
+evidence:
+  # External evidence (e01-e04, a01). A claim's subject is located by its coordinate on the map
+  # of its date; a point outside every polygon is taken to the nearest one within near_km
+  # (coastal and border points digitised slightly off the polygon).
+  near_km: 10.0
+  # Area agreement bands, as used by the external audit since 3.0.0: within area_agree (share)
+  # is agreement; up to area_minor is a minor difference (digitisation or an undated figure).
+  area_agree: 0.02
+  area_minor: 0.10
 
 determinism:
   # Declared outputs allowed to differ between two builds of the same inputs, each with its
