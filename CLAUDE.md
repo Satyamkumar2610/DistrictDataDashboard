@@ -106,12 +106,18 @@ Shared code:
 
 - DVC remote and moving bronze out of git history (the `.git` directory is 691 MB). Needs a remote
   and a force-push coordinated with collaborators.
-- Zenodo DOI (`CITATION.cff` is ready) and pushing the CI workflow.
+- Zenodo DOI: wired (`.github/workflows/release.yml`, `docs/operations/release.md`); needs the
+  repository pushed and switched on at zenodo.org, then a `v3.0.0` tag.
 - Independent ground truth: Wikidata (P1365/P1366 lineage, inception, area) is done —
   `outputs/audit/EXTERNAL_AUDIT_REPORT.md`, reproducible from a frozen snapshot via
   `python -m district_evolution.evidence.wikidata_snapshot` + `wikidata_audit`. Census District Handbooks, DataMeet
   boundaries, and gazettes remain open.
-- OD-01 (reclassification CK rule).
+- OD-01 (reclassification CK rule): decision memo with measured evidence in
+  `docs/decisions/OD-01_reclassification.md` (one real case in the data: Fatehgarh Sahib).
+  Awaiting the owner's decision; nothing implemented.
+- Do not keep the working copy in an iCloud-synced folder (e.g. Desktop with iCloud Drive).
+  iCloud duplicates rewritten outputs as `<name> 2.<ext>` (V20 now fails on them) and marks
+  `.pth` files hidden, which Python 3.13 skips, so `pip install -e .` silently has no effect.
 - SOI 2025 lags Mizoram's 2019 districts (Khawzawl, Saitual; Hnahthial is also absent from the
   events compilation), producing 3 `MERGED_INTO` edges into Champhai. Documented, not silently
   fixed: `data/reference/known_geometry_gaps.csv` records the evidence, and `s12` check V19 fails

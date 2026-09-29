@@ -19,6 +19,8 @@ actually exchanged territory before accepting a name match.
 
 from __future__ import annotations
 
+import json
+
 import pandas as pd
 import splink.comparison_level_library as cll
 import splink.comparison_library as cl
@@ -91,6 +93,17 @@ def settings() -> SettingsCreator:
     )
 
 
+def stable_model(value):
+    """splink stamps a random linker_uid and EM leaves ~1e-15 float noise; neither is model content."""
+    if isinstance(value, float):
+        return round(value, 12)
+    if isinstance(value, dict):
+        return {k: stable_model(v) for k, v in value.items() if k != "linker_uid"}
+    if isinstance(value, list):
+        return [stable_model(v) for v in value]
+    return value
+
+
 def main() -> None:
     left, right = build_inputs()
     model_cols = ["uid", "name_norm", "alias_norm", "state_norm", "state_compat"]
@@ -101,7 +114,8 @@ def main() -> None:
     linker.training.estimate_u_using_random_sampling(max_pairs=LK["u_sampling_max_pairs"], seed=LK["seed"])
     linker.training.estimate_parameters_using_expectation_maximisation(block_on("state_norm"))
     linker.training.estimate_parameters_using_expectation_maximisation(block_on("name_norm"))
-    linker.misc.save_model_to_json(str(core.EVENTS_OUTPUT_DIR / "s08_splink_model.json"), overwrite=True)
+    model = stable_model(linker.misc.save_model_to_json())
+    (core.EVENTS_OUTPUT_DIR / "s08_splink_model.json").write_text(json.dumps(model, indent=4), encoding="utf-8")
 
     pred = linker.inference.predict(threshold_match_probability=0.01).as_pandas_dataframe()
     ev = pred.uid_l.str.startswith("P")

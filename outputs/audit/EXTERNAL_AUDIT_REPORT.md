@@ -107,24 +107,18 @@ coverage.
 
 For each new district we take its creation year from the events compilation. That source is
 independent of the maps. Where Wikidata also has an inception year, it is used to corroborate.
-Dates confirmed in `data/reference/vintage_depiction.csv` are applied first. Of 402 new
-districts with a recorded creation year, **20** still appear on a
+Dates confirmed in `data/reference/vintage_depiction.csv` are applied first. Of 390 new
+districts with a recorded creation year, **7** still appear on a
 map depicting a date before that year.
 
 | state             |   first_map |   new_on_map |   wikidata_confirms |   named_new_districts |
 |:------------------|------------:|-------------:|--------------------:|----------------------:|
-| Manipur           |        1971 |            4 |                   0 |                     5 |
 | Arunachal Pradesh |        1981 |            2 |                   0 |                     6 |
-| Jammu And Kashmir |        1961 |            2 |                   0 |                     8 |
-| Uttar Pradesh     |        2001 |            2 |                   0 |                    13 |
-| Arunachal Pradesh |        1961 |            1 |                   0 |                     2 |
-| Assam             |        1971 |            1 |                   0 |                     2 |
-| Assam             |        1981 |            1 |                   0 |                    14 |
-| Jharkhand         |        1991 |            1 |                   0 |                     7 |
+| Arunachal Pradesh |        1961 |            1 |                   0 |                     1 |
+| Jammu And Kashmir |        1961 |            1 |                   0 |                     7 |
 | Manipur           |        1981 |            1 |                   0 |                     2 |
 | Punjab            |        1961 |            1 |                   0 |                     1 |
-| Punjab            |        2001 |            1 |                   0 |                     5 |
-| Rajasthan         |        1961 |            1 |                   0 |                     1 |
+| Tamil Nadu        |        2001 |            1 |                   0 |                     7 |
 
 When the cases concentrate in one state-map, the map layer is the likely problem, not scattered
 event errors. Confirmed case: the Stanford "1981" Assam layer has the same 23 districts as its

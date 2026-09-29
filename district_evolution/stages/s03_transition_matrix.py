@@ -22,6 +22,7 @@ from __future__ import annotations
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import pyogrio
 
 from district_evolution import core
 
@@ -128,6 +129,8 @@ def main() -> None:
                     "transition_residual")
     summary = pd.DataFrame(summary)
     summary.to_csv(core.OUTPUT_DIR / "s03_transition_summary.csv", index=False)
+    # a fixed gpkg_contents.last_change keeps the file byte-reproducible
+    pyogrio.set_gdal_config_options({"OGR_CURRENT_DATE": "2000-01-01T00:00:00.000Z"})
     gpd.GeoDataFrame(pd.concat(inspect, ignore_index=True), geometry="geometry", crs="EPSG:4326").to_file(
         core.OUTPUT_DIR / "s03_transfer_and_displacement_parts.gpkg", driver="GPKG")
 

@@ -10,15 +10,20 @@ ERROR-severity check has violations.
 from __future__ import annotations
 
 import hashlib
+import subprocess
 import sys
 
 import duckdb
 import pandas as pd
+import yaml
 
 from district_evolution import core
 from district_evolution.contracts import schemas
 
 G = core.PROJECT_ROOT / "data" / "gold"
+MANIFEST_ROOTS = ("data/silver/geometry/", "data/gold/", "data/products/")
+MANIFEST_SUFFIXES = (".parquet", ".geoparquet", ".csv")
+CHECKED_ROOTS = ("data/silver", "data/gold", "data/products", "outputs")
 CONTRACTS = {
     "transition_flow": G / "spatial/transition_flow.parquet",
     "transition_residual": G / "spatial/transition_residual.parquet",
@@ -90,11 +95,38 @@ def merge_check() -> dict:
                                  unexplained[["from_ck", "to_ck", "year_b"]].itertuples(index=False)) or None}
 
 
-def manifest() -> pd.DataFrame:
-    roots = [core.SILVER_GEOM_DIR, G / "core", G / "spatial", G / "events", core.PRODUCTS_DIR]
-    files = sorted(p for r in roots for p in r.rglob("*") if p.is_file() and p.suffix in {".parquet", ".geoparquet", ".csv"})
-    return pd.DataFrame({"path": [str(p.relative_to(core.PROJECT_ROOT)) for p in files],
-                         "sha256": [hashlib.sha256(p.read_bytes()).hexdigest() for p in files]})
+def declared_outputs() -> set[str]:
+    """Every file declared as a stage output in dvc.yaml (directories expanded), repo-relative."""
+    stages = yaml.safe_load((core.PROJECT_ROOT / "dvc.yaml").read_text())["stages"]
+    out = set()
+    for stage in stages.values():
+        for entry in stage.get("outs", []):
+            path = core.PROJECT_ROOT / (next(iter(entry)) if isinstance(entry, dict) else entry)
+            files = [f for f in path.rglob("*") if f.is_file()] if path.is_dir() else [path]
+            out |= {str(f.relative_to(core.PROJECT_ROOT)) for f in files}
+    return out
+
+
+def manifest(declared: set[str]) -> pd.DataFrame:
+    """V5 scope: the declared data outputs (silver, gold, products)."""
+    files = sorted(f for f in declared if f.startswith(MANIFEST_ROOTS) and f.endswith(MANIFEST_SUFFIXES))
+    return pd.DataFrame({"path": files,
+                         "sha256": [hashlib.sha256((core.PROJECT_ROOT / f).read_bytes()).hexdigest() for f in files]})
+
+
+def undeclared_check(declared: set[str]) -> dict:
+    """V20: a file under a generated-output root that no stage declares and git does not track."""
+    row = {"check_id": "V20", "description": "file in a generated-output directory that no stage declares and git does not track",
+           "severity": "ERROR", "n_violations": 0, "detail": None}
+    git = subprocess.run(["git", "ls-files", "-z", "--", *CHECKED_ROOTS], cwd=core.PROJECT_ROOT,
+                         capture_output=True, text=True)
+    if git.returncode != 0:
+        return row | {"severity": "INFO", "detail": "not a git work tree; check skipped"}
+    tracked = set(filter(None, git.stdout.split("\0")))
+    present = {str(f.relative_to(core.PROJECT_ROOT)) for r in CHECKED_ROOTS for f in (core.PROJECT_ROOT / r).rglob("*")
+               if f.is_file() and f.name != ".DS_Store"}
+    stray = sorted(present - declared - tracked)
+    return row | {"n_violations": len(stray), "detail": "; ".join(stray[:20]) or None}
 
 
 def metrics(con: duckdb.DuckDBPyConnection) -> dict:
@@ -135,9 +167,11 @@ def main() -> None:
     rows += contract_checks()
     rows.append(map_date_check())
     rows.append(merge_check())
+    declared = declared_outputs()
+    rows.append(undeclared_check(declared))
     checks = pd.DataFrame(rows)
     checks.to_csv(core.OUTPUT_DIR / "s12_checks.csv", index=False)
-    man = manifest()
+    man = manifest(declared)
     man.to_csv(core.OUTPUT_DIR / "s12_output_manifest.csv", index=False)
     m = metrics(con)
     spatial = con.execute("SELECT spatial_class, count(*) n FROM event_summary GROUP BY 1 ORDER BY 2 DESC").df()
@@ -164,8 +198,9 @@ def main() -> None:
 
 V11 data contracts (pandera): {int((v11.n_violations == 0).sum())} / {len(v11)} tables pass.
 
-V5 determinism: `outputs/pipeline/s12_output_manifest.csv` holds the sha256 of every one of
-{len(man)} output files. Two runs on the same inputs must produce identical manifests (checked in CI).
+V5 determinism: `outputs/pipeline/s12_output_manifest.csv` holds the sha256 of each of the
+{len(man)} data outputs declared in `dvc.yaml` (silver, gold, products). Two runs on the same inputs
+must produce identical manifests (checked in CI).
 
 ## Key figures
 

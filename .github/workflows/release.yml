@@ -1,0 +1,51 @@
+name: release
+
+# Pushing a tag vX.Y.Z (equal to pipeline_version) rebuilds from bronze, runs the gate and all
+# tests, and publishes a GitHub Release with the validation evidence attached. With the repository
+# enabled at zenodo.org (Account > GitHub), Zenodo archives each release and mints a DOI using
+# CITATION.cff. See docs/operations/release.md.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install pinned dependencies and the package
+        run: |
+          pip install -r requirements.txt
+          pip install -e . --no-deps
+
+      - name: Tag must equal pipeline_version
+        run: |
+          version=$(python -c "from district_evolution import core; print(core.PIPELINE_VERSION)")
+          test "${GITHUB_REF_NAME}" = "v${version}" || { echo "tag ${GITHUB_REF_NAME} != v${version}"; exit 1; }
+
+      - name: Build, gate and tests
+        run: |
+          dvc repro --force
+          pytest -q tests
+
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" --title "District Evolution ${GITHUB_REF_NAME}" \
+            --notes-file outputs/pipeline/s12_validation_report.md \
+            outputs/pipeline/s12_validation_report.md \
+            outputs/pipeline/s12_checks.csv \
+            outputs/pipeline/s12_output_manifest.csv \
+            outputs/audit/EXTERNAL_AUDIT_REPORT.md

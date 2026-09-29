@@ -1,7 +1,7 @@
 # Pipeline v3 configuration. Every threshold used by any stage lives here with
 # its rationale; code reads it via lib.CFG. See docs/architecture/REVAMP_PLAN_V3.md.
 
-pipeline_version: "3.0.0"
+pipeline_version: "3.1.0"
 
 vintages:
   # (source, year) in chronological order. The last entry is the reference
@@ -94,3 +94,11 @@ area_check:
   # pyproj geodesic area vs DuckDB ST_Area_Spheroid (independent GeographicLib
   # implementation). Same polygon, same ellipsoid: must agree far tighter.
   max_rel_diff_pct: 0.01
+
+determinism:
+  # Declared outputs allowed to differ between two builds of the same inputs, each with its
+  # reason. Every other output in dvc.yaml must be byte-identical (CI: district_evolution/compare_builds.py).
+  nondeterministic_outputs:
+    data/gold/district_evolution.duckdb: >-
+      pipeline_run.built_at records the build time. The tables inside are loaded from the
+      byte-identical parquet outputs and checked by the s11 invariants on every build.

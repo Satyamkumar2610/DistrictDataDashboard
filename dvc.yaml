@@ -18,7 +18,15 @@ stages:
       - data/bronze/stanford
       - data/bronze/soi
     outs:
-      - data/silver/geometry: {cache: false}
+      - data/silver/geometry/stanford_1951.geoparquet: {cache: false}
+      - data/silver/geometry/stanford_1961.geoparquet: {cache: false}
+      - data/silver/geometry/stanford_1971.geoparquet: {cache: false}
+      - data/silver/geometry/stanford_1981.geoparquet: {cache: false}
+      - data/silver/geometry/stanford_1991.geoparquet: {cache: false}
+      - data/silver/geometry/stanford_2001.geoparquet: {cache: false}
+      - data/silver/geometry/stanford_2011.geoparquet: {cache: false}
+      - data/silver/geometry/stanford_2021.geoparquet: {cache: false}
+      - data/silver/geometry/soi_2025.geoparquet: {cache: false}
       - outputs/pipeline/s01_silver_summary.csv: {cache: false}
       - outputs/pipeline/s01_excluded_non_administrative.csv: {cache: false}
       - outputs/pipeline/s01_overlap_repairs.csv: {cache: false}
@@ -206,3 +214,22 @@ stages:
       - outputs/pipeline/s12_output_manifest.csv: {cache: false}
       - outputs/pipeline/s12_validation_report.md: {cache: false}
       - outputs/pipeline/s12_map_date_check.csv: {cache: false}
+
+  a01_external_audit:
+    cmd: python -m district_evolution.evidence.wikidata_audit
+    deps:
+      - district_evolution/evidence/wikidata_audit.py
+      - district_evolution/core
+      - data/reference
+      - data/bronze/events/district_evolution_master.csv
+      - data/silver/geometry
+      - data/gold/core/ck_observation.parquet
+      - data/gold/core/ck_registry.parquet
+      - data/gold/events/district_relationship.parquet
+    outs:
+      - outputs/audit/wikidata_match.csv: {cache: false}
+      - outputs/audit/area_audit.csv: {cache: false}
+      - outputs/audit/formation_audit.csv: {cache: false}
+      - outputs/audit/lineage_audit.csv: {cache: false}
+      - outputs/audit/map_date_audit.csv: {cache: false}
+      - outputs/audit/EXTERNAL_AUDIT_REPORT.md: {cache: false}

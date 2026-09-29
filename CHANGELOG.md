@@ -3,6 +3,48 @@
 Versions follow semantic versioning of `pipeline_version` (config/pipeline.yaml).
 A MAJOR change can renumber canonical keys or change the meaning of a product.
 
+## 3.1.0
+
+No canonical key, product or data output changed. One gate result changed: V18 has no
+findings (was Manipur 1971: 4/5), explained below; baselines in `tests/baselines/v3.1.0.yaml`.
+
+### Changed
+- Code moved into the `district_evolution` package (`core`, `contracts`, `stages`, `sources`,
+  `evidence`); stages run as `python -m district_evolution.stages.<stage>`. Install with
+  `pip install -e . --no-deps`. Proven byte-identical on every deterministic output.
+- s01 reads maps through `BoundarySource` adapters checked against a new `boundary_layer` contract.
+- The V5 output manifest is built from the outputs declared in `dvc.yaml` (36 data outputs); it
+  previously globbed directories and had picked up 25 stale copies. Silver layers are declared
+  one file each. The copies come from iCloud Drive syncing the working folder: it duplicates
+  files rewritten mid-sync as "<name> 2.<ext>".
+- The Wikidata external audit is a DVC stage (`a01_external_audit`), so its outputs are rebuilt
+  and hash-tracked with everything else.
+- The s08 splink model JSON and the s03 GeoPackage are now byte-reproducible (random linker id
+  dropped and floats rounded to 12 decimals; fixed GeoPackage timestamp). The DuckDB warehouse is
+  the one output allowed to differ between builds, with its reason in `config/pipeline.yaml`.
+
+### Added
+- Check V20 (ERROR): a file under `data/silver`, `data/gold`, `data/products` or `outputs/` that no
+  stage declares and git does not track.
+- Regression baselines (`tests/baselines/v<version>.yaml`), CI comparing two full builds
+  (`district_evolution/compare_builds.py`), a tag-triggered release workflow for Zenodo.
+
+### Removed
+- `official_district_area_benchmark.csv` (circular: SOI 2025 recomputed in a planar projection,
+  finding F14), two unused v1 files under `data/silver/`, and the dead `sliver_threshold_km2`.
+
+### Fixed
+- The map-date rule (V18, external audit) read RENAME rows and parent-continuation rows as
+  creations. Manipur's 1971 layer shows exactly the five districts created in 1969; four were
+  renamed in 1981. Renames now inherit the original creation year, and a creation dated after an
+  identity closed is treated as a later homonym. Districts shown before creation: 20 → 7.
+  Evidence: `outputs/research/V18_manipur_1971.md`.
+- The committed external audit report predated the confirmed Assam 1981 depiction row.
+
+### Documented, not implemented
+- OD-01 decision memo with measured evidence: `docs/decisions/OD-01_reclassification.md`.
+- DVC remote and history rewrite runbook: `docs/operations/data_storage.md`.
+
 ## 3.0.0
 
 Design and measured rationale: `docs/architecture/REVAMP_PLAN_V3.md`.

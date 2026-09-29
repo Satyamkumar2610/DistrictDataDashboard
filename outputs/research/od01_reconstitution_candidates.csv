@@ -1,0 +1,35 @@
+closed_ck,closed_name,state,last_map,closed_by,new_ck,new_name,first_map,maps_missing,share_of_closed,share_of_new,names_agree,name_similarity
+IND-000094,Jammu & Kashmir,Jammu And Kashmir,1951,1961.0,IND-000724,Leh,2021,6,0.679,0.965,False,0.0
+IND-000186,Fatehgarh Sahib,Patiala And East Punjab States Union,1951,1961.0,IND-000587,Fatehgarh Sahib,2001,4,1.0,0.627,True,1.0
+IND-000002,Andaman And Nicobar Islands,Andaman And Nicobar Islands,1971,1981.0,IND-000370,Andamans,1981,0,0.775,0.99,False,0.827
+IND-000004,Kameng,Arunachal Pradesh,1971,1981.0,IND-000378,West Kameng,1981,0,0.532,1.0,False,0.909
+IND-000003,Abor Hills,Assam,1951,1961.0,IND-000341,Siang,1961,0,0.655,1.0,False,0.433
+IND-000011,Mizo,Assam,1971,1989.0,IND-000433,Aizawl,1981,0,0.601,1.0,False,0.611
+IND-000013,Naga Hills,Assam,1951,1961.0,IND-000339,Kohima,1961,0,0.606,1.0,False,0.6
+IND-000019,United Mikir And North Cachar,Assam,1961,1971.0,IND-000351,Mikir Hills,1971,0,0.677,1.0,False,0.531
+IND-000023,Champaran,Bihar,1971,1981.0,IND-000404,Pashchim Champaran,1981,0,0.569,1.0,False,0.9
+IND-000028,Manbhum (Purulia),Bihar,1951,1961.0,IND-000349,Purulia,1961,0,0.803,1.0,False,0.432
+IND-000029,Monghyar,Bihar,1971,1981.0,IND-000401,Munger,1981,0,0.803,1.0,False,0.75
+IND-000038,Shahabad,Bihar,1971,1981.0,IND-000406,Rohtas,1981,0,0.638,1.0,False,0.528
+IND-000703,Bametara,Chhattisgarh,2021,2025.0,IND-000791,Bemetara,2025,0,0.781,0.999,False,0.882
+IND-000653,Reasi,Jammu And Kashmir,2021,2025.0,IND-000801,Riasi,2025,0,0.895,0.984,False,0.88
+IND-000328,Srinagar,Jammu And Kashmir,2001,2011.0,IND-000649,Ganderbal,2011,0,0.679,0.946,False,0.481
+IND-000155,Dakshin Kannad,Karnataka,1991,2001.0,IND-000539,Dakshina Kannada,2001,0,0.568,1.0,False,0.939
+IND-000128,East Nimar,Madhya Pradesh,2001,2011.0,IND-000671,Khandwa (East Nimar),2011,0,0.675,0.993,False,0.871
+IND-000148,Malabar,Madras,1951,1961.0,IND-000333,Kozhikode,1961,0,0.514,1.0,False,0.0
+IND-000052,Greater Bombay,Maharashtra,1991,2001.0,IND-000555,Mumbai Suburban,2001,0,0.832,1.0,False,0.537
+IND-000427,Imphal,Manipur,1991,2001.0,IND-000558,Imphal East,2001,0,0.535,1.0,False,0.909
+IND-000360,Manipur Central,Manipur,1971,1981.0,IND-000426,Chandel,1981,0,0.592,1.0,False,0.654
+IND-000007,Garo Hills,Meghalaya,1971,1981.0,IND-000431,West Garo Hills,1981,0,0.641,1.0,False,0.933
+IND-000430,Jaintia Hills,Meghalaya,2011,2021.0,IND-000736,East Jaintia Hills,2021,0,0.5,0.989,False,0.818
+IND-000434,Chhimtuipui,Mizoram,1991,2001.0,IND-000564,Lawngtlai,2001,0,0.526,1.0,False,0.468
+IND-000180,Phulabani,Odisha,1991,2001.0,IND-000578,Kandhamal,2001,0,0.723,1.0,False,0.444
+IND-000225,Nagore,Rajasthan,1951,1961.0,IND-000345,Nagaur,1961,0,0.866,1.0,False,0.844
+IND-000237,Gangtok,Sikkim,1971,1981.0,IND-000442,North Sikkim,1981,0,0.604,1.0,False,0.552
+IND-000137,Chengai Anna,Tamil Nadu,1991,2001.0,IND-000599,Kancheepuram,2001,0,0.553,1.0,False,0.667
+IND-000154,South Arcot,Tamil Nadu,1991,2001.0,IND-000607,Viluppuram,2001,0,0.664,1.0,False,0.413
+IND-000315,24 Parganas,West Bengal,1981,1991.0,IND-000492,South 24 Parganas,1991,0,0.656,1.0,False,0.929
+IND-000304,Barddhaman,West Bengal,2011,2021.0,IND-000790,Purba Bardhaman,2021,0,0.763,0.99,False,0.9
+IND-000312,Medinipur,West Bengal,2001,2011.0,IND-000683,Paschim Medinipur,2011,0,0.686,0.988,False,0.906
+IND-000683,Paschim Medinipur,West Bengal,2011,2021.0,IND-000788,Medinipur West,2021,0,0.663,0.988,False,0.887
+IND-000316,West Dinajpur,West Bengal,1991,2001.0,IND-000631,Uttar Dinajpur,2001,0,0.585,1.0,False,0.897

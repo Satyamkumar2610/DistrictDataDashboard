@@ -1,9 +1,9 @@
 name: pipeline
 
-# Every push runs the unit tests, rebuilds the full pipeline from bronze, runs
-# the validation gate (s12 exits non-zero on any ERROR check), checks the
-# golden historical cases against the built warehouse, and proves determinism
-# (V5) by rebuilding a second time and comparing the sha256 output manifests.
+# Every push and pull request: unit tests, two full builds from bronze with the validation gate
+# (s12 exits non-zero on any ERROR check), golden histories and regression baselines against the
+# built warehouse, and determinism: every declared output must be byte-identical across the two
+# builds except those listed with a reason in config/pipeline.yaml (determinism).
 
 on:
   push:
@@ -12,9 +12,7 @@ on:
 jobs:
   build-and-validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    env:
-      PYTHON: python
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -31,18 +29,20 @@ jobs:
       - name: Unit tests
         run: pytest -q tests
 
-      - name: Build pipeline (run 1) and validation gate
-        run: bash scripts/run_all.sh
-
-      - name: Golden historical cases and regression baselines against the built warehouse
-        run: pytest -q tests/test_golden_history.py tests/test_baselines.py
-
-      - name: Determinism (V5) - rebuild and compare output hashes
+      - name: Build 1 and validation gate
         run: |
-          cp outputs/pipeline/s12_output_manifest.csv /tmp/manifest_run1.csv
-          bash scripts/run_all.sh
-          diff /tmp/manifest_run1.csv outputs/pipeline/s12_output_manifest.csv
-          echo "all outputs byte-identical across two builds"
+          dvc repro --force
+          cp dvc.lock /tmp/dvc.lock.build1
+          cp outputs/pipeline/s12_output_manifest.csv /tmp/manifest.build1.csv
+
+      - name: Golden histories and regression baselines against the built warehouse
+        run: pytest -q tests
+
+      - name: Build 2 and determinism check (V5)
+        run: |
+          dvc repro --force
+          python -m district_evolution.compare_builds /tmp/dvc.lock.build1 dvc.lock
+          diff /tmp/manifest.build1.csv outputs/pipeline/s12_output_manifest.csv
 
       - name: Upload reports
         if: always()
@@ -55,3 +55,4 @@ jobs:
             outputs/pipeline/s12_output_manifest.csv
             outputs/pipeline/s11_invariants.csv
             outputs/events/s08_splink_model.json
+            outputs/audit/EXTERNAL_AUDIT_REPORT.md

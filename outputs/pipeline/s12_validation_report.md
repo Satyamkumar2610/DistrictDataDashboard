@@ -1,34 +1,36 @@
-# Validation report — pipeline v3.0.0
+# Validation report — pipeline v3.1.0
 
-**Gate: PASS** — 0 ERROR check(s) failing, 2 WARNING check(s) with findings.
+**Gate: PASS** — 0 ERROR check(s) failing, 1 WARNING check(s) with findings.
 
 ## Checks
 
-| check_id       | severity   |   n_violations | description                                                                      | detail            |
-|:---------------|:-----------|---------------:|:---------------------------------------------------------------------------------|:------------------|
-| V1             | ERROR      |              0 | layer self-overlap beyond error threshold                                        |                   |
-| V3             | ERROR      |              0 | overlay closure broken (excess > closure.error_pct of polygon)                   |                   |
-| V3             | WARNING    |              0 | overlay closure beyond tolerance (local layer self-overlap, bounded by V1)       |                   |
-| V4             | ERROR      |              0 | pyproj vs ST_Area_Spheroid differ > 0.01%                                        |                   |
-| V7             | ERROR      |              0 | CK observed in non-consecutive vintages                                          |                   |
-| V8             | ERROR      |              0 | MEASURED status inconsistent with events per predecessor-window                  |                   |
-| V9             | ERROR      |              0 | lineage edge into a CK not established in that window (L-3)                      |                   |
-| V10            | ERROR      |              0 | lineage graph contains a cycle                                                   |                   |
-| V12            | ERROR      |              0 | event declared transfer exceeds predecessor area                                 |                   |
-| V13            | ERROR      |              0 | active CK count differs from reference-vintage features                          |                   |
-| V15            | ERROR      |              0 | crosswalk exceeds source or target area                                          |                   |
-| V16            | WARNING    |              0 | area ledger closure beyond tolerance                                             |                   |
-| V17            | WARNING    |              1 | overlap repair changed a polygon's area by more than 0.1% (review)               |                   |
-| INFO_LINK      | INFO       |            132 | event participants not linked to a district                                      |                   |
-| INFO_FOOTPRINT | INFO       |             42 | successor name matched only outside the predecessor's footprint (research queue) |                   |
-| V4_MAX         | INFO       |              0 | max relative area difference pyproj vs DuckDB (%)                                | 6.68e-03          |
-| V18            | WARNING    |              1 | state-map depicting later boundaries than its label, unconfirmed                 | Manipur 1971: 4/5 |
-| V19            | WARNING    |              0 | MERGED_INTO edge into an undocumented geometry gap (see known_geometry_gaps.csv) |                   |
+| check_id       | severity   |   n_violations | description                                                                        |   detail |
+|:---------------|:-----------|---------------:|:-----------------------------------------------------------------------------------|---------:|
+| V1             | ERROR      |              0 | layer self-overlap beyond error threshold                                          |          |
+| V3             | ERROR      |              0 | overlay closure broken (excess > closure.error_pct of polygon)                     |          |
+| V3             | WARNING    |              0 | overlay closure beyond tolerance (local layer self-overlap, bounded by V1)         |          |
+| V4             | ERROR      |              0 | pyproj vs ST_Area_Spheroid differ > 0.01%                                          |          |
+| V7             | ERROR      |              0 | CK observed in non-consecutive vintages                                            |          |
+| V8             | ERROR      |              0 | MEASURED status inconsistent with events per predecessor-window                    |          |
+| V9             | ERROR      |              0 | lineage edge into a CK not established in that window (L-3)                        |          |
+| V10            | ERROR      |              0 | lineage graph contains a cycle                                                     |          |
+| V12            | ERROR      |              0 | event declared transfer exceeds predecessor area                                   |          |
+| V13            | ERROR      |              0 | active CK count differs from reference-vintage features                            |          |
+| V15            | ERROR      |              0 | crosswalk exceeds source or target area                                            |          |
+| V16            | WARNING    |              0 | area ledger closure beyond tolerance                                               |          |
+| V17            | WARNING    |              1 | overlap repair changed a polygon's area by more than 0.1% (review)                 |          |
+| INFO_LINK      | INFO       |            132 | event participants not linked to a district                                        |          |
+| INFO_FOOTPRINT | INFO       |             42 | successor name matched only outside the predecessor's footprint (research queue)   |          |
+| V4_MAX         | INFO       |              0 | max relative area difference pyproj vs DuckDB (%)                                  |  0.00668 |
+| V18            | WARNING    |              0 | state-map depicting later boundaries than its label, unconfirmed                   |          |
+| V19            | WARNING    |              0 | MERGED_INTO edge into an undocumented geometry gap (see known_geometry_gaps.csv)   |          |
+| V20            | ERROR      |              0 | file in a generated-output directory that no stage declares and git does not track |          |
 
 V11 data contracts (pandera): 25 / 25 tables pass.
 
-V5 determinism: `outputs/pipeline/s12_output_manifest.csv` holds the sha256 of every one of
-61 output files. Two runs on the same inputs must produce identical manifests (checked in CI).
+V5 determinism: `outputs/pipeline/s12_output_manifest.csv` holds the sha256 of each of the
+36 data outputs declared in `dvc.yaml` (silver, gold, products). Two runs on the same inputs
+must produce identical manifests (checked in CI).
 
 ## Key figures
 

@@ -78,11 +78,31 @@ def shown_before_creation(registry: pd.DataFrame) -> pd.DataFrame:
 
     def key(name, state):
         return alias_key(normalize_name(name)), normalize_name(canonical_state(state))
-    first = ev.assign(k=[key(n, s) for n, s in zip(ev.child_district, ev.state)]).groupby("k").effective_year.min()
+    ev["child_k"] = [key(n, s) for n, s in zip(ev.child_district, ev.state)]
+    ev["parent_k"] = [key(n, s) for n, s in zip(ev.parent_district, ev.state)]
+    # A RENAME row, or a split row whose child is the continuing parent, is not a creation:
+    # the district already existed (e.g. Manipur South, 1969, renamed Churachandpur in 1981).
+    renames = ev[ev.event_type == "RENAME"]
+    renamed_from = dict(zip(renames.child_k, renames.parent_k))
+    created = ev[(ev.event_type != "RENAME") & (ev.child_k != ev.parent_k)].groupby("child_k").effective_year.min()
+
+    def creation_year(k, closed):
+        """Earliest creation of k or of any name it was renamed from. A creation dated at or
+        after the district's closure belongs to a later homonym (Siang 1961 vs Siang 2015)."""
+        years, seen = [], set()
+        while k is not None and k not in seen:
+            seen.add(k)
+            y = created.get(k)
+            if y is not None and (pd.isna(closed) or y < closed):
+                years.append(y)
+            k = renamed_from.get(k)
+        return min(years) if years else None
+
     new = registry[registry.origin_kind == "NEW"]
     out = pd.DataFrame({"canonical_key": new.canonical_key, "latest_name": new.latest_name,
                         "state": new.latest_state, "first_map": new.established_year,
-                        "csv_year": [first.get(key(n, s)) for n, s in zip(new.latest_name, new.latest_state)]})
+                        "csv_year": [creation_year(key(n, s), c) for n, s, c in
+                                     zip(new.latest_name, new.latest_state, new.closed_year)]})
     out = out[out.csv_year.notna()]
     out["depicted"] = [depicted_year(s, y) for s, y in zip(out.state, out.first_map)]
     out["shown_before_creation"] = out.csv_year > out.depicted

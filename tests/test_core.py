@@ -1,6 +1,7 @@
 import tomllib
 
 import pytest
+import yaml
 
 from district_evolution import core
 
@@ -68,6 +69,8 @@ def test_within_closure_scales_with_area():
     assert core.within_closure(20.0, 20000.0)  # 0.1% of a large district
 
 
-def test_package_version_matches_pipeline_version():
+def test_package_and_citation_versions_match_pipeline_version():
     pyproject = tomllib.loads((core.PROJECT_ROOT / "pyproject.toml").read_text())
+    citation = yaml.safe_load((core.PROJECT_ROOT / "CITATION.cff").read_text())
     assert pyproject["project"]["version"] == core.PIPELINE_VERSION
+    assert str(citation["version"]) == core.PIPELINE_VERSION
