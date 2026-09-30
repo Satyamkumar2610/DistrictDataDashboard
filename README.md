@@ -32,6 +32,9 @@ To restate your own district statistics on the 2025 districts: the Harmonize pag
 `python -m district_evolution.harmonize.cli your.csv --out result.csv` (see
 `docs/operations/harmonize_your_data.md`).
 
+In a container: `docker compose up --build` (the release is mounted read-only, never copied into
+the image; `docs/operations/deploy.md`).
+
 For development, run the API with uvicorn and `npm run dev` in `web/` (Vite proxies `/api`).
 Browser tests: `npm run test:e2e` in `web/` (uses the installed Chrome; `PW_CHANNEL=chromium` for Playwright's own).
 

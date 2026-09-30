@@ -1,0 +1,11 @@
+# docker compose up --build   -> http://127.0.0.1:8000
+services:
+  platform:
+    build: .
+    image: district-evolution:latest
+    ports: ["8000:8000"]
+    volumes:
+      - ./data/release:/release:ro
+    read_only: true
+    tmpfs: [/tmp]
+    restart: unless-stopped

@@ -1,0 +1,11 @@
+# What the platform (API + web app) needs at run time: a subset of requirements.txt, same pins.
+# The pipeline (geopandas, splink, pandera, dvc) is not needed to serve a release.
+pandas==2.3.3
+numpy==2.5.3
+pyarrow==25.0.1
+PyYAML==6.0.3
+networkx==3.7
+pyproj==3.8.0
+duckdb==1.5.5
+fastapi==0.141.1
+uvicorn==0.54.0

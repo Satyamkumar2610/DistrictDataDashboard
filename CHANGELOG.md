@@ -14,6 +14,10 @@ product, evidence or harmonization changes.
   with its meaning, and a claim list linked to the district, the Wikidata item and its open
   research question. API: `/api/evidence/summary`, `/api/evidence/claims`.
 - The research queue keeps its topic and filter in the URL, so other pages link to a question.
+- Container: `Dockerfile`, `compose.yaml`, `requirements-platform.txt`,
+  `docs/operations/deploy.md`. The release is mounted read-only at run time and never copied into
+  the image (licensing). Runs as an unprivileged user on a read-only file system. CI builds it and
+  runs the browser tests against it (`PW_BASE_URL` in `web/playwright.config.ts`).
 
 ## 3.8.0
 

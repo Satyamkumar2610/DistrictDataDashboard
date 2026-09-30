@@ -54,6 +54,14 @@ jobs:
           npx playwright install --with-deps chromium
           npx playwright test
 
+      - name: Platform container - build, run read-only on the release, browser tests against it
+        run: |
+          docker build -t district-evolution:ci .
+          docker run -d --name platform --read-only --tmpfs /tmp -p 8766:8000 -v "$PWD/data/release:/release:ro" district-evolution:ci
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:8766/api/meta > /dev/null && break; sleep 2; done
+          (cd web && PW_CHANNEL=chromium PW_BASE_URL=http://127.0.0.1:8766 npx playwright test)
+          docker rm -f platform
+
       - name: Build 2 and determinism check (V5)
         run: |
           dvc repro --force
