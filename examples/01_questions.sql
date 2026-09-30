@@ -29,5 +29,13 @@ JOIN ck_registry s ON s.canonical_key = x.source_ck JOIN ck_registry t ON t.cano
 WHERE x.year = 1951 AND s.latest_name = 'Malabar' AND x.share_of_source >= 0.001
 ORDER BY x.area_km2 DESC;
 
--- 5. How well does Wikidata agree with the maps, by kind of claim?
-SELECT claim_type, verdict, count(*) AS claims FROM claim_verdict GROUP BY ALL ORDER BY claim_type, verdict;
+-- 5. How many administrative events could be measured in km², and why not the rest?
+--    An event is MEASURED only if every district it touched had no other event between the two maps
+--    (so the km² that moved belongs to it alone); with no accounting row at all it is NOT_MEASURABLE.
+SELECT status, count(*) AS events FROM (
+  SELECT e.event_id,
+         CASE WHEN count(a.event_id) = 0 THEN 'NOT_MEASURABLE'
+              WHEN bool_and(a.measurement_status = 'MEASURED') THEN 'MEASURED'
+              ELSE 'UNIDENTIFIED_MULTI_EVENT_WINDOW' END AS status
+  FROM boundary_event e LEFT JOIN event_accounting a USING (event_id) GROUP BY e.event_id)
+GROUP BY status ORDER BY events DESC;

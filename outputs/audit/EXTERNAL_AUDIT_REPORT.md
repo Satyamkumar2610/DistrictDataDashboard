@@ -15,9 +15,9 @@ Current Wikidata district items with coordinates: 779.
 | GEOMETRY_ONLY_NAME_DIFFERS | 154 |
 | NO_POLYGON                 |   1 |
 
-Our 742 active districts matched to a Wikidata item by geometry and name:
-**624** (84.1%).
-Not matched: 118. Wikidata items whose point falls in one of our districts but whose
+Our 733 active districts matched to a Wikidata item by geometry and name:
+**624** (85.1%).
+Not matched: 109. Wikidata items whose point falls in one of our districts but whose
 name differs are listed in `wikidata_match.csv`. They are mostly districts formed after the SOI
 2025 map, or outdated coordinates.
 
@@ -29,8 +29,8 @@ Compared: 565 districts. Median absolute difference: 1.61%.
 |:----------------------------------|----:|
 | AGREE_WITHIN_2PCT                 | 300 |
 | MINOR_2_TO_10PCT                  | 124 |
-| DISTRICT_REORGANISED_AFTER_2011   |  49 |
-| UNEXPLAINED_OVER_10PCT            |  46 |
+| DISTRICT_REORGANISED_AFTER_2011   |  48 |
+| UNEXPLAINED_OVER_10PCT            |  47 |
 | WIKIDATA_MATCHES_OUR_EARLIER_AREA |  40 |
 | WIKIDATA_MAGNITUDE_ERROR          |   6 |
 
@@ -45,9 +45,9 @@ How to read the verdicts:
   so an undated Wikidata figure may predate it.
 
 Share of compared districts that agree or whose difference is explained:
-**91.9%**.
+**91.7%**.
 
-Unexplained differences over 10% (46). These are leads to check against official figures:
+Unexplained differences over 10% (47). These are leads to check against official figures:
 
 | label                        | our_name       |   wd_area_km2 |   our_area_2025_km2 |   our_area_2011_km2 |   rel_diff_2025 |
 |:-----------------------------|:---------------|--------------:|--------------------:|--------------------:|----------------:|
@@ -59,6 +59,7 @@ Unexplained differences over 10% (46). These are leads to check against official
 | Kaimur district              | Kaimur         |       8268    |            3369.55  |            3338.54  |          -0.592 |
 | Kota district                | Kota           |      12436    |            5089.69  |            5101.02  |          -0.591 |
 | Bongaigaon district          | Bongaigaon     |       2510    |            1118.1   |            1061.85  |          -0.555 |
+| Alirajpur district           | Alirajpur      |       2165    |            3332.52  |            3317.19  |           0.539 |
 | Bijapur District             | Bijapur        |       6555    |            9248.37  |            8191.76  |           0.411 |
 | Sahebganj district           | Sahibganj      |       1599    |            2191.23  |            1915.82  |           0.37  |
 | Sri Ganganagar district      | Ganganagar     |       7984    |           10930.9   |           10443.8   |           0.369 |
@@ -80,7 +81,6 @@ Unexplained differences over 10% (46). These are leads to check against official
 | Rudraprayag district         | Rudraprayag    |       2439    |            1987.94  |            1985.48  |          -0.185 |
 | Nandurbar district           | Nandurbar      |       5035    |            5955.6   |            5905.83  |           0.183 |
 | Ganderbal district           | Ganderbal      |       1979    |            1620.89  |            1286.54  |          -0.181 |
-| Dimapur district             | Dimapur        |        927    |             762.799 |             875.489 |          -0.177 |
 
 ## 3. Formation year (Wikidata inception vs the map where our CK first appears)
 

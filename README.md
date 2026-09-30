@@ -1,6 +1,6 @@
 # District Evolution
 
-India had 316 districts on the 1951 map and 742 on the 2025 map. For every district on every one of
+India had 316 districts on the 1951 map and 733 on the 2025 Survey of India map. For every district on every one of
 nine boundary maps (1951–2021 census-era maps, Survey of India 2025), this pipeline answers:
 
 - **Identity**: is it the same administrative entity as an earlier one?
@@ -10,7 +10,7 @@ nine boundary maps (1951–2021 census-era maps, Survey of India 2025), this pip
 
 and restates statistics reported on any of those maps onto the 2025 districts (harmonization).
 
-Geometry decides; names, an events compilation and Wikidata only corroborate. Every table passes a
+Geometry decides; names and an events compilation only corroborate. Every table passes a
 data contract, every threshold is configured with a measured rationale, and two builds from the
 same inputs are byte-identical.
 
@@ -51,7 +51,7 @@ The gate report is `outputs/pipeline/s12_validation_report.md`; the data diction
 | `district_evolution/contracts/` | pandera contracts and the meaning of every column |
 | `district_evolution/sources/`, `evidence/`, `harmonize/` | plug-in points for maps, evidence and statistics |
 | `district_evolution/release/` | release definition and the read-only API (JSON, vector tiles) |
-| `web/` | the web platform (atlas with side-by-side compare, states, harmonize your data, evidence, district histories and family trees, crosswalk, research queue, downloads): React, TypeScript, MapLibre GL, Apache ECharts, Playwright tests |
+| `web/` | the web platform (atlas with side-by-side compare, states, harmonize your data, district histories and family trees, crosswalk, research queue, downloads): React, TypeScript, MapLibre GL, Apache ECharts, Playwright tests |
 | `examples/` | runnable SQL and Python over the release (tested) |
 | `config/` | `pipeline.yaml` (every threshold), `sources.yaml`, `indicators.yaml` |
 | `data/reference/` | curated reference tables (confirmed rows only) and research findings |

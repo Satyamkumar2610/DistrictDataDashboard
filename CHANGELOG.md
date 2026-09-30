@@ -3,6 +3,44 @@
 Versions follow semantic versioning of `pipeline_version` (config/pipeline.yaml).
 A MAJOR change can renumber canonical keys or change the meaning of a product.
 
+## 4.0.0
+
+MAJOR: canonical keys change. Placeholders fixed, Wikidata made internal, credibility audit added.
+
+### Changed (keys)
+- The nine "Disputed (...)" strips on the SOI 2025 map (0.7-14.5 km² each, 50.3 km² in all, e.g.
+  "Disputed (Sahibganj, Maldah & Katihar)") are excluded in s01 as non-administrative placeholders,
+  like the unnamed J&K polygons (config `placeholders`, logged in
+  `outputs/pipeline/s01_excluded_non_administrative.csv` with reason `DISPUTED_BOUNDARY_STRIP`). They
+  had minted keys and counted as active districts. Their land is left unassigned on the 2025 map.
+- Keys: IND-000793..800 and IND-000802 retired; Riasi IND-000801 -> IND-000793, Champhai
+  IND-000803 -> IND-000794, Kolkata IND-000804 -> IND-000795; every other key unchanged
+  (`data/reference/ck_migration_v3_to_v4.csv`, `scripts/migrations/ck_v3_to_v4.py`).
+- Counts: 795 identities (was 804), 733 active on the 2025 map (was 742), 486 FORMED_FROM edges
+  (was 494). Deltas explained in `tests/baselines/v4.0.0.yaml`.
+- Alirajpur's 54% area difference with Wikidata is an open question again: it had been "explained"
+  as a post-2011 reorganisation only because it lost 4.4 km² to a disputed strip.
+
+### Changed (Wikidata is an internal check)
+- `evidence_claim`, `claim_ck_link` and `claim_verdict` are no longer released; the released
+  `research_queue` omits the Wikidata topic (CLAIM_CONFLICT). The comparison still runs on every
+  build and its contracts and counts stay in the gate report.
+- API: `/api/evidence/*` removed; `/api/districts/{ck}/evidence` replaced by
+  `/api/districts/{ck}/research`; the overview no longer reports claim verdicts. Web: the Evidence
+  page and the district "External evidence" panel removed.
+
+### Added
+- s11 invariant V25 (ERROR): no placeholder holds a district identity.
+- Stage a02 credibility audit (`outputs/audit/CREDIBILITY_AUDIT.md` + six CSVs), from the maps, the
+  events compilation and the internal checks only; config `audit`.
+- `docs/audit/credibility_report.md`: what the audit found and the work that would make the results
+  more credible.
+
+### Fixed
+- An unknown `/api/...` path returned the web app's HTML with status 200; it is now a JSON 404.
+- The SQL example's fifth question now reproduces the event measurement rule (401 / 186 / 22)
+  instead of reading Wikidata verdicts.
+
 ## 3.9.0
 
 Evidence insights, a container for the platform, and runnable examples. No key, lineage, area,

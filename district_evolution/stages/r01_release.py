@@ -1,6 +1,7 @@
 """Stage r01 — Release: a versioned, byte-reproducible bundle in data/release/.
 
   tables/<table>.parquet            the released tables, copied byte for byte from the build
+                                    (research_queue without the internal Wikidata topic)
   geometry/districts_<year>.geoparquet  every map's polygons, simplified per polygon
                                     (release.simplify_deg), with canonical keys and full-resolution areas
   load.sql                          DuckDB views over the files (a DuckDB database file is not
@@ -25,7 +26,7 @@ import shapely
 
 from district_evolution import core
 from district_evolution.contracts import schemas
-from district_evolution.release import TABLES
+from district_evolution.release import INTERNAL_RESEARCH_TOPICS, TABLES
 
 OUT = core.RELEASE_DIR
 
@@ -61,8 +62,16 @@ def load_sql() -> str:
 def main() -> None:
     (OUT / "tables").mkdir(parents=True, exist_ok=True)
     (OUT / "geometry").mkdir(parents=True, exist_ok=True)
+    for stale in (OUT / "tables").glob("*.parquet"):
+        if stale.stem not in TABLES:
+            stale.unlink()
     for table, src in TABLES.items():
-        shutil.copyfile(src, OUT / "tables" / f"{table}.parquet")
+        if table == "research_queue":
+            q = pd.read_parquet(src)
+            core.write_table(q[~q.topic.isin(INTERNAL_RESEARCH_TOPICS)].reset_index(drop=True),
+                             OUT / "tables" / f"{table}.parquet", "research_queue")
+        else:
+            shutil.copyfile(src, OUT / "tables" / f"{table}.parquet")
     obs = pd.read_parquet(core.GOLD_CORE_DIR / "ck_observation.parquet")
     ck_of = dict(zip(obs.geom_obs_id, obs.canonical_key))
     kept_full = {}

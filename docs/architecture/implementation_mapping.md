@@ -36,4 +36,5 @@ Paths are relative to `district_evolution/`. Tables are in `data/gold/district_e
 | API | `release/api.py` (JSON under `/api`, vector tiles from DuckDB `ST_AsMVT`) | read-only | `test_release.py` |
 | Harmonize your data | `district_evolution/harmonize/{restate,cli}.py`, `POST /api/harmonize`, `web/src/pages/Harmonize.tsx` | — | `tests/test_restate.py`, `web/e2e/harmonize.spec.ts` |
 | Web platform | `web/` (React, TypeScript, MapLibre GL, ECharts) | — | `web/e2e/` (Playwright) |
-| External audit (Wikidata) | `evidence/wikidata_snapshot.py`, `evidence/wikidata_audit.py` | `data/reference/external/*.json`, `outputs/audit/*` | — |
+| Credibility audit | `stages/a02_credibility_audit.py` | `outputs/audit/CREDIBILITY_AUDIT.md`, `outputs/audit/credibility_*.csv` | `test_baselines.py` (gate) |
+| External audit (Wikidata, internal only) | `evidence/wikidata_snapshot.py`, `evidence/wikidata_audit.py` | `data/reference/external/*.json`, `outputs/audit/*` | — |

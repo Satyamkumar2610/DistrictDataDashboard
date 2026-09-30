@@ -24,14 +24,17 @@ TABLES = {
     "district_area_admin": P / "district_area_admin.parquet",
     "crosswalk_to_reference": P / "crosswalk_to_reference.parquet",
     "district_reference_context": P / "district_reference_context.parquet",
-    "evidence_claim": G / "evidence/evidence_claim.parquet",
-    "claim_ck_link": G / "evidence/claim_ck_link.parquet",
-    "claim_verdict": G / "evidence/claim_verdict.parquet",
     "research_queue": G / "evidence/research_queue.parquet",
     "stat_observation": G / "harmonize/stat_observation.parquet",
     "stat_harmonized_value": G / "harmonize/stat_harmonized_value.parquet",
     "stat_ratio_value": G / "harmonize/stat_ratio_value.parquet",
 }
+
+# The Wikidata comparison (e01-e03: evidence_claim, claim_ck_link, claim_verdict) is an internal
+# check: it runs on every build and its contracts and counts are in the gate report, but it is not
+# released, served or shown (owner decision 2026-09-30). The released research queue therefore
+# holds only the questions the maps and the events compilation raise.
+INTERNAL_RESEARCH_TOPICS = {"CLAIM_CONFLICT"}
 
 
 def producing_stage() -> dict[str, str]:

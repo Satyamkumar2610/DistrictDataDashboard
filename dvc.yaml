@@ -388,6 +388,34 @@ stages:
       - outputs/audit/map_date_audit.csv: {cache: false}
       - outputs/audit/EXTERNAL_AUDIT_REPORT.md: {cache: false}
 
+  a02_credibility_audit:
+    cmd: python -m district_evolution.stages.a02_credibility_audit
+    deps:
+      - district_evolution/stages/a02_credibility_audit.py
+      - district_evolution/core
+      - config/pipeline.yaml
+      - data/reference
+      - data/gold/core/ck_observation.parquet
+      - data/gold/core/ck_registry.parquet
+      - data/gold/spatial/transition_flow.parquet
+      - data/gold/spatial/measured_area_transfer.parquet
+      - data/gold/events/district_relationship.parquet
+      - data/gold/events/boundary_event.parquet
+      - data/gold/events/event_linkage.parquet
+      - data/gold/events/event_participant.parquet
+      - data/gold/events/event_accounting.parquet
+      - data/gold/harmonize/harmonization_check.parquet
+      - data/products/crosswalk_to_reference.parquet
+      - outputs/pipeline/s12_checks.csv
+    outs:
+      - outputs/audit/CREDIBILITY_AUDIT.md: {cache: false}
+      - outputs/audit/credibility_state_counts.csv: {cache: false}
+      - outputs/audit/credibility_edition_agreement.csv: {cache: false}
+      - outputs/audit/credibility_map_lag.csv: {cache: false}
+      - outputs/audit/credibility_return_flows.csv: {cache: false}
+      - outputs/audit/credibility_area_reversals.csv: {cache: false}
+      - outputs/audit/credibility_name_changes.csv: {cache: false}
+
   r02_data_dictionary:
     cmd: python -m district_evolution.stages.r02_data_dictionary
     deps:
@@ -427,9 +455,6 @@ stages:
       - data/products/district_area_admin.parquet
       - data/products/crosswalk_to_reference.parquet
       - data/products/district_reference_context.parquet
-      - data/gold/evidence/evidence_claim.parquet
-      - data/gold/evidence/claim_ck_link.parquet
-      - data/gold/evidence/claim_verdict.parquet
       - data/gold/evidence/research_queue.parquet
       - data/gold/harmonize/stat_observation.parquet
       - data/gold/harmonize/stat_harmonized_value.parquet

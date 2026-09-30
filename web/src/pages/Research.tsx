@@ -3,9 +3,9 @@ import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { get, type QueueItem } from "../api";
 
-const TOPICS = ["", "CLAIM_CONFLICT", "EVENT_NAME_OUTSIDE_FOOTPRINT", "EVENT_NAME_UNRESOLVED", "MAP_DATE"];
+const TOPICS = ["", "EVENT_NAME_OUTSIDE_FOOTPRINT", "EVENT_NAME_UNRESOLVED", "MAP_DATE"];
 const LABEL: Record<string, string> = {
-  CLAIM_CONFLICT: "Wikidata disagrees with the maps", EVENT_NAME_OUTSIDE_FOOTPRINT: "event names a successor outside the parent's land",
+  EVENT_NAME_OUTSIDE_FOOTPRINT: "event names a successor outside the parent's land",
   EVENT_NAME_UNRESOLVED: "event names a district no map has", MAP_DATE: "map shows a district before its creation",
 };
 

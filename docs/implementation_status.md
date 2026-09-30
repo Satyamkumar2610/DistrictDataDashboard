@@ -6,10 +6,10 @@ The live check results are in `outputs/pipeline/s12_validation_report.md`. Stage
 
 | Stage | Module | Status |
 |---|---|---|
-| s01 | s01_bronze_to_silver.py | Done: exact-partition repair, placeholder exclusion |
+| s01 | s01_bronze_to_silver.py | Done: exact-partition repair, placeholder exclusion (unnamed and disputed strips) |
 | s02 | s02_topology_audit.py | Done: V1 gate |
 | s03 | s03_transition_matrix.py | Done: parts classified as CORE/TRANSFER/DISPLACEMENT/SLIVER; reference overlays |
-| s04 | s04_identity.py | Done: core-continuity identity, 804 CKs; v2 migration map |
+| s04 | s04_identity.py | Done: core-continuity identity, 795 CKs (4.0.0); v2 and v3 migration maps |
 | s05 | s05_lineage.py | Done: networkx DAG, 631 edges |
 | s06 | s06_area_ledger.py | Done |
 | s07 | s07_events_aggregate.py | Done: 609 events, double recording merged |

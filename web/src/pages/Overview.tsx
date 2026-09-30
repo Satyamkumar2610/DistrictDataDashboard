@@ -64,7 +64,7 @@ export default function Overview() {
   }, [data]);
 
   const first = data?.maps[0], last = data?.maps.at(-1);
-  const verdicts = data?.evidence.reduce<Record<string, number>>((acc, e) => ({ ...acc, [e.verdict]: (acc[e.verdict] ?? 0) + e.n }), {});
+  const measured = data?.events.filter((e) => e.status === "MEASURED").reduce((a, e) => a + e.events, 0);
   return (
     <main className="page">
       <div className="page-head">
@@ -81,7 +81,7 @@ export default function Overview() {
           <div className="tile"><div className="v num">{fmt(data.identities.total)}</div><div className="l">district identities ({fmt(data.identities.active)} active)</div></div>
           <div className="tile"><div className="v num">{fmt(data.lineage.reduce((a, l) => a + l.edges, 0))}</div><div className="l">lineage edges between identities</div></div>
           <div className="tile"><div className="v num">{fmt(data.transfers.reduce((a, t) => a + t.transfers, 0))}</div><div className="l">transfers between continuing districts</div></div>
-          <div className="tile"><div className="v num">{verdicts ? fmt(verdicts.AGREE ?? 0) : "–"}</div><div className="l">external claims that agree with the maps</div></div>
+          <div className="tile"><div className="v num">{fmt(measured)}</div><div className="l">administrative events measured in km²</div></div>
         </div>
       )}
       <div className="grid2">
@@ -91,7 +91,7 @@ export default function Overview() {
           {lineageChart && <Chart option={lineageChart} height={300} />}<span className="src">district_relationship, measured_area_transfer</span></section>
         <section className="panel"><h2>Administrative events per decade</h2><p className="sub">An event's area is measured only when it is the only event touching that district between two maps.</p>
           {eventsChart && <Chart option={eventsChart} />}<span className="src">boundary_event, event_accounting</span></section>
-        <section className="panel"><h2>Open research questions</h2><p className="sub">Where the maps, the events list and Wikidata disagree. Nothing is auto-corrected.</p>
+        <section className="panel"><h2>Open research questions</h2><p className="sub">Where the maps and the events compilation disagree. Nothing is auto-corrected.</p>
           <table className="data"><tbody>{data?.research_open.map((r) => (
             <tr key={r.topic}><td>{r.topic.replaceAll("_", " ").toLowerCase()}</td><td className="r num">{fmt(r.n)}</td></tr>))}</tbody></table>
           <p><Link to="/research">Open the research queue →</Link></p><span className="src">research_queue</span></section>

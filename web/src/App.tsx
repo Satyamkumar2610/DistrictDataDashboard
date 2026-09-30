@@ -12,7 +12,6 @@ const Overview = lazy(() => import("./pages/Overview"));
 const Research = lazy(() => import("./pages/Research"));
 const States = lazy(() => import("./pages/States"));
 const Harmonize = lazy(() => import("./pages/Harmonize"));
-const Evidence = lazy(() => import("./pages/Evidence"));
 
 function toggleTheme() {
   const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
@@ -33,7 +32,6 @@ export default function App() {
           <NavLink to="/states">States</NavLink>
           <NavLink to="/crosswalk">Crosswalk</NavLink>
           <NavLink to="/harmonize">Harmonize</NavLink>
-          <NavLink to="/evidence">Evidence</NavLink>
           <NavLink to="/research">Research queue</NavLink>
           <NavLink to="/data">Data &amp; quality</NavLink>
         </nav>
@@ -50,7 +48,6 @@ export default function App() {
         <Route path="/states/:state" element={<States />} />
         <Route path="/crosswalk" element={<Crosswalk />} />
         <Route path="/harmonize" element={<Harmonize />} />
-        <Route path="/evidence" element={<Evidence />} />
         <Route path="/research" element={<Research />} />
         <Route path="/data" element={<Data />} />
         <Route path="*" element={<main className="page"><h1>Page not found</h1><p><NavLink to="/">Back to the overview</NavLink></p></main>} />

@@ -8,7 +8,10 @@ vintage. Bronze is only read.
 
 Unnamed / sentinel-named features (e.g. the ~80,520 km2 "DATA NOT AVAILABLE"
 polygon in J&K) are non-administrative placeholders: a district identity
-requires a name. They are excluded and logged, never silently dropped.
+requires a name. So are strips named as disputed between districts of
+different states (SOI 2025: "Disputed (Sahibganj, Maldah & Katihar)" and eight
+more; config `placeholders`). Both are excluded and logged, never silently
+dropped; their land stays unassigned on that map.
 
 Each layer is then made a true partition. Where two polygons overlap (source
 digitization; e.g. the 2011 layer never cut the Tamil Nadu districts around
@@ -27,7 +30,7 @@ from shapely.ops import unary_union
 
 from district_evolution import core, sources
 
-SENTINEL_RE = r"^(nan|none|data not available|not available|n/?a|unknown|no data|unnamed|-+)?$"
+SENTINEL_RE = core.CFG["placeholders"]["sentinel_name_pattern"]
 
 
 def to_multipolygon(geom):
@@ -76,14 +79,16 @@ def process_vintage(source: str, year: int) -> tuple[dict, list[dict]]:
     gdf = sources.load(source, year)
     n_raw = len(gdf)
 
-    unnamed = gdf["district_name_original"].str.lower().str.match(SENTINEL_RE)
+    names = gdf["district_name_original"].fillna("").astype(str).str.lower()
+    unnamed = names.str.match(SENTINEL_RE)
+    disputed = ~unnamed & names.str.contains(core.CFG["placeholders"]["disputed_name_pattern"], regex=True)
     excluded = [{
         "source_dataset": source, "source_year": year, "source_pk": r.source_pk,
-        "state_name_original": r.state_name_original,
+        "district_name_original": r.district_name_original, "state_name_original": r.state_name_original,
         "area_km2": round(core.geodesic_area_km2(r.geometry), 2),
-        "reason": "UNNAMED_NON_ADMINISTRATIVE_FEATURE",
-    } for r in gdf[unnamed].itertuples()]
-    gdf = gdf[~unnamed]
+        "reason": "UNNAMED_NON_ADMINISTRATIVE_FEATURE" if u else "DISPUTED_BOUNDARY_STRIP",
+    } for r, u in zip(gdf[unnamed | disputed].itertuples(), unnamed[unnamed | disputed])]
+    gdf = gdf[~(unnamed | disputed)]
 
     kept, n_repaired, n_empty = [], 0, 0
     for r in gdf.sort_values("source_pk", kind="stable").itertuples():
@@ -143,7 +148,7 @@ def main() -> None:
         repairs.extend(o)
     pd.DataFrame(summaries).to_csv(core.OUTPUT_DIR / "s01_silver_summary.csv", index=False)
     pd.DataFrame(repairs).to_csv(core.OUTPUT_DIR / "s01_overlap_repairs.csv", index=False)
-    pd.DataFrame(excluded, columns=["source_dataset", "source_year", "source_pk",
+    pd.DataFrame(excluded, columns=["source_dataset", "source_year", "source_pk", "district_name_original",
                                     "state_name_original", "area_km2", "reason"]
                  ).to_csv(core.OUTPUT_DIR / "s01_excluded_non_administrative.csv", index=False)
     print(f"excluded non-administrative features: {len(excluded)}")

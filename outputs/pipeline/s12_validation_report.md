@@ -1,4 +1,4 @@
-# Validation report — pipeline v3.9.0
+# Validation report — pipeline v4.0.0
 
 **Gate: PASS** — 0 ERROR check(s) failing, 1 WARNING check(s) with findings.
 
@@ -20,13 +20,14 @@
 | V16            | WARNING    |              0 | area ledger closure beyond tolerance                                               |                                                                                                |
 | V17            | WARNING    |              1 | overlap repair changed a polygon's area by more than 0.1% (review)                 |                                                                                                |
 | V21            | ERROR      |              0 | evidence claim linked to a CK that does not exist                                  |                                                                                                |
+| V25            | ERROR      |              0 | a placeholder (unnamed or disputed strip) holds a district identity                |                                                                                                |
 | INFO_LINK      | INFO       |            132 | event participants not linked to a district                                        |                                                                                                |
 | INFO_FOOTPRINT | INFO       |             42 | successor name matched only outside the predecessor's footprint (research queue)   |                                                                                                |
 | V4_MAX         | INFO       |              0 | max relative area difference pyproj vs DuckDB (%)                                  | 6.68e-03                                                                                       |
 | V18            | WARNING    |              0 | state-map depicting later boundaries than its label, unconfirmed                   |                                                                                                |
 | V19            | WARNING    |              0 | MERGED_INTO edge into an undocumented geometry gap (see known_geometry_gaps.csv)   |                                                                                                |
 | V20            | ERROR      |              0 | file in a generated-output directory that no stage declares and git does not track |                                                                                                |
-| V22            | INFO       |            395 | open research questions (outputs/evidence/e04_research_queue.csv)                  | CLAIM_CONFLICT: 214; EVENT_NAME_OUTSIDE_FOOTPRINT: 42; EVENT_NAME_UNRESOLVED: 132; MAP_DATE: 7 |
+| V22            | INFO       |            396 | open research questions (outputs/evidence/e04_research_queue.csv)                  | CLAIM_CONFLICT: 215; EVENT_NAME_OUTSIDE_FOOTPRINT: 42; EVENT_NAME_UNRESOLVED: 132; MAP_DATE: 7 |
 | V23            | WARNING    |              0 | curated finding refers to a research question that no longer exists                |                                                                                                |
 | V24            | ERROR      |              0 | harmonized totals not conserved (outputs/harmonize/h05_report.md)                  |                                                                                                |
 
@@ -40,14 +41,14 @@ must produce identical manifests (checked in CI).
 
 |                                                         | value         |
 |:--------------------------------------------------------|:--------------|
-| canonical keys                                          | 804           |
-| active at reference year                                | 742           |
+| canonical keys                                          | 795           |
+| active at reference year                                | 733           |
 | closed identities                                       | 62            |
-| lineage edges                                           | 633           |
-| FORMED_FROM / SPLIT_FROM / MERGED_INTO                  | 494 / 134 / 3 |
+| lineage edges                                           | 625           |
+| FORMED_FROM / SPLIT_FROM / MERGED_INTO                  | 486 / 134 / 3 |
 | lineage edges corroborated by an event                  | 431           |
 | measured transfers between existing districts           | 1358          |
-| boundary displacement (km2, excluded from transfers)    | 90092         |
+| boundary displacement (km2, excluded from transfers)    | 90080         |
 | administrative events                                   | 609           |
 | of which recorded twice in the CSV (NEW_DISTRICT+SPLIT) | 326           |
 | participants linked (incl. same-identity)               | 1578          |

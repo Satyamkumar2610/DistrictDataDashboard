@@ -5,7 +5,7 @@ import Chart, { axis } from "../components/Chart";
 import MapView from "../components/MapView";
 import {
   bbox, fmt, get, km2, pct, YEARS,
-  type Changes, type Claim, type Edge, type EventRow, type QueueItem, type Registry, type Timeline,
+  type Changes, type Edge, type EventRow, type QueueItem, type Registry, type Timeline,
 } from "../api";
 
 type Genealogy = {
@@ -29,7 +29,7 @@ export default function District() {
   const reg = useQuery({ queryKey: ["district", ck], queryFn: () => get<Registry>(`/districts/${ck}`) });
   const tl = useQuery({ queryKey: ["timeline", ck], queryFn: () => get<Timeline>(`/districts/${ck}/timeline`) });
   const lin = useQuery({ queryKey: ["lineage", ck], queryFn: () => get<{ ancestors: Edge[]; descendants: Edge[] }>(`/districts/${ck}/lineage?max_depth=4`) });
-  const ev = useQuery({ queryKey: ["evidence", ck], queryFn: () => get<{ claims: Claim[]; research_queue: QueueItem[] }>(`/districts/${ck}/evidence`) });
+  const research = useQuery({ queryKey: ["research", ck], queryFn: () => get<QueueItem[]>(`/districts/${ck}/research`) });
   const events = useQuery({ queryKey: ["events", ck], queryFn: () => get<EventRow[]>(`/events?ck=${ck}`) });
   const harm = useQuery({ queryKey: ["harmonized", ck], queryFn: () => get<{ totals: Record<string, unknown>[] }>(`/districts/${ck}/harmonized`) });
   const fam = useQuery({ queryKey: ["genealogy", ck], queryFn: () => get<Genealogy>(`/districts/${ck}/genealogy`) });
@@ -117,8 +117,6 @@ export default function District() {
   if (reg.isError) return <main className="page"><h1>No district identity {ck}</h1><Link to="/">Back</Link></main>;
   if (!d) return <main className="page"><p className="muted">Loading…</p></main>;
   const names = [...new Set(d.observations.map((o) => o.district_name))];
-  const verdicts = (ev.data?.claims ?? []).reduce<Record<string, number>>((a, c) => ({ ...a, [c.verdict]: (a[c.verdict] ?? 0) + 1 }), {});
-  const conflicts = (ev.data?.claims ?? []).filter((c) => c.verdict === "CONFLICT");
 
   return (
     <main className="page" data-testid="district-page">
@@ -185,15 +183,13 @@ export default function District() {
                   <td><span className={`chip ${e.measurement_status === "MEASURED" ? "good" : "warn"}`}>{STATUS[e.measurement_status]}</span></td></tr>))}
               </tbody></table></div>) : <p className="empty">No events linked.</p>}
           <span className="src">boundary_event, event_linkage, event_accounting</span></section>
-        <section className="panel"><h2>External evidence</h2>
-          <p className="sub">{ev.data?.claims.length ? `${ev.data.claims.length} Wikidata claims: ${Object.entries(verdicts).map(([k, v]) => `${v} ${k.toLowerCase().replace("_", " ")}`).join(", ")}.` : "No external claims located here."}</p>
-          <div className="stack">
-            {conflicts.map((c) => <div key={c.claim_id} className="caption crit">{c.claim_type.toLowerCase()}: source says {c.value}, maps say {c.our_value ?? "–"} ({c.reason.toLowerCase().replaceAll("_", " ")})
-              <span className="src">claim_verdict {c.claim_id.slice(0, 12)} · {c.citation}</span></div>)}
-            {ev.data?.research_queue.map((q) => <div key={q.queue_item_id} className="caption warn">Open question: {q.detail}
+        <section className="panel"><h2>Open questions</h2>
+          <p className="sub">Where the maps and the events compilation disagree about this district. Nothing is auto-corrected.</p>
+          {research.data?.length ? <div className="stack">
+            {research.data.map((q) => <div key={q.queue_item_id} className="caption warn">{q.detail}
               <span className="src">research_queue {q.queue_item_id.slice(0, 12)} · {q.status}</span></div>)}
-          </div>
-          <span className="src">claim_verdict, evidence_claim, research_queue</span></section>
+          </div> : <p className="empty">No open questions.</p>}
+          <span className="src">research_queue</span></section>
       </div>
 
       {tl.data && tl.data.transfers.length > 0 && (

@@ -2,7 +2,8 @@
 
 ## What this project solves
 
-India's district map changed constantly between 1951 and 2025, growing from 316 to 742 districts.
+India's district map changed constantly between 1951 and 2025, growing from 316 to 733 districts on the
+2025 Survey of India map (which lags Andhra Pradesh's 2022 and Rajasthan's 2023 reorganisations).
 For any district at any census year, this pipeline answers four questions, each with an evidence
 chain:
 
@@ -58,7 +59,7 @@ are evidence and never drive geometry.
 
 | Stage | Does |
 |---|---|
-| s01 bronze→silver | Standardize geometry and compute geodesic area/perimeter. Exclude unnamed placeholders. Repair each layer into an exact partition (overlap goes to the enclave). |
+| s01 bronze→silver | Standardize geometry and compute geodesic area/perimeter. Exclude placeholders: unnamed polygons and "Disputed (…)" strips (config `placeholders`). Repair each layer into an exact partition (overlap goes to the enclave). |
 | s02 topology | V1 gate: layer self-overlap |
 | s03 transition matrix | Overlay adjacent vintages and each vintage against 2025. Classify every part as CORE / TRANSFER / BOUNDARY_DISPLACEMENT / SLIVER. |
 | s04 identity | Canonical keys (CKs) by core-territory continuity. Names break ties only when the geometry is ambiguous. |
@@ -75,6 +76,7 @@ are evidence and never drive geometry.
 | r02 data dictionary | `docs/data_dictionary.md`, generated from the contracts; every column's meaning lives in `contracts/descriptions.py` |
 | r01 release | `data/release/`: tables, simplified geometry per map, `load.sql` (DuckDB views), `release_info.json`, `MANIFEST.csv`; byte-reproducible |
 | e04 research queue | Every open question in one table; closed only by a curated row in `data/reference/research_findings.csv` |
+| a02 credibility audit | Measures trust from the maps, the events compilation and the internal checks only: edition agreement, land not carried to the next map, map lag against the events, land that moves and comes back, area reversals, unrecorded name changes, event sourcing. `outputs/audit/CREDIBILITY_AUDIT.md` |
 | s11 warehouse | `data/gold/district_evolution.duckdb`: enforced DDL, SQL invariants, independent ST_Area_Spheroid check |
 | s12 validate | pandera contracts, collect all checks, output hash manifest, report, gate |
 
@@ -131,10 +133,11 @@ Shared code:
   and a force-push coordinated with collaborators.
 - Zenodo DOI: wired (`.github/workflows/release.yml`, `docs/operations/release.md`); needs the
   repository pushed and switched on at zenodo.org, then a `v3.0.0` tag.
-- Independent ground truth: Wikidata (P1365/P1366 lineage, inception, area) is done —
-  `outputs/audit/EXTERNAL_AUDIT_REPORT.md`, reproducible from a frozen snapshot via
-  `python -m district_evolution.evidence.wikidata_snapshot` + `wikidata_audit`. Census District Handbooks, DataMeet
-  boundaries, and gazettes remain open.
+- The Wikidata comparison (e01–e03, a01) is an **internal check**: it runs on every build and its
+  contracts and counts are in the gate report, but it is not released, served or shown (owner decision
+  2026-09-30; `release.INTERNAL_RESEARCH_TOPICS`). Validation rests on the maps, the events compilation
+  and the internal checks; `a02` measures how far that goes. The work that would raise credibility
+  is in `docs/audit/credibility_report.md`.
 - OD-01 decided (3.2.0): a restored district gets a new key and a `RECONSTITUTED_FROM` edge
   (Fatehgarh Sahib, Barnala). `docs/decisions/OD-01_reclassification.md`. Six rename-plus-boundary
   breaks listed there are alias candidates for a future MAJOR version, pending documents.

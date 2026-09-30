@@ -5,7 +5,7 @@ Each example reads only the release (`data/release/`), so it works on any copy o
 
 | File | Shows |
 |---|---|
-| `01_questions.sql` | Five questions in plain SQL with DuckDB: districts per map, one district through time, the largest carve-outs, where a 1951 district's land went, Wikidata agreement |
+| `01_questions.sql` | Five questions in plain SQL with DuckDB: districts per map, one district through time, the largest carve-outs, where a 1951 district's land went, which events were measured |
 | `02_restate_statistics.py` | Restating statistics reported on the 1971 map onto the 2025 districts |
 | `03_family_tree.py` | Every ancestor and descendant of a district, with the land that moved |
 

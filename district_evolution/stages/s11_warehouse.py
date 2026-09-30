@@ -254,6 +254,10 @@ def invariants(con: duckdb.DuckDBPyConnection) -> list[tuple]:
         ("V21", "evidence claim linked to a CK that does not exist", "ERROR",
          """SELECT count(*) FROM claim_ck_link l LEFT JOIN ck_registry r USING (canonical_key)
              WHERE l.canonical_key IS NOT NULL AND r.canonical_key IS NULL"""),
+        ("V25", "a placeholder (unnamed or disputed strip) holds a district identity", "ERROR",
+         f"""SELECT count(*) FROM ck_observation
+             WHERE regexp_matches(lower(district_name), '{core.CFG["placeholders"]["disputed_name_pattern"]}')
+                OR regexp_matches(lower(coalesce(district_name, '')), '{core.CFG["placeholders"]["sentinel_name_pattern"]}')"""),
         ("INFO_LINK", "event participants not linked to a district", "INFO",
          "SELECT count(*) FROM event_linkage WHERE link_status IN ('UNRESOLVED_NAME','NO_BRACKETING_VINTAGE')"),
         ("INFO_FOOTPRINT", "successor name matched only outside the predecessor's footprint (research queue)", "INFO",

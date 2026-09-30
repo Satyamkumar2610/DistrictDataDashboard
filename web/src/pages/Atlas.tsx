@@ -103,7 +103,7 @@ export default function Atlas() {
                 <tr key={o.year} style={o.year === year ? { background: "var(--accent-soft)" } : undefined}>
                   <td><button type="button" className="iconbtn" onClick={() => setYear(o.year)}>{o.year}</button></td>
                   <td>{o.district_name}</td><td className="r num">{km2(o.area_km2)}</td></tr>))}</tbody></table>
-            <Link to={`/district/${d.canonical_key}`}>Full history, lineage and evidence →</Link>
+            <Link to={`/district/${d.canonical_key}`}>Full history and lineage →</Link>
           </div>
         ) : <p className="empty">No district selected.</p>}
       </aside>

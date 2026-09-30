@@ -111,7 +111,7 @@ def test_release_states_its_validation(api):
 
 def test_states_count_districts_on_every_map(api):
     states = {s["state"]: s for s in api.get("/api/states").json()["data"]}
-    assert sum(s["active"] for s in states.values()) == 742
+    assert sum(s["active"] for s in states.values()) == 733
     hp = states["Himachal Pradesh"]
     assert (hp["districts_by_map"]["1951"], hp["districts_by_map"]["2025"]) == (8, 12)
 
@@ -138,16 +138,19 @@ def test_release_tables_download(api):
     assert api.get("/api/download/not_a_table.csv").status_code == 404
 
 
-def test_evidence_summary_matches_the_verdict_table(api):
-    d = api.get("/api/evidence/summary").json()["data"]
-    v = pd.read_parquet(core.RELEASE_DIR / "tables" / "claim_verdict.parquet")
-    assert sum(r["n"] for r in d["by_type"]) == len(v) == sum(r["n"] for r in d["by_state"])
-    assert sum(r["n"] for r in d["by_type"] if r["verdict"] == "CONFLICT") == (v.verdict == "CONFLICT").sum()
-    assert all(p["ours"] > 0 and p["theirs"] > 0 for p in d["area_points"])
+
+def test_wikidata_comparison_is_internal(api):
+    """The Wikidata tables are built and checked but not released, served or queued in the release."""
+    names = {p.stem for p in (core.RELEASE_DIR / "tables").glob("*.parquet")}
+    assert not names & {"evidence_claim", "claim_ck_link", "claim_verdict"}
+    q = pd.read_parquet(core.RELEASE_DIR / "tables" / "research_queue.parquet")
+    assert "CLAIM_CONFLICT" not in set(q.topic) and len(q) > 0
+    assert api.get("/api/evidence/summary").status_code == 404
+    assert "evidence" not in api.get("/api/overview").json()["data"]
+    assert (core.GOLD_EVIDENCE_DIR / "claim_verdict.parquet").exists()  # still built, for the gate
 
 
-def test_evidence_claims_filter(api):
-    got = api.get("/api/evidence/claims", params={"claim_type": "AREA", "reason": "SOURCE_MAGNITUDE_ERROR"}).json()["data"]
-    assert got and {c["reason"] for c in got} == {"SOURCE_MAGNITUDE_ERROR"}
-    assert any(c["name"] == "East Godavari" for c in got)
-    assert all(c["citation"].startswith("https://www.wikidata.org/") for c in got)
+def test_district_research_lists_its_open_questions(api):
+    ids = pd.read_parquet(core.RELEASE_DIR / "tables" / "research_queue.parquet")
+    items = api.get("/api/districts/IND-000202/research").json()["data"]
+    assert all(i["queue_item_id"] in set(ids.queue_item_id) for i in items)

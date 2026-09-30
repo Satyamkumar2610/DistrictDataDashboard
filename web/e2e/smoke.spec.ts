@@ -49,7 +49,7 @@ test("research queue and data pages load", async ({ page }) => {
   await expect(page.getByTestId("gate")).toContainText("PASS");
   await expect(page.getByTestId("dictionary")).toContainText("canonical_key");
   await expect(page.getByTestId("release")).toContainText("ck_registry");
-  await expect(page.getByTestId("release")).toContainText("4,614");
+  await expect(page.getByTestId("release")).toContainText("4,605");
   await expect(page.getByText(/release v\d/)).toBeVisible();
   await page.screenshot({ path: `${shots}/data.png`, fullPage: true });
 });

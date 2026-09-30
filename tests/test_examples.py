@@ -25,9 +25,10 @@ def test_sql_questions_run_on_the_release(monkeypatch):
         db.execute(s)
     results = [db.execute(q).fetchall() for q in statements((EXAMPLES / "01_questions.sql").read_text())]
     per_map = {r[0]: r[1] for r in results[0]}
-    assert (per_map[1951], per_map[2025]) == (316, 742)
+    assert (per_map[1951], per_map[2025]) == (316, 733)
     assert [r[1] for r in results[1]] == ["Kangra"] * 9
-    assert len(results[2]) == 10 and {"Kannur", "Kozhikode", "Palakkad"} <= {r[0] for r in results[3]} and len(results[4]) > 0
+    assert len(results[2]) == 10 and {"Kannur", "Kozhikode", "Palakkad"} <= {r[0] for r in results[3]}
+    assert dict(results[4]) == {"MEASURED": 401, "UNIDENTIFIED_MULTI_EVENT_WINDOW": 186, "NOT_MEASURABLE": 22}
 
 
 def test_python_examples_run(capsys):

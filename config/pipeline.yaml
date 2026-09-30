@@ -1,7 +1,7 @@
 # Pipeline v3 configuration. Every threshold used by any stage lives here with
 # its rationale; code reads it via lib.CFG. See docs/architecture/REVAMP_PLAN_V3.md.
 
-pipeline_version: "3.9.0"
+pipeline_version: "4.0.0"
 
 vintages:
   # (source, year) in chronological order. The last entry is the reference
@@ -16,6 +16,17 @@ vintages:
   - [stanford, 2021]
   - [soi, 2025]
 reference_year: 2025
+
+placeholders:
+  # s01: features that are not districts get no identity. Sentinel names ("DATA NOT AVAILABLE",
+  # blank) mark unnamed placeholders (the 80,520 km2 J&K polygon). A name starting "Disputed" marks
+  # a strip whose ownership between districts of different states is unsettled: SOI 2025 carries
+  # nine, 0.7-14.5 km2 each (e.g. "Disputed (Sahibganj, Maldah & Katihar)"), which minted CKs and
+  # counted as active districts before 4.0.0. Both are excluded and logged
+  # (outputs/pipeline/s01_excluded_non_administrative.csv); their land is left unassigned on that
+  # map, never given to a neighbour.
+  sentinel_name_pattern: '^(nan|none|data not available|not available|n/?a|unknown|no data|unnamed|-+)?$'
+  disputed_name_pattern: '^\s*disputed\b'
 
 overlay:
   # A parcel is SLIVER when smaller than max(abs, rel * smaller polygon area).
@@ -135,6 +146,19 @@ harmonize:
     max_candidates: 3
   # Rows per POST /api/harmonize request: every 2025 district for 60 years is ~45,000 rows.
   max_request_rows: 50000
+
+audit:
+  # a02 credibility audit: measures from the maps, the events compilation and the internal checks
+  # only (no external source). Thresholds below decide what the report lists; every measure is
+  # written in full to its CSV.
+  # Land that moves A -> B and later B -> A is either a real reversal or two editions drawing one
+  # line differently. 100 km2 is ~100x the per-district boundary displacement between same-edition
+  # maps (~200 km2 over ~400 districts per window, s03), so smaller returns are left to the CSV.
+  return_flow_min_km2: 100
+  # A district whose area moves by at least this share between consecutive maps and later returns
+  # to within revert_pct of its earlier area (measured: 3 identities at 25% / 5%).
+  reversal_jump_pct: 25
+  reversal_revert_pct: 5
 
 determinism:
   # Declared outputs allowed to differ between two builds of the same inputs, each with its

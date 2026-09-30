@@ -65,7 +65,6 @@ export type Parcel = GeoJSON.Feature<GeoJSON.Geometry, {
   row_id: string; source_table: string; direction: "in" | "out";
 }>;
 export type Changes = { year_a: number; year_b: number; type: "FeatureCollection"; features: Parcel[] };
-export type Claim = { claim_type: string; verdict: string; reason: string; our_value: string | null; value: string; citation: string; claim_id: string };
 export type QueueItem = { queue_item_id: string; topic: string; ref: string; subject: string; state: string | null; detail: string; status: string; finding_id: string | null };
 export type EventRow = {
   event_id: string; event_type: string; recorded_as: string; event_state: string; parent_district_raw: string;
@@ -81,7 +80,6 @@ export type Overview = {
   transfers: { year: number; transfers: number; km2: number }[];
   events: { decade: number; status: string; events: number }[];
   identities: { total: number; active: number; closed: number };
-  evidence: { claim_type: string; verdict: string; n: number }[];
   research_open: { topic: string; n: number }[];
 };
 export type Check = { check_id: string; severity: string; n_violations: number; description: string; detail: string | null };
