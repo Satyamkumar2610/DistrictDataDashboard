@@ -15,6 +15,7 @@ type Props = {
   mode?: ColorMode;
   selected?: string | null;
   highlight?: Record<string, number>; // ck -> 0..1, for mode "highlight"
+  labels?: Record<string, string>; // ck -> extra text for the hover tooltip
   parcels?: Parcel[];
   fitTo?: [number, number, number, number] | null;
   onSelect?: (ck: string) => void;
@@ -42,7 +43,7 @@ function fillColor(mode: ColorMode, highlight: Record<string, number>): Expressi
   return ["literal", css("--sunk")];
 }
 
-export default function MapView({ year, mode = "plain", selected = null, highlight = {}, parcels = [], fitTo = null, onSelect, syncGroup, testId }: Props) {
+export default function MapView({ year, mode = "plain", selected = null, highlight = {}, labels, parcels = [], fitTo = null, onSelect, syncGroup, testId }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [ready, setReady] = useState(false);
@@ -52,6 +53,8 @@ export default function MapView({ year, mode = "plain", selected = null, highlig
   select.current = onSelect;
   const fitRef = useRef(fitTo);
   fitRef.current = fitTo;
+  const labelRef = useRef(labels);
+  labelRef.current = labels;
 
   useEffect(() => {
     const m = new maplibregl.Map({
@@ -89,9 +92,10 @@ export default function MapView({ year, mode = "plain", selected = null, highlig
       if (hovered.current !== null) m.setFeatureState({ source: "districts", sourceLayer: "districts", id: hovered.current }, { hover: false });
       hovered.current = f.id ?? null;
       if (f.id !== undefined) m.setFeatureState({ source: "districts", sourceLayer: "districts", id: f.id }, { hover: true });
-      const p = f.properties as { name: string; state: string; area_km2: number; area_change_pct: number | null };
+      const p = f.properties as { ck: string; name: string; state: string; area_km2: number; area_change_pct: number | null };
       const change = typeof p.area_change_pct === "number" ? ` · ${p.area_change_pct > 0 ? "+" : ""}${p.area_change_pct.toFixed(1)}% vs previous map` : "";
-      setTip({ x: e.point.x, y: e.point.y, text: `${p.name}, ${p.state} · ${Math.round(p.area_km2).toLocaleString("en-IN")} km²${change}` });
+      const extra = labelRef.current ? ` · ${labelRef.current[p.ck] ?? "no value"}` : "";
+      setTip({ x: e.point.x, y: e.point.y, text: `${p.name}, ${p.state} · ${Math.round(p.area_km2).toLocaleString("en-IN")} km²${change}${extra}` });
       m.getCanvas().style.cursor = "pointer";
     });
     m.on("mouseleave", "fill", () => {

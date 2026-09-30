@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Literal, Protocol
 
 import geopandas as gpd
@@ -42,4 +43,6 @@ class WeightMethod(Protocol):
     name: str
     assumption: str
 
-    def weights(self, year: int) -> pd.DataFrame: ...
+    def weights(self, year: int, tables: Path | None = None) -> pd.DataFrame:
+        """Weights for one map; from the pipeline's outputs, or a release's tables/ when `tables` is given."""
+        ...

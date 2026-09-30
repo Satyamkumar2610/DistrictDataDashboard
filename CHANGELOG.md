@@ -3,6 +3,28 @@
 Versions follow semantic versioning of `pipeline_version` (config/pipeline.yaml).
 A MAJOR change can renumber canonical keys or change the meaning of a product.
 
+## 3.8.0
+
+Harmonize your own data. No key, lineage, area, product, evidence or harmonization-output changes.
+
+### Added
+- `harmonize/restate.py`: restate a user's district statistics onto the 2025 districts without a
+  rebuild, from a release's tables, with the same `link` and `allocate` as h01-h03. Every row comes
+  back with a status (LINKED, AMBIGUOUS, UNLINKED, BEFORE_FIRST_MAP, NO_VALUE) and, when not linked,
+  candidate identities with a similar name on that map (`harmonize.suggest`); nothing is guessed.
+- `python -m district_evolution.harmonize.cli`: the same from the command line (result CSV and a
+  matching report).
+- `POST /api/harmonize` (processed in memory, not stored; `harmonize.max_request_rows`) and the
+  Harmonize page: upload a CSV, map its columns, see matches, a map and table of the result, and
+  download both. A rate is refused with the reason.
+- `docs/operations/harmonize_your_data.md`; 5 Python and 3 browser tests. Restating the 1991 map's
+  own areas from the release reproduces h03's mapped-area result for 1991.
+
+### Changed
+- `engine.link`, `engine.allocate` and `AreaWeight.weights` take an optional `tables` directory
+  (default: the pipeline's outputs, as before). `link` matches a row with no state against the
+  whole map.
+
 ## 3.7.0
 
 Platform insights. No key, lineage, area, product, evidence or harmonization changes.

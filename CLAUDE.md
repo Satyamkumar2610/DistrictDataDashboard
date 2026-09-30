@@ -90,7 +90,9 @@ Shared code:
   `EvidenceSource`, `Indicator`, `WeightMethod`).
 - `district_evolution/harmonize/`: indicators (`CsvIndicator` for a supplied file), weight methods
   (`AreaWeight`), the engine (`link`, `allocate` refuses ratios, `ratios`). A new crop statistic is one
-  entry in `config/indicators.yaml` plus a `docs/sources/<source>.md` evaluation.
+  entry in `config/indicators.yaml` plus a `docs/sources/<source>.md` evaluation. `restate.py` runs
+  the same engine on a user's file from a release's tables (CLI `harmonize.cli`, `POST /api/harmonize`,
+  the Harmonize page); nothing is stored.
 - `district_evolution/evidence/`: evidence sources (`EVIDENCE_SOURCES`), shared verdict rules
   (`rules.py`), point location (`geo.py`), the Wikidata snapshot and the external audit (a01).
   Evidence stages write only to `data/gold/evidence` and `outputs/evidence`, and no s01–s10 stage

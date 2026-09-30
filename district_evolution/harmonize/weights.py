@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pandas as pd
 
-from district_evolution import core
+from district_evolution.harmonize.engine import read
 
 
 class AreaWeight:
@@ -15,8 +17,8 @@ class AreaWeight:
     assumption = ("The quantity is spread evenly over the source district's area. Exact for area itself; "
                   "for crops it ignores where cropland lies within the district.")
 
-    def weights(self, year: int) -> pd.DataFrame:
-        x = pd.read_parquet(core.PRODUCTS_DIR / "crosswalk_to_reference.parquet")
+    def weights(self, year: int, tables: Path | None = None) -> pd.DataFrame:
+        x = read("crosswalk_to_reference", tables)
         x = x[x.year == year]
         return pd.DataFrame({"year": x.year, "source_ck": x.source_ck, "target_ck": x.target_ck,
                              "method": self.name, "assumption": self.assumption,

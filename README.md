@@ -28,6 +28,10 @@ pytest -q tests
 uvicorn district_evolution.release.api:app              # platform at http://127.0.0.1:8000, API reference at /docs
 ```
 
+To restate your own district statistics on the 2025 districts: the Harmonize page, or
+`python -m district_evolution.harmonize.cli your.csv --out result.csv` (see
+`docs/operations/harmonize_your_data.md`).
+
 For development, run the API with uvicorn and `npm run dev` in `web/` (Vite proxies `/api`).
 Browser tests: `npm run test:e2e` in `web/` (uses the installed Chrome; `PW_CHANNEL=chromium` for Playwright's own).
 
@@ -44,7 +48,7 @@ The gate report is `outputs/pipeline/s12_validation_report.md`; the data diction
 | `district_evolution/contracts/` | pandera contracts and the meaning of every column |
 | `district_evolution/sources/`, `evidence/`, `harmonize/` | plug-in points for maps, evidence and statistics |
 | `district_evolution/release/` | release definition and the read-only API (JSON, vector tiles) |
-| `web/` | the web platform (atlas with side-by-side compare, states, district histories and family trees, crosswalk, research queue, downloads): React, TypeScript, MapLibre GL, Apache ECharts, Playwright tests |
+| `web/` | the web platform (atlas with side-by-side compare, states, harmonize your data, district histories and family trees, crosswalk, research queue, downloads): React, TypeScript, MapLibre GL, Apache ECharts, Playwright tests |
 | `config/` | `pipeline.yaml` (every threshold), `sources.yaml`, `indicators.yaml` |
 | `data/reference/` | curated reference tables (confirmed rows only) and research findings |
 | `docs/` | design (`architecture/`), decisions, operations runbooks, data dictionary |

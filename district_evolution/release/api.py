@@ -14,6 +14,7 @@ import json
 import os
 import threading
 from pathlib import Path
+from typing import Literal
 
 import duckdb
 import pandas as pd
@@ -21,8 +22,11 @@ from fastapi import APIRouter, FastAPI, HTTPException, Query, Response
 from fastapi import Path as PathParam
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 
 from district_evolution import core
+from district_evolution.harmonize import restate
+from district_evolution.harmonize.weights import AreaWeight
 from district_evolution.release import TABLES
 
 RELEASE = Path(os.environ.get("DISTRICT_RELEASE_DIR", core.RELEASE_DIR))
@@ -32,6 +36,7 @@ META = {k: INFO[k] for k in ("pipeline_version", "config_sha256", "events_csv_sh
 YEARS = [v["year"] for v in INFO["vintages"]]
 CK = r"^IND-\d{6}$"
 MATERIAL_KM2 = core.CFG["lineage"]["material_km2"]
+MAX_HARMONIZE_ROWS = core.CFG["harmonize"]["max_request_rows"]
 
 _db = duckdb.connect()
 _db.execute("INSTALL spatial; LOAD spatial;")
@@ -74,6 +79,10 @@ def rows(sql: str, params: list | None = None) -> list[dict]:
 
 def ok(data) -> dict:
     return {"meta": META, "data": data}
+
+
+def records(df: pd.DataFrame) -> list[dict]:
+    return json.loads(df.to_json(orient="records"))
 
 
 def registry_row(ck: str) -> dict:
@@ -379,6 +388,44 @@ def download(table: str, fmt: str):
         return FileResponse(path, media_type="application/vnd.apache.parquet", filename=f"{table}.parquet")
     return Response(pd.read_parquet(path).to_csv(index=False), media_type="text/csv",
                     headers={"Content-Disposition": f'attachment; filename="{table}.csv"'})
+
+
+class HarmonizeRow(BaseModel):
+    name: str
+    state: str = ""
+    year: int
+    value: str | float | None = None
+
+
+class HarmonizeRequest(BaseModel):
+    rows: list[HarmonizeRow] = Field(min_length=1, max_length=MAX_HARMONIZE_ROWS)
+    kind: Literal["extensive", "ratio"] = "extensive"
+    indicator: str = Field("value", max_length=80)
+    map_year: int | None = None
+
+
+@api.post("/harmonize", summary="Restate your district statistics on the 2025 districts")
+def harmonize(req: HarmonizeRequest):
+    """Match each row to the identity that carried its name (same or historically compatible state) on
+    the map it reports on, then share totals among 2025 districts by area. Processed in memory, not
+    stored. A rate is refused (422): harmonize its numerator and denominator, then divide."""
+    df = pd.DataFrame([r.model_dump() for r in req.rows])
+    try:
+        links, out = restate.restate(df, req.kind, req.indicator, req.map_year, RELEASE / "tables")
+    except (ValueError, restate.engine.RatioAllocationError) as e:
+        raise HTTPException(422, str(e)) from e
+    counts = links.link_status.value_counts()
+    linked = links[links.link_status == "LINKED"]
+    summary = {"rows": len(links), "linked": int(counts.get("LINKED", 0)), "ambiguous": int(counts.get("AMBIGUOUS", 0)),
+               "unlinked": int(counts.get("UNLINKED", 0)), "before_first_map": int(counts.get("BEFORE_FIRST_MAP", 0)),
+               "no_value": int(counts.get("NO_VALUE", 0)), "value_linked": float(linked.value.sum()),
+               "value_allocated": float(out.value.sum())}
+    link_cols = ["row", "raw_name", "state", "year", "map_year", "value", "link_status", "canonical_key", "matched_name",
+                 "boundary_uncertain", "candidates"]
+    out_cols = ["indicator", "year", "target_ck", "target_name", "target_state", "value", "n_sources", "coverage_score",
+                "boundary_uncertain"]
+    return ok({"indicator": req.indicator, "method": AreaWeight.name, "assumption": AreaWeight.assumption,
+               "summary": summary, "links": records(links[link_cols]), "harmonized": records(out[out_cols])})
 
 
 @api.get("/validation")

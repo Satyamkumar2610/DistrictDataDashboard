@@ -72,6 +72,12 @@ table.data td.r, table.data th.r { text-align: right }
 .seg button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink) }
 input, select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line-strong);
   border-radius: var(--r); padding: 7px 10px }
+.btn { display: inline-block; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); border-radius: var(--r);
+  padding: 7px 12px; cursor: pointer; font: inherit; font-size: 13px; text-decoration: none }
+.btn:hover { border-color: var(--accent) }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink) }
+.btn:disabled { opacity: .5; cursor: not-allowed }
+input[type="file"] { padding: 5px }
 label.field { display: grid; gap: 4px; font-size: 12px; color: var(--muted) }
 .controls { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: end }
 

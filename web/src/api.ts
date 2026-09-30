@@ -9,6 +9,26 @@ export async function get<T>(path: string): Promise<T> {
   return ((await res.json()) as Envelope<T>).data;
 }
 
+export type HarmonizeRow = { name: string; state: string; year: number; value: string };
+export type HarmonizeResult = {
+  indicator: string; method: string; assumption: string;
+  summary: { rows: number; linked: number; ambiguous: number; unlinked: number; before_first_map: number; no_value: number; value_linked: number; value_allocated: number };
+  links: { row: number; raw_name: string; state: string; year: number; map_year: number | null; value: number | null; link_status: string;
+    canonical_key: string | null; matched_name: string | null; boundary_uncertain: boolean;
+    candidates: { canonical_key: string; district_name: string; state: string }[] }[];
+  harmonized: { indicator: string; year: number; target_ck: string; target_name: string; target_state: string; value: number;
+    n_sources: number; coverage_score: number; boundary_uncertain: boolean }[];
+};
+
+export async function harmonize(body: { rows: HarmonizeRow[]; kind: string; indicator: string; map_year: number | null }): Promise<HarmonizeResult> {
+  const res = await fetch("/api/harmonize", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => null);
+    throw new Error(typeof detail?.detail === "string" ? detail.detail : `${res.status}: the server could not harmonize this file`);
+  }
+  return ((await res.json()) as Envelope<HarmonizeResult>).data;
+}
+
 export async function getMeta(): Promise<Meta> {
   const res = await fetch("/api/meta");
   return ((await res.json()) as Envelope<unknown>).meta;

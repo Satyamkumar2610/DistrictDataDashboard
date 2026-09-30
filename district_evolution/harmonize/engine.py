@@ -12,9 +12,20 @@ Rules (Architecture v0.3 §13, WP4):
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pandas as pd
 
 from district_evolution import core
+
+_GOLD = {"ck_observation": core.GOLD_CORE_DIR, "ck_registry": core.GOLD_CORE_DIR, "event_linkage": core.GOLD_EVENTS_DIR,
+         "boundary_event": core.GOLD_EVENTS_DIR, "district_area_admin": core.PRODUCTS_DIR,
+         "crosswalk_to_reference": core.PRODUCTS_DIR}
+
+
+def read(name: str, tables: Path | None = None) -> pd.DataFrame:
+    """A table from the pipeline's outputs, or from a release's tables/ directory when `tables` is given."""
+    return pd.read_parquet((tables if tables is not None else _GOLD[name]) / f"{name}.parquet")
 
 
 class RatioAllocationError(ValueError):
@@ -27,18 +38,19 @@ def map_year(state: str, year: int) -> float:
     return float(fits[-1]) if fits else float("nan")
 
 
-def link(obs: pd.DataFrame) -> pd.DataFrame:
+def link(obs: pd.DataFrame, tables: Path | None = None) -> pd.DataFrame:
     """Attach each reported row to the identity that carried that name, in a compatible state, on its map.
 
     Identities already exist (s04); this only finds which one a reported name refers to. Exact
     normalised name first, then the identity rule's name agreement; more than one match is AMBIGUOUS.
+    A row without a state is matched against the whole map.
     """
-    ck_obs = pd.read_parquet(core.GOLD_CORE_DIR / "ck_observation.parquet")
+    ck_obs = read("ck_observation", tables)
     ck_obs["name_norm"] = ck_obs.district_name.map(core.normalize_name)
     ck_obs["state_norm"] = ck_obs.state.map(lambda s: core.normalize_name(core.canonical_state(s)))
     by_year = {y: g for y, g in ck_obs.groupby("year")}
-    links = pd.read_parquet(core.GOLD_EVENTS_DIR / "event_linkage.parquet")
-    events = pd.read_parquet(core.GOLD_EVENTS_DIR / "boundary_event.parquet")[["event_id", "effective_year"]]
+    links = read("event_linkage", tables)
+    events = read("boundary_event", tables)[["event_id", "effective_year"]]
     touched = links.dropna(subset=["canonical_key"]).merge(events, on="event_id")
     event_years = touched.groupby("canonical_key").effective_year.apply(sorted).to_dict()
 
@@ -56,7 +68,9 @@ def link(obs: pd.DataFrame) -> pd.DataFrame:
         n = core.normalize_name(name)
         ids = []
         # same state before a historically compatible one (Raigarh, Maharashtra vs Raigarh, Chhattisgarh)
-        for cands in (layer[layer.state_norm == state_norm], layer[layer.state_norm.isin(core.compatible_states(state_norm))]):
+        scopes = ((layer[layer.state_norm == state_norm], layer[layer.state_norm.isin(core.compatible_states(state_norm))])
+                  if state_norm else (layer,))
+        for cands in scopes:
             hit = cands[cands.name_norm == n]
             if hit.empty:
                 hit = cands[[core.names_agree(n, x)[0] for x in cands.name_norm]]
@@ -73,12 +87,12 @@ def link(obs: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def allocate(obs: pd.DataFrame, weights: pd.DataFrame, kind: str) -> pd.DataFrame:
+def allocate(obs: pd.DataFrame, weights: pd.DataFrame, kind: str, tables: Path | None = None) -> pd.DataFrame:
     """Restate linked extensive values on 2025 districts: sum over sources of value x weight."""
     if kind != "extensive":
         raise RatioAllocationError(f"{obs.indicator.iloc[0] if len(obs) else '?'} is a {kind} indicator: "
                                    "recompute it from harmonized numerator and denominator (ratios())")
-    ref_area = (pd.read_parquet(core.PRODUCTS_DIR / "district_area_admin.parquet")
+    ref_area = (read("district_area_admin", tables)
                 .query("year == @core.REFERENCE_YEAR").set_index("canonical_key").area_km2)
     j = (obs[obs.link_status == "LINKED"]
          .merge(weights, left_on=["canonical_key", "map_year"], right_on=["source_ck", "year"], suffixes=("", "_w")))

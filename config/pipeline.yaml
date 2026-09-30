@@ -1,7 +1,7 @@
 # Pipeline v3 configuration. Every threshold used by any stage lives here with
 # its rationale; code reads it via lib.CFG. See docs/architecture/REVAMP_PLAN_V3.md.
 
-pipeline_version: "3.7.0"
+pipeline_version: "3.8.0"
 
 vintages:
   # (source, year) in chronological order. The last entry is the reference
@@ -126,6 +126,15 @@ harmonize:
   # measured max difference 7e-12 km2 over 6,678 district-years.
   conservation_rel_tol: 1.0e-9
   self_check_tol_km2: 1.0e-6
+  # Bring-your-own harmonization (harmonize/restate.py): for a row whose name matched no identity,
+  # list up to max_candidates identities on that map, in compatible states, with name similarity
+  # >= min_similarity. Suggestions only; a row is never linked by them. 0.80 is below the identity
+  # tie-break (identity.name_jw 0.90) so near misses (Kangraa, Bangalore Rural/Rural Bangalore) show.
+  suggest:
+    min_similarity: 0.80
+    max_candidates: 3
+  # Rows per POST /api/harmonize request: every 2025 district for 60 years is ~45,000 rows.
+  max_request_rows: 50000
 
 determinism:
   # Declared outputs allowed to differ between two builds of the same inputs, each with its
