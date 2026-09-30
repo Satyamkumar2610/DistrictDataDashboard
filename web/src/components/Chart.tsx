@@ -1,12 +1,12 @@
 import type { EChartsOption } from "echarts";
-import { BarChart, GraphChart, LineChart, SankeyChart } from "echarts/charts";
+import { BarChart, GraphChart, LineChart, SankeyChart, ScatterChart } from "echarts/charts";
 import { GridComponent, LegendComponent, TooltipComponent } from "echarts/components";
 import * as echarts from "echarts/core";
 import { SVGRenderer } from "echarts/renderers";
 
 import { useEffect, useRef } from "react";
 
-echarts.use([BarChart, GraphChart, LineChart, SankeyChart, GridComponent, LegendComponent, TooltipComponent, SVGRenderer]);
+echarts.use([BarChart, GraphChart, LineChart, SankeyChart, ScatterChart, GridComponent, LegendComponent, TooltipComponent, SVGRenderer]);
 
 const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 

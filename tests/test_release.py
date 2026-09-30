@@ -136,3 +136,18 @@ def test_release_tables_download(api):
     assert r.status_code == 200 and "share_of_source" in r.text.splitlines()[0]
     assert api.get("/api/download/crosswalk_to_reference.parquet").content[:4] == b"PAR1"
     assert api.get("/api/download/not_a_table.csv").status_code == 404
+
+
+def test_evidence_summary_matches_the_verdict_table(api):
+    d = api.get("/api/evidence/summary").json()["data"]
+    v = pd.read_parquet(core.RELEASE_DIR / "tables" / "claim_verdict.parquet")
+    assert sum(r["n"] for r in d["by_type"]) == len(v) == sum(r["n"] for r in d["by_state"])
+    assert sum(r["n"] for r in d["by_type"] if r["verdict"] == "CONFLICT") == (v.verdict == "CONFLICT").sum()
+    assert all(p["ours"] > 0 and p["theirs"] > 0 for p in d["area_points"])
+
+
+def test_evidence_claims_filter(api):
+    got = api.get("/api/evidence/claims", params={"claim_type": "AREA", "reason": "SOURCE_MAGNITUDE_ERROR"}).json()["data"]
+    assert got and {c["reason"] for c in got} == {"SOURCE_MAGNITUDE_ERROR"}
+    assert any(c["name"] == "East Godavari" for c in got)
+    assert all(c["citation"].startswith("https://www.wikidata.org/") for c in got)

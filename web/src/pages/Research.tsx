@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { get, type QueueItem } from "../api";
 
 const TOPICS = ["", "CLAIM_CONFLICT", "EVENT_NAME_OUTSIDE_FOOTPRINT", "EVENT_NAME_UNRESOLVED", "MAP_DATE"];
@@ -9,14 +10,18 @@ const LABEL: Record<string, string> = {
 };
 
 export default function Research() {
-  const [topic, setTopic] = useState("");
-  const [filter, setFilter] = useState("");
+  const [params, setParams] = useSearchParams();
+  const topic = params.get("topic") ?? "";
+  const filter = params.get("q") ?? "";
+  const set = (k: string, v: string) => setParams((p) => { const n = new URLSearchParams(p); if (v) n.set(k, v); else n.delete(k); return n; }, { replace: true });
+  const setTopic = (v: string) => set("topic", v);
+  const setFilter = (v: string) => set("q", v);
   const { data = [] } = useQuery({
     queryKey: ["research", topic], queryFn: () => get<QueueItem[]>(`/research?limit=5000${topic ? `&topic=${topic}` : ""}`),
   });
   const rows = useMemo(() => {
     const f = filter.trim().toLowerCase();
-    return f ? data.filter((r) => `${r.subject} ${r.state} ${r.detail}`.toLowerCase().includes(f)) : data;
+    return f ? data.filter((r) => `${r.subject} ${r.state} ${r.detail} ${r.queue_item_id}`.toLowerCase().includes(f)) : data;
   }, [data, filter]);
   return (
     <main className="page">

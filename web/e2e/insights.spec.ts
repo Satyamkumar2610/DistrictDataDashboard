@@ -38,3 +38,14 @@ test("release tables download as CSV", async ({ page, request }) => {
   expect(res.status()).toBe(200);
   expect((await res.text()).split("\n")[0]).toContain("share_of_source");
 });
+
+test("evidence page compares Wikidata with the maps", async ({ page }) => {
+  await page.goto("/evidence");
+  await expect(page.getByTestId("evidence-scatter").locator("svg")).toBeVisible();
+  await expect(page.getByTestId("evidence-claims")).toContainText("DIFFERS_OVER_10PCT");
+  await page.getByLabel("Reason").selectOption("NAME_DIFFERS_FROM_LOCATED_DISTRICT");
+  await expect(page).toHaveURL(/reason=NAME_DIFFERS_FROM_LOCATED_DISTRICT/);
+  await expect(page.getByTestId("evidence-claims").locator("tbody tr").first()).toBeVisible();
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: "test-results/screens/evidence.png", fullPage: true });
+});

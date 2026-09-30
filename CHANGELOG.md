@@ -3,6 +3,18 @@
 Versions follow semantic versioning of `pipeline_version` (config/pipeline.yaml).
 A MAJOR change can renumber canonical keys or change the meaning of a product.
 
+## 3.9.0
+
+Evidence insights, a container for the platform, and runnable examples. No key, lineage, area,
+product, evidence or harmonization changes.
+
+### Added
+- Evidence page: verdicts by kind of claim and conflicts by state (both filter the claim list),
+  our area against Wikidata's on log axes (click a point to open the district), every reason code
+  with its meaning, and a claim list linked to the district, the Wikidata item and its open
+  research question. API: `/api/evidence/summary`, `/api/evidence/claims`.
+- The research queue keeps its topic and filter in the URL, so other pages link to a question.
+
 ## 3.8.0
 
 Harmonize your own data. No key, lineage, area, product, evidence or harmonization-output changes.

@@ -292,6 +292,38 @@ def evidence(ck: str = PathParam(pattern=CK)):
                                          ORDER BY topic, queue_item_id""", [ck, ck, ck])})
 
 
+@api.get("/evidence/summary", summary="How the evidence sources compare with the pipeline")
+def evidence_summary():
+    return ok({
+        "by_type": rows("SELECT claim_type, verdict, count(*) AS n FROM claim_verdict GROUP BY ALL ORDER BY ALL"),
+        "by_reason": rows("SELECT claim_type, verdict, reason, count(*) AS n FROM claim_verdict GROUP BY ALL ORDER BY claim_type, n DESC, reason"),
+        "by_state": rows("""SELECT coalesce(s.state, '(not located)') AS state, v.claim_type, v.verdict, count(*) AS n
+                            FROM claim_verdict v LEFT JOIN ck_home h USING (canonical_key) LEFT JOIN state_name s USING (state_key)
+                            GROUP BY ALL ORDER BY ALL"""),
+        "area_points": rows("""SELECT v.claim_id, v.canonical_key, r.latest_name AS name, r.latest_state AS state, l.vintage,
+                                      try_cast(v.our_value AS DOUBLE) AS ours, c.value_num AS theirs, v.verdict, v.reason
+                               FROM claim_verdict v JOIN evidence_claim c USING (claim_id) JOIN claim_ck_link l USING (claim_id)
+                               JOIN ck_registry r ON r.canonical_key = v.canonical_key
+                               WHERE v.claim_type = 'AREA' AND v.verdict <> 'NOT_CHECKABLE' AND c.value_num > 0
+                               ORDER BY v.claim_id"""),
+    })
+
+
+@api.get("/evidence/claims", summary="Evidence claims with their verdicts")
+def evidence_claims(claim_type: str | None = None, verdict: str | None = None, reason: str | None = None,
+                    state: str | None = None, limit: int = Query(500, le=5000)):
+    return ok(rows("""SELECT v.claim_id, v.claim_type, v.verdict, v.reason, v.our_value, c.value, c.citation, c.source_ref,
+                             l.vintage, v.canonical_key, r.latest_name AS name, s.state, q.queue_item_id
+                      FROM claim_verdict v JOIN evidence_claim c USING (claim_id) LEFT JOIN claim_ck_link l USING (claim_id)
+                      LEFT JOIN ck_registry r ON r.canonical_key = v.canonical_key
+                      LEFT JOIN ck_home h ON h.canonical_key = v.canonical_key LEFT JOIN state_name s USING (state_key)
+                      LEFT JOIN (SELECT ref, min(queue_item_id) AS queue_item_id FROM research_queue GROUP BY ref) q ON q.ref = v.claim_id
+                      WHERE (? IS NULL OR v.claim_type = ?) AND (? IS NULL OR v.verdict = ?) AND (? IS NULL OR v.reason = ?)
+                        AND (? IS NULL OR lower(s.state) = lower(?))
+                      ORDER BY v.claim_type, s.state, r.latest_name, v.claim_id LIMIT ?""",
+                   [claim_type, claim_type, verdict, verdict, reason, reason, state, state, limit]))
+
+
 @api.get("/districts/{ck}/harmonized")
 def harmonized(ck: str = PathParam(pattern=CK), indicator: str | None = None):
     """Statistics restated on this 2025 district, with method, stated assumption and coverage."""
