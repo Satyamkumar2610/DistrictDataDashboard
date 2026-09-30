@@ -64,7 +64,15 @@ def test_api_harmonize(areas_1991):
     body = {"rows": [{"name": "Kangra", "state": "Himachal Pradesh", "year": 1971, "value": "100"},
                      {"name": "Kangra", "state": "", "year": 1971, "value": "1"}], "indicator": "x"}
     d = c.post("/api/harmonize", json=body).json()["data"]
-    assert d["summary"]["linked"] == 2 and d["summary"]["value_allocated"] == pytest.approx(101 * kept_share("IND-000202", 1971), rel=1e-12)
+    assert d["summary"]["linked"] == 2
+    assert d["summary"]["value_allocated"] == pytest.approx(101 * kept_share("IND-000202", 1971), rel=1e-12)
     # Kangra's 1971 land now lies in several 2025 districts (Kangra, Hamirpur, Una)
     assert len(d["harmonized"]) >= 3
     assert c.post("/api/harmonize", json={**body, "kind": "ratio"}).status_code == 422
+
+
+def test_unknown_state_is_unlinked_not_an_error():
+    """A state with no districts on the map leaves no candidates; the row is UNLINKED (was a crash)."""
+    df = pd.DataFrame({"name": ["Kangra"], "state": ["Atlantis"], "year": [1991], "value": ["5"]})
+    links, out = restate.restate(df, tables=TABLES)
+    assert links.link_status.tolist() == ["UNLINKED"] and out.empty

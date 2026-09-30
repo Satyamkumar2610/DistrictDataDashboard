@@ -3,43 +3,69 @@
 Versions follow semantic versioning of `pipeline_version` (config/pipeline.yaml).
 A MAJOR change can renumber canonical keys or change the meaning of a product.
 
-## 4.0.0
+## 4.0.0 (unreleased)
 
-MAJOR: canonical keys change. Placeholders fixed, Wikidata made internal, credibility audit added.
+MAJOR: canonical keys change. Every 3.x key resolves through `data/reference/ck_migration_v3_to_v4.csv`
+(461 identical, 314 renumbered, 20 merged in 10 pairs, 9 retired). Deltas for every regression count are
+explained in `tests/baselines/v4.0.0.yaml`.
 
-### Changed (keys)
-- The nine "Disputed (...)" strips on the SOI 2025 map (0.7-14.5 km² each, 50.3 km² in all, e.g.
-  "Disputed (Sahibganj, Maldah & Katihar)") are excluded in s01 as non-administrative placeholders,
-  like the unnamed J&K polygons (config `placeholders`, logged in
-  `outputs/pipeline/s01_excluded_non_administrative.csv` with reason `DISPUTED_BOUNDARY_STRIP`). They
-  had minted keys and counted as active districts. Their land is left unassigned on the 2025 map.
-- Keys: IND-000793..800 and IND-000802 retired; Riasi IND-000801 -> IND-000793, Champhai
-  IND-000803 -> IND-000794, Kolkata IND-000804 -> IND-000795; every other key unchanged
-  (`data/reference/ck_migration_v3_to_v4.csv`, `scripts/migrations/ck_v3_to_v4.py`).
-- Counts: 795 identities (was 804), 733 active on the 2025 map (was 742), 486 FORMED_FROM edges
-  (was 494). Deltas explained in `tests/baselines/v4.0.0.yaml`.
-- Alirajpur's 54% area difference with Wikidata is an open question again: it had been "explained"
-  as a post-2011 reorganisation only because it lost 4.4 km² to a disputed strip.
+### Identity
+- **Placeholders.** The nine "Disputed (...)" strips on the SOI 2025 map (0.7-14.5 km², 50.3 km²) are
+  excluded in s01 like the unnamed J&K polygons (config `placeholders`; logged with reason
+  `DISPUTED_BOUNDARY_STRIP`). They had keys and counted as active districts: 733 active on the 2025
+  map, not 742. Invariant V25 (ERROR): no placeholder holds an identity.
+- **Growth continuation (OD-02).** A district that stays whole (r ≥ 0.90), keeps its name and grows keeps
+  its identity when no other district continues into its successor (`GROWTH_NAME_RETAINED`; config
+  `identity.growth_continues`, `growth_min_h`). Ten cases: Una 1991, Gandhinagar, Hyderabad and Kanpur
+  Nagar 2001, Chennai, Mumbai, Punch and New Delhi 2021, Champhai and Kolkata 2025. 785 identities (was
+  804), 52 closed (was 62). The three MERGED_INTO edges into Champhai are gone: Champhai continues, and
+  Khawzawl's and Saitual's land reaches it as measured transfers. `docs/decisions/OD-02_growth_continuation.md`.
 
-### Changed (Wikidata is an internal check)
-- `evidence_claim`, `claim_ck_link` and `claim_verdict` are no longer released; the released
-  `research_queue` omits the Wikidata topic (CLAIM_CONFLICT). The comparison still runs on every
-  build and its contracts and counts stay in the gate report.
-- API: `/api/evidence/*` removed; `/api/districts/{ck}/evidence` replaced by
-  `/api/districts/{ck}/research`; the overview no longer reports claim verdicts. Web: the Evidence
-  page and the district "External evidence" panel removed.
+### Event linkage
+- **The linkage decision sat on a knife-edge.** "Exact name, historically compatible state", the usual
+  case for any map before a state reorganisation, scored 0.506 against a 0.50 threshold. A 0.05 change in
+  one learned weight (from adding correct aliases) flipped 356 candidate pairs and 99 links, including
+  names unrelated to the change. s08 now also compares an event's state with the state holding the
+  district's land today (the events compilation files events under present-day states: a 1991 Dhanbad
+  event under Jharkhand), and the threshold sits in the gap between classes (0.52; no current decision
+  changes). Check V27 (WARNING) flags any probability class that drifts within 0.015 of the threshold.
+- Result: 1,103 links (was 1,094), 124 unresolved names (was 132), 35 outside the footprint (was 42),
+  436 lineage edges corroborated by an event (was 431). Corrections include Raigarh 1998 (was linked to
+  Raygad, Maharashtra) and Manipur East/West (were swapped). Results now move by < 0.5% when the alias
+  list changes (they moved by 9% before).
+- **55 aliases** added by a stated rule with two kinds of evidence each (`scripts/curation/propose_aliases.py`):
+  39 renames the events compilation records between two names one identity carries on consecutive maps,
+  16 spellings with the same consonant skeleton. Pairs whose names belong to another identity anywhere are
+  refused (Kolaba -> Raigarh would have captured Raigarh, Chhattisgarh).
 
-### Added
-- s11 invariant V25 (ERROR): no placeholder holds a district identity.
-- Stage a02 credibility audit (`outputs/audit/CREDIBILITY_AUDIT.md` + six CSVs), from the maps, the
-  events compilation and the internal checks only; config `audit`.
-- `docs/audit/credibility_report.md`: what the audit found and the work that would make the results
-  more credible.
+### Products and checks
+- `crosswalk_coverage` (released): for each district on each earlier map, how much of it the 2025
+  districts cover and how much they do not. Invariant V26 (ERROR): it adds up exactly.
+- `products.min_source_share` and `products.arithmetic_tol_km2` moved into config (were hard-coded).
+- `known_geometry_gaps.csv` records Andhra Pradesh (2022) and Rajasthan (2023) as `EVENTS_ONLY`: the
+  events compilation dates their new districts, the SOI 2025 map does not show them.
+- Wikidata (e01-e03) is an internal gate check: not released, served or shown; the released research
+  queue omits its topic. `/api/evidence/*` and the Evidence page removed; `/api/districts/{ck}/research`
+  replaces `/api/districts/{ck}/evidence`.
+- Stage a02 credibility audit (`outputs/audit/CREDIBILITY_AUDIT.md` + CSVs) and a fixed expert-review
+  sample (`review_sample.csv`, verdicts in `data/reference/review_outcomes.csv`, error rate with a 95%
+  interval). `docs/audit/credibility_report.md`.
+
+### Engineering
+- `python -m district_evolution` CLI: `build` (stage order derived from dvc.yaml, per-stage timings in
+  `logs/`), `stages`, `validate` (exit 1 on an ERROR check), `info`, `harmonize`, `serve`.
+  `scripts/run_all.sh` ran 12 of 25 stages and would have failed at s11 on a clean checkout; it now calls
+  the CLI.
+- The release records its provenance (source commit, Python and package versions).
+- ruff and mypy configured and clean; every `zip()` is `strict=True` unless unequal lengths are intended.
+  CI runs them; `requirements-dev.txt`, `.pre-commit-config.yaml`; tests for the CLI, the curated
+  reference files and the identity rules.
 
 ### Fixed
-- An unknown `/api/...` path returned the web app's HTML with status 200; it is now a JSON 404.
-- The SQL example's fifth question now reproduces the event measurement rule (401 / 186 / 22)
-  instead of reading Wikidata verdicts.
+- V19 crashed when there was nothing to report (an empty list used as a row mask selects columns).
+- The harmonization engine crashed on a state with no districts on the map (same cause); now UNLINKED.
+- The audit counted one returning flow twice when two earlier flows preceded it.
+- An unknown `/api/...` path returned the web app with status 200; now a JSON 404.
 
 ## 3.9.0
 

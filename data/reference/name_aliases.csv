@@ -48,3 +48,58 @@ Aurangabad,Chhatrapati Sambhajinagar,Maharashtra,RENAME,DOCUMENTARY,Renamed by s
 Osmanabad,Dharashiv,Maharashtra,RENAME,DOCUMENTARY,Renamed by state government 2023
 Pondicherry,Puducherry,Puducherry,RENAME,DOCUMENTARY,Renamed 2006
 Balasore,Baleshwar,Odisha,SPELLING,NAME_NORMALIZATION,Transliteration variant
+Lushai Hills,Mizo Hills,Assam,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Lushai Hills/Mizo Hills (1951); one identity (IND-000011) on the 1951 and 1961 maps
+Purbi Singhbhum,East Singhbhum,Jharkhand,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Purbi Singhbhum/East Singhbhum (2011); one identity (IND-000039) on the 2021 and 2025 maps
+Ahmedabad,Ahmadabad,Gujarat,SPELLING,NAME_NORMALIZATION,"Transliteration variant: one identity (IND-000042) on the 1961 and 1971 maps, same consonant skeleton (hmdbd)"
+East Khandesh,Jalgaon,Maharashtra,RENAME,EVENTS_COMPILATION,Events compilation records RENAME East Khandesh/Jalgaon (1951); one identity (IND-000051) on the 1951 and 1961 maps
+Uttar Kannad,Uttara Kannada,Karnataka,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Uttara Kannada/Uttar Kannad (1981); one identity (IND-000054) on the 1981 and 1991 maps
+Mehsana,Mahesana,Gujarat,SPELLING,NAME_NORMALIZATION,"Transliteration variant: one identity (IND-000057) on the 1961 and 1971 maps, same consonant skeleton (mhsn)"
+Poona,Pune,Maharashtra,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Poona/Pune (1971); one identity (IND-000060) on the 1951 and 1961 maps
+Satara North,Satara,Maharashtra,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Satara North/Satara (1951); one identity (IND-000063) on the 1951 and 1961 maps
+Satara South,Sangli,Maharashtra,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Satara South/Sangli (1951); one identity (IND-000064) on the 1951 and 1961 maps
+Dhulia,Dhule,Maharashtra,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Dhulia/Dhule (1971); one identity (IND-000068) on the 1971 and 1981 maps
+Sirmoor,Sirmaur,Himachal Pradesh,SPELLING,NAME_NORMALIZATION,"Transliteration variant: one identity (IND-000077) on the 1951 and 1961 maps, same consonant skeleton (srmr)"
+Bhir,Bid,Maharashtra,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Bhir/Bid (1971); one identity (IND-000080) on the 1971 and 1981 maps
+Bhilsa,Vidisha,Madhya Pradesh,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Bhilsa/Vidisha (1951); one identity (IND-000097) on the 1951 and 1961 maps
+Gird,Gwalior,Madhya Pradesh,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Gird/Gwalior (1951); one identity (IND-000101) on the 1951 and 1961 maps
+Goona,Guna,Madhya Pradesh,SPELLING,NAME_NORMALIZATION,"Transliteration variant: one identity (IND-000102) on the 1951 and 1961 maps, same consonant skeleton (gn)"
+Khargone (West Nimar),West Nimar,Madhya Pradesh,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Khargone (West Nimar)/West Nimar (2001); one identity (IND-000107) on the 1971 and 1981 maps
+Bolangir,Balangir,Odisha,SPELLING,NAME_NORMALIZATION,"Transliteration variant: one identity (IND-000172) on the 1971 and 1981 maps, same consonant skeleton (blngr)"
+Phulbani,Baudh Khondmals,Odisha,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Phulbani/Baudh Khondmals (1951); one identity (IND-000180) on the 1961 and 1971 maps
+Mohindergarh,Mahendragarh,Haryana,SPELLING,NAME_NORMALIZATION,"Transliteration variant: one identity (IND-000189) on the 1951 and 1961 maps, same consonant skeleton (mhndrgrh)"
+Jullundur,Jalandhar,Punjab,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Jullundur/Jalandhar (1971); one identity (IND-000201) on the 1951 and 1961 maps
+Central Saurashtra,Rajkot,Gujarat,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Central Saurashtra/Rajkot (1951); one identity (IND-000232) on the 1951 and 1961 maps
+Gohilwad,Bhavnagar,Gujarat,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Gohilwad/Bhavnagar (1951); one identity (IND-000233) on the 1951 and 1961 maps
+Halar,Jamnagar,Gujarat,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Halar/Jamnagar (1951); one identity (IND-000234) on the 1951 and 1961 maps
+Sorath,Junagadh,Gujarat,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Sorath/Junagadh (1951); one identity (IND-000235) on the 1951 and 1961 maps
+Howrah,Haora,West Bengal,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Howrah/Haora (1971); one identity (IND-000308) on the 1971 and 1981 maps
+Hooghly,Hugli,West Bengal,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Hugli/Hooghly (1971); one identity (IND-000309) on the 1951 and 1961 maps
+Ropar,Rupnagar,Punjab,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Ropar/Rupnagar (1971); one identity (IND-000318) on the 1971 and 1981 maps
+Eranakulam,Ernakulam,Kerala,SPELLING,NAME_NORMALIZATION,"Transliteration variant: one identity (IND-000331) on the 1961 and 1971 maps, same consonant skeleton (rnklm)"
+Mikir Hills,Karbi Anglong,Assam,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Mikir Hills/Karbi Anglong (1971); one identity (IND-000351) on the 1971 and 1981 maps
+North Cachar Hills,Dima Hasao,Assam,RENAME,EVENTS_COMPILATION,Events compilation records RENAME North Cachar Hills/Dima Hasao (2001); one identity (IND-000352) on the 2001 and 2011 maps
+Manipur East,Ukhrul,Manipur,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Manipur East/Ukhrul (1981); one identity (IND-000361) on the 1971 and 1981 maps
+Manipur North,Senapati,Manipur,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Manipur North/Senapati (1981); one identity (IND-000362) on the 1971 and 1981 maps
+Manipur South,Churachandpur,Manipur,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Manipur South/Churachandpur (1981); one identity (IND-000363) on the 1971 and 1981 maps
+Manipur West,Tamenglong,Manipur,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Manipur West/Tamenglong (1981); one identity (IND-000364) on the 1971 and 1981 maps
+Pashchim Champaran,Pashchimi Champaran,Bihar,SPELLING,NAME_NORMALIZATION,"Transliteration variant: one identity (IND-000404) on the 2021 and 2025 maps, same consonant skeleton (pscmcmprn)"
+Purba Champaran,Purbi Champaran,Bihar,SPELLING,NAME_NORMALIZATION,"Transliteration variant: one identity (IND-000405) on the 1991 and 2001 maps, same consonant skeleton (prbcmprn)"
+Periyar,Erode,Tamil Nadu,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Periyar/Erode (1991); one identity (IND-000445) on the 1991 and 2001 maps
+Jehanabad,Jahanabad,Bihar,SPELLING,NAME_NORMALIZATION,"Transliteration variant: one identity (IND-000456) on the 2021 and 2025 maps, same consonant skeleton (jhnbd)"
+Pashchimi Singhbhum,West Singhbhum,Jharkhand,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Pashchimi Singhbhum/West Singhbhum (2011); one identity (IND-000461) on the 2021 and 2025 maps
+Dholpur,Dhaulpur,Rajasthan,SPELLING,NAME_NORMALIZATION,"Transliteration variant: one identity (IND-000478) on the 1991 and 2001 maps, same consonant skeleton (dlpr)"
+Kamarajar,Virudhunagar,Tamil Nadu,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Kamarajar/Virudhunagar (1991); one identity (IND-000481) on the 1991 and 2001 maps
+Kanker,Uttar Bastar Kanker,Chhattisgarh,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Kanker/Uttar Bastar Kanker (2001); one identity (IND-000508) on the 2001 and 2011 maps
+Kawardha,Kabeerdham,Chhattisgarh,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Kawardha/Kabeerdham (2001); one identity (IND-000509) on the 2001 and 2011 maps
+Koriya,Korea,Chhattisgarh,SPELLING,NAME_NORMALIZATION,"Transliteration variant: one identity (IND-000511) on the 2021 and 2025 maps, same consonant skeleton (kr)"
+Dohad,Dahod,Gujarat,SPELLING,NAME_NORMALIZATION,"Transliteration variant: one identity (IND-000523) on the 2021 and 2025 maps, same consonant skeleton (dhd)"
+Neemuch,Nimach,Madhya Pradesh,SPELLING,NAME_NORMALIZATION,"Transliteration variant: one identity (IND-000549) on the 2021 and 2025 maps, same consonant skeleton (nmc)"
+Sonapur,Subarnapur,Odisha,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Sonapur/Subarnapur (2001); one identity (IND-000586) on the 2001 and 2011 maps
+Muktsar,Sri Muktsar Sahib,Punjab,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Muktsar/Sri Muktsar Sahib (2011); one identity (IND-000590) on the 2011 and 2021 maps
+Nawanshahr,Shahid Bhagat Singh Nagar,Punjab,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Nawanshahr/Shahid Bhagat Singh Nagar (2001); one identity (IND-000591) on the 2001 and 2011 maps
+Mahamaya Nagar,Hathras,Uttar Pradesh,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Hathras/Mahamaya Nagar (2011); one identity (IND-000616) on the 2001 and 2011 maps
+Jyotiba Phule Nagar,Amroha,Uttar Pradesh,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Jyotiba Phule Nagar/Amroha (2011); one identity (IND-000617) on the 2011 and 2021 maps
+Sant Ravidas Nagar (Bhadohi),Bhadohi,Uttar Pradesh,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Sant Ravidas Nagar (Bhadohi)/Bhadohi (2011); one identity (IND-000624) on the 2011 and 2021 maps
+Peren,Paren,Nagaland,SPELLING,NAME_NORMALIZATION,"Transliteration variant: one identity (IND-000675) on the 2021 and 2025 maps, same consonant skeleton (prn)"
+Kanshiram Nagar,Kasganj,Uttar Pradesh,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Kanshiram Nagar/Kasganj (2011); one identity (IND-000682) on the 2011 and 2021 maps
+Sipahijala,Sepahijala,Tripura,SPELLING,NAME_NORMALIZATION,"Transliteration variant: one identity (IND-000779) on the 2021 and 2025 maps, same consonant skeleton (sphjl)"

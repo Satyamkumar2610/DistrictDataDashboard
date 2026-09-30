@@ -20,6 +20,11 @@ For window a->b with non-sliver overlay area N[i, j]:
        CARVE_OUT_CORE      h >= strong, r >= core
        NAME_RETAINED_CORE  h >= strong, name_retained <= r < core
        REORGANISED_CORE    core <= h < strong
+1b. Growth (OD-02): i is essentially intact in j (r >= strong) and keeps its
+   name, but j is built mostly from other land (h < core) that no continuing
+   district claims: the district grew by absorbing neighbours' land (Chennai
+   2011->2021: 178 -> 438 km2). i continues as j when h >= growth_min_h.
+       GROWTH_NAME_RETAINED
 3. Otherwise i closes; the targets get new CKs linked by lineage edges.
        BREAK_NAME_DIFFERS  a candidate existed but none carries i's name
                            (clean split: Malabar 1957, 24 Parganas 1986)
@@ -85,6 +90,13 @@ def window_decisions(ya: int, yb: int, flow: pd.DataFrame, a: pd.DataFrame, b: p
                      "h_share": float(row.h), "name_jw": round(float(sim), 6), "names_agree": bool(agree),
                      "continuity_class": cls, "continues": not cls.startswith("BREAK")})
     d = pd.DataFrame(rows)
+    if ID["growth_continues"]:
+        # rule 1b (OD-02), after rules 1-2 so a target another source continues into is never taken
+        taken = set(d[d.continues].geom_obs_id_b)
+        grow = (~d.continues & (d.r_share >= ID["strong"]) & d.names_agree
+                & (d.h_share >= ID["growth_min_h"]) & ~d.geom_obs_id_b.isin(taken))
+        d.loc[grow, "continuity_class"] = "GROWTH_NAME_RETAINED"
+        d.loc[grow, "continues"] = True
     claimed = d[d.continues].geom_obs_id_b
     if claimed.duplicated().any():
         raise AssertionError(f"continuity is not one-to-one in {ya}->{yb}")
@@ -117,7 +129,7 @@ def main() -> None:
         d = window_decisions(ya, yb, flow, layers[ya], layers[yb])
         decisions.append(d)
         cont = d[d.continues]
-        successor_of = dict(zip(cont.geom_obs_id_b, cont.geom_obs_id_a))
+        successor_of = dict(zip(cont.geom_obs_id_b, cont.geom_obs_id_a, strict=True))
         for row in layers[yb].itertuples():
             src = successor_of.get(row.geom_obs_id)
             obs_ck[row.geom_obs_id] = obs_ck[src] if src else mint(row, yb, "NEW")
@@ -141,29 +153,29 @@ def main() -> None:
     reg["is_active"] = reg["closed_year"].isna()
     # When did it really happen? Map years are labels; the interval between the
     # dates two maps DEPICT (core.depicted_year) is what the evidence supports.
-    prev = dict(zip(core.YEARS[1:], core.YEARS[:-1]))
+    prev = dict(zip(core.YEARS[1:], core.YEARS[:-1], strict=True))
     last_seen = latest.year
     reg["formed_after"] = [core.depicted_year(s, prev[y]) if y in prev else None
-                           for s, y in zip(reg.state_at_creation, reg.established_year)]
-    reg["formed_by"] = [core.depicted_year(s, y) for s, y in zip(reg.state_at_creation, reg.established_year)]
+                           for s, y in zip(reg.state_at_creation, reg.established_year, strict=True)]
+    reg["formed_by"] = [core.depicted_year(s, y) for s, y in zip(reg.state_at_creation, reg.established_year, strict=True)]
     reg["closed_after"] = [core.depicted_year(s, last_seen[c]) if pd.notna(y) else None
-                           for c, s, y in zip(reg.canonical_key, reg.latest_state, reg.closed_year)]
+                           for c, s, y in zip(reg.canonical_key, reg.latest_state, reg.closed_year, strict=True)]
     reg["closed_by"] = [core.depicted_year(s, int(y)) if pd.notna(y) else None
-                        for s, y in zip(reg.latest_state, reg.closed_year)]
+                        for s, y in zip(reg.latest_state, reg.closed_year, strict=True)]
     reg = reg[["canonical_key", "established_year", "closed_year", "is_active", "origin_kind",
                "display_name", "state_at_creation", "latest_name", "latest_state", "n_observations",
                "formed_after", "formed_by", "closed_after", "closed_by"]]
 
-    decisions = pd.concat(decisions, ignore_index=True)
+    decision_df = pd.concat(decisions, ignore_index=True)
     core.write_table(reg, core.GOLD_CORE_DIR / "ck_registry.parquet", "ck_registry",
                     csv_copy=core.OUTPUT_DIR / "s04_ck_registry.csv")
     core.write_table(ck_obs, core.GOLD_CORE_DIR / "ck_observation.parquet", "ck_observation")
-    core.write_table(decisions, core.GOLD_CORE_DIR / "continuity_decision.parquet", "continuity_decision",
+    core.write_table(decision_df, core.GOLD_CORE_DIR / "continuity_decision.parquet", "continuity_decision",
                     csv_copy=core.OUTPUT_DIR / "s04_continuity_decisions.csv")
 
     n_active = int(reg.is_active.sum())
     print(f"CKs: {len(reg)}  active at {core.YEARS[-1]}: {n_active}  closed: {len(reg) - n_active}")
-    print(decisions.continuity_class.value_counts().to_string())
+    print(decision_df.continuity_class.value_counts().to_string())
     if n_active != len(layers[core.YEARS[-1]]):
         sys.exit(f"V13 FAILED: {n_active} active CKs vs {len(layers[core.YEARS[-1]])} features in {core.YEARS[-1]}")
 

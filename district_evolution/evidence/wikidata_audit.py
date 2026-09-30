@@ -29,9 +29,8 @@ import pandas as pd
 from shapely import wkt
 
 from district_evolution import core
-from district_evolution.evidence import rules
+from district_evolution.evidence import rules, wikidata
 from district_evolution.evidence.geo import locate
-from district_evolution.evidence import wikidata
 
 OUT = core.PROJECT_ROOT / "outputs" / "audit"
 
@@ -53,7 +52,8 @@ def main(snapshot_path: str | None = None) -> None:
 
     # ---- 1. coverage / matching -------------------------------------------
     m = current.join(locate(current, ref, obs))
-    m["name_agree"] = [bool(o) and core.names_agree(a, o)[0] for a, o in zip(m.label_norm, m.our_name_norm.fillna(""))]
+    m["name_agree"] = [bool(o) and core.names_agree(a, o)[0]
+                       for a, o in zip(m.label_norm, m.our_name_norm.fillna(""), strict=True)]
     m["match_status"] = np.select(
         [m.canonical_key.isna(), m.name_agree],
         ["NO_POLYGON", "GEOMETRY_AND_NAME"], default="GEOMETRY_ONLY_NAME_DIFFERS")
@@ -73,11 +73,11 @@ def main(snapshot_path: str | None = None) -> None:
     a["our_area_2011_km2"] = [area.get((c, 2011), np.nan) for c in a.canonical_key]
     a["rel_diff_2025"] = (a.our_area_2025_km2 - a.wd_area_km2) / a.wd_area_km2
     a["rel_diff_2011"] = (a.our_area_2011_km2 - a.wd_area_km2) / a.wd_area_km2
-    a["matches_our_year"] = [rules.earlier_area_match(c, w, area) for c, w in zip(a.canonical_key, a.wd_area_km2)]
-    a["magnitude_slip"] = [rules.magnitude_slip(c, w, area) for c, w in zip(a.canonical_key, a.wd_area_km2)]
+    a["matches_our_year"] = [rules.earlier_area_match(c, w, area) for c, w in zip(a.canonical_key, a.wd_area_km2, strict=True)]
+    a["magnitude_slip"] = [rules.magnitude_slip(c, w, area) for c, w in zip(a.canonical_key, a.wd_area_km2, strict=True)]
     reorganised = rules.reorganised_after_2011(rel, reg)
     a["area_verdict"] = [rules.area_label(d, s, e, c in reorganised) for d, s, e, c in
-                         zip(a.rel_diff_2025, a.magnitude_slip, a.matches_our_year, a.canonical_key)]
+                         zip(a.rel_diff_2025, a.magnitude_slip, a.matches_our_year, a.canonical_key, strict=True)]
     a[["qid", "label", "canonical_key", "our_name", "wd_area_km2", "area_referenced", "our_area_2025_km2",
        "our_area_2011_km2", "rel_diff_2025", "matches_our_year", "magnitude_slip", "area_verdict"]].sort_values(
         "rel_diff_2025", key=abs, ascending=False).to_csv(OUT / "area_audit.csv", index=False)
@@ -90,15 +90,15 @@ def main(snapshot_path: str | None = None) -> None:
     f["formed_after"] = f.canonical_key.map(reg.formed_after)
     f["formed_by"] = f.canonical_key.map(reg.formed_by)
     state = f.canonical_key.map(reg.state_at_creation)
-    lags = [rules.lag_start(s, y) for s, y in zip(state, f.our_first_map)]
+    lags = [rules.lag_start(s, y) for s, y in zip(state, f.our_first_map, strict=True)]
     f["formation_verdict"] = [rules.formation_label(r.inception, r.formed_after, r.formed_by, ls)
-                              for r, ls in zip(f.itertuples(), lags)]
+                              for r, ls in zip(f.itertuples(), lags, strict=True)]
     f[["qid", "label", "canonical_key", "inception", "our_first_map", "formed_after", "formed_by",
        "formation_verdict"]].to_csv(OUT / "formation_audit.csv", index=False)
 
     # ---- 4. lineage -------------------------------------------------------------
     by_qid = items.set_index("qid")
-    child_ck = dict(zip(matched.qid, matched.canonical_key))
+    child_ck = dict(zip(matched.qid, matched.canonical_key, strict=True))
     edges = {(x.from_ck, x.to_ck) for x in rel.itertuples()}
     rows = []
     for x in lineage.itertuples():
@@ -119,7 +119,7 @@ def main(snapshot_path: str | None = None) -> None:
     lin = pd.DataFrame(rows).drop_duplicates(["child_qid", "parent_qid"])
     lin.to_csv(OUT / "lineage_audit.csv", index=False)
 
-    md = map_dates(reg, dict(zip(matched.canonical_key, matched.inception)))
+    md = map_dates(reg, dict(zip(matched.canonical_key, matched.inception, strict=True)))
     report(meta, m, matched, uncovered, a, f, lin, reg, md)
 
 
@@ -136,7 +136,6 @@ def map_dates(reg: pd.DataFrame, wd_inception: dict) -> pd.DataFrame:
 def report(meta, m, matched, uncovered, a, f, lin, reg, md) -> None:
     vc = lambda s: s.value_counts().rename_axis("verdict").rename("n").reset_index().to_markdown(index=False)  # noqa: E731
     unexpl = a[a.area_verdict == "UNEXPLAINED_OVER_10PCT"].sort_values("rel_diff_2025", key=abs, ascending=False)
-    wd_only = m[m.match_status != "GEOMETRY_AND_NAME"].sort_values("label")
     txt = f"""# External audit — v3 outputs vs Wikidata (snapshot {meta['retrieved']})
 
 Wikidata is independent of the Stanford/SOI maps and of the events CSV, so
@@ -177,7 +176,8 @@ Share of compared districts that agree or whose difference is explained:
 
 Unexplained differences over 10% ({len(unexpl)}). These are leads to check against official figures:
 
-{unexpl[["label", "our_name", "wd_area_km2", "our_area_2025_km2", "our_area_2011_km2", "rel_diff_2025"]].head(30).round(3).to_markdown(index=False)}
+{unexpl[["label", "our_name", "wd_area_km2", "our_area_2025_km2", "our_area_2011_km2", "rel_diff_2025"]]
+  .head(30).round(3).to_markdown(index=False)}
 
 ## 3. Formation year (Wikidata inception vs the map where our CK first appears)
 

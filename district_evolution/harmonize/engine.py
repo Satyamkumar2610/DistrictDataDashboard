@@ -56,9 +56,10 @@ def link(obs: pd.DataFrame, tables: Path | None = None) -> pd.DataFrame:
 
     out = obs.copy()
     declared = out["map_year"] if "map_year" in out else pd.Series(float("nan"), index=out.index)
-    out["map_year"] = [float(d) if pd.notna(d) else map_year(s, y) for d, s, y in zip(declared, out.state, out.year)]
-    cks, status = [], []
-    for name, state, my in zip(out.raw_name, out.state, out.map_year):
+    out["map_year"] = [float(d) if pd.notna(d) else map_year(s, y) for d, s, y in zip(declared, out.state, out.year, strict=True)]
+    cks: list[str | None] = []
+    status: list[str] = []
+    for name, state, my in zip(out.raw_name, out.state, out.map_year, strict=True):
         if pd.isna(my):
             cks.append(None)
             status.append("BEFORE_FIRST_MAP")
@@ -73,7 +74,7 @@ def link(obs: pd.DataFrame, tables: Path | None = None) -> pd.DataFrame:
         for cands in scopes:
             hit = cands[cands.name_norm == n]
             if hit.empty:
-                hit = cands[[core.names_agree(n, x)[0] for x in cands.name_norm]]
+                hit = cands[[core.names_agree(n, x)[0] for x in cands.name_norm]] if len(cands) else cands
             ids = sorted(set(hit.canonical_key))
             if ids:
                 break
@@ -81,9 +82,9 @@ def link(obs: pd.DataFrame, tables: Path | None = None) -> pd.DataFrame:
         status.append("LINKED" if len(ids) == 1 else ("AMBIGUOUS" if ids else "UNLINKED"))
     out["canonical_key"] = cks
     out["link_status"] = status
-    depicted = [core.depicted_year(s, int(m)) if pd.notna(m) else None for s, m in zip(out.state, out.map_year)]
+    depicted = [core.depicted_year(s, int(m)) if pd.notna(m) else None for s, m in zip(out.state, out.map_year, strict=True)]
     out["boundary_uncertain"] = [bool(c) and any(d < e <= y for e in event_years.get(c, []))
-                                 for c, d, y in zip(out.canonical_key, depicted, out.year)]
+                                 for c, d, y in zip(out.canonical_key, depicted, out.year, strict=True)]
     return out
 
 

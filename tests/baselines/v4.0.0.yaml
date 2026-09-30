@@ -1,16 +1,30 @@
 # Regression baselines for pipeline v4.0.0.
-# Delta from v3.9.0 (MAJOR: the nine "Disputed (...)" strips on the SOI 2025 map are excluded in s01 as
-# non-administrative placeholders; their keys are retired, see data/reference/ck_migration_v3_to_v4.csv):
-#   ck_registry 804 -> 795, ck_observation / district_area_admin / stat_observation 4614 -> 4605
-#     (9 retired identities, one 2025 observation each); is_active true 742 -> 733.
-#   district_relationship / lineage_corroboration 633 -> 625: FORMED_FROM 494 -> 486, the eight edges
-#     that carried 2021 land into a strip (the ninth strip had no material transfer).
-#   transition_flow 51991 -> 51767: overlay parts that touched a strip.
-#   crosswalk_to_reference / statistical_crosswalk 23398 -> 23271: weights into the strips.
-#   district_reference_context / stat_harmonized_value 6678 -> 6597: 9 targets x 9 maps.
-#   claim_verdict EXPLAINED 105 -> 104, CONFLICT 214 -> 215; research_queue CLAIM_CONFLICT 214 -> 215:
-#     Alirajpur's area difference with Wikidata (3,332.5 vs 2,165 km2) was explained as "reorganised
-#     after 2011" only because it lost 4.4 km2 to a strip; it is an open question again.
+# Delta from v3.9.0 (MAJOR, keys change; every v3 key resolves via data/reference/ck_migration_v3_to_v4.csv):
+#  (1) s01 excludes the nine "Disputed (...)" strips on the SOI 2025 map (config placeholders).
+#  (2) OD-02 growth continuation (identity.growth_continues): 10 districts that stay whole, keep their
+#      name and grow keep their key (BREAK_NO_CORE 19 -> 9, GROWTH_NAME_RETAINED 10).
+#  (3) s08 compares an event's state with the state holding the district's land today, and the match
+#      threshold moves to 0.52 (config linkage); 55 aliases added (scripts/curation/propose_aliases.py).
+#  (4) New product crosswalk_coverage (+1 contract: 34 -> 35).
+#   ck_registry 804 -> 785 (-9 retired strips, -10 keys no longer minted by (2)); active 742 -> 733 (1),
+#     closed 62 -> 52 (2).
+#   ck_observation / district_area_admin / stat_observation 4614 -> 4605; transition_flow 51991 -> 51767;
+#     crosswalk_to_reference / statistical_crosswalk 23398 -> 23271; district_reference_context /
+#     stat_harmonized_value 6678 -> 6597 (9 targets x 9 maps): all (1).
+#   district_relationship / lineage_corroboration 633 -> 602: FORMED_FROM 494 -> 475 (8 into strips (1);
+#     11 into districts that now continue (2), recorded as measured transfers instead); SPLIT_FROM
+#     134 -> 125 and MERGED_INTO 3 -> 0: a grown district no longer splits from / merges into its own new
+#     key (2); Khawzawl and Saitual now pass their land to Champhai, which continues, as transfers.
+#   measured_area_transfer 1358 -> 1371 (+11 and +2 above).
+#   event_linkage LINKED 1094 -> 1103, RETAINED_SELF 469 -> 480, UNRESOLVED_NAME 132 -> 124,
+#     OUTSIDE_FOOTPRINT 42 -> 35, LINKED_NAME_ONLY 25 -> 22, LINKED_AMBIGUOUS 15 -> 13 (3). Corrections
+#     include Raigarh 1998 (was linked to Raygad, Maharashtra) and Manipur East/West (were swapped).
+#   event_summary MEASURED 401 -> 399, UNIDENTIFIED_MULTI_EVENT_WINDOW 186 -> 189, NOT_MEASURABLE 22 -> 21:
+#     more linked participants reveal more windows shared by two events.
+#   lineage edges corroborated by an event 431 -> 436 (of 602 edges, was of 633).
+#   claim_ck_link LINKED 1395 -> 1413; claim_verdict AGREE 1213 -> 1228, CONFLICT 214 -> 210,
+#     EXPLAINED 105 -> 103, NOT_CHECKABLE 239 -> 230 (Wikidata, internal check): aliases let more names agree.
+#   research_queue 395 -> 376: CLAIM_CONFLICT 210, EVENT_NAME_UNRESOLVED 124, OUTSIDE_FOOTPRINT 35.
 # Delta from v3.8.0 (WP9-WP11 evidence page, container, examples): none.
 # Delta from v3.7.0 (WP8 harmonize your data): none. The engine can also read a release; h01-h05 outputs unchanged.
 # Delta from v3.6.0 (WP7 platform insights): none. API endpoints and web pages only.
@@ -29,62 +43,41 @@
 # Golden histories (Kangra, Hoshangabad, Durg, Jhansi, Nellore, Belgaum, Adilabad, Malabar,
 # 24 Parganas) are asserted in tests/test_golden_history.py.
 
-row_counts:
-  ck_registry: 795
-  ck_observation: 4605
-  continuity_decision: 3872
-  district_relationship: 625
-  measured_area_transfer: 1358
-  lineage_corroboration: 625
-  transition_flow: 51767
-  boundary_event: 609
-  event_summary: 609
-  event_linkage: 1777
-  crosswalk_to_reference: 23271
-  district_area_admin: 4605
-  district_reference_context: 6597
-  evidence_claim: 1771
-  claim_ck_link: 1771
-  claim_verdict: 1771
-  research_queue: 396
-  stat_observation: 4605
-  statistical_crosswalk: 23271
-  stat_harmonized_value: 6597
-  stat_ratio_value: 0
-  harmonization_check: 9
-
+row_counts: {ck_registry: 785, ck_observation: 4605, continuity_decision: 3872, district_relationship: 602, measured_area_transfer: 1371,
+  lineage_corroboration: 602, transition_flow: 51767, boundary_event: 609, event_summary: 609, event_linkage: 1777,
+  crosswalk_to_reference: 23271, district_area_admin: 4605, district_reference_context: 6597, evidence_claim: 1771,
+  claim_ck_link: 1771, claim_verdict: 1771, research_queue: 376, stat_observation: 4605, statistical_crosswalk: 23271,
+  stat_harmonized_value: 6597, stat_ratio_value: 0, harmonization_check: 9, crosswalk_coverage: 3872}
 breakdowns:
-  - table: ck_registry
-    column: is_active
-    counts: {true: 733, false: 62}
-  - table: continuity_decision
-    column: continuity_class
-    counts: {STRONG: 3243, CARVE_OUT_CORE: 302, ABSORPTION_CORE: 124, NAME_RETAINED_CORE: 101,
-             BREAK_NAME_DIFFERS: 43, REORGANISED_CORE: 40, BREAK_NO_CORE: 19}
-  - table: district_relationship
-    column: relationship_type
-    counts: {FORMED_FROM: 486, SPLIT_FROM: 134, MERGED_INTO: 3, RECONSTITUTED_FROM: 2}
-  # measurement_status lives in event_summary, not boundary_event
-  - table: event_summary
-    column: measurement_status
-    counts: {MEASURED: 401, UNIDENTIFIED_MULTI_EVENT_WINDOW: 186, NOT_MEASURABLE: 22}
-  - table: event_linkage
-    column: link_status
-    counts: {LINKED: 1094, RETAINED_SELF: 469, UNRESOLVED_NAME: 132, OUTSIDE_FOOTPRINT: 42,
-             LINKED_NAME_ONLY: 25, LINKED_AMBIGUOUS: 15}
-  - table: claim_ck_link
-    column: link_status
-    counts: {LINKED: 1395, LINKED_GEOMETRY_ONLY: 331, UNLINKED: 45}
-  - table: claim_verdict
-    column: verdict
-    counts: {AGREE: 1213, CONFLICT: 215, EXPLAINED: 104, NOT_CHECKABLE: 239}
-  - table: research_queue
-    column: topic
-    counts: {CLAIM_CONFLICT: 215, EVENT_NAME_OUTSIDE_FOOTPRINT: 42, EVENT_NAME_UNRESOLVED: 132, MAP_DATE: 7}
-
-lineage_event_corroborated: 431
-
+- table: ck_registry
+  column: is_active
+  counts: {true: 733, false: 52}
+- table: continuity_decision
+  column: continuity_class
+  counts: {STRONG: 3243, CARVE_OUT_CORE: 302, ABSORPTION_CORE: 124, NAME_RETAINED_CORE: 101, BREAK_NAME_DIFFERS: 43,
+    REORGANISED_CORE: 40, GROWTH_NAME_RETAINED: 10, BREAK_NO_CORE: 9}
+- table: district_relationship
+  column: relationship_type
+  counts: {FORMED_FROM: 475, SPLIT_FROM: 125, RECONSTITUTED_FROM: 2}
+# measurement_status lives in event_summary, not boundary_event
+- table: event_summary
+  column: measurement_status
+  counts: {MEASURED: 399, UNIDENTIFIED_MULTI_EVENT_WINDOW: 189, NOT_MEASURABLE: 21}
+- table: event_linkage
+  column: link_status
+  counts: {LINKED: 1103, RETAINED_SELF: 480, UNRESOLVED_NAME: 124, OUTSIDE_FOOTPRINT: 35, LINKED_NAME_ONLY: 22,
+    LINKED_AMBIGUOUS: 13}
+- table: claim_ck_link
+  column: link_status
+  counts: {LINKED: 1413, LINKED_GEOMETRY_ONLY: 313, UNLINKED: 45}
+- table: claim_verdict
+  column: verdict
+  counts: {AGREE: 1228, NOT_CHECKABLE: 230, CONFLICT: 210, EXPLAINED: 103}
+- table: research_queue
+  column: topic
+  counts: {CLAIM_CONFLICT: 210, EVENT_NAME_UNRESOLVED: 124, EVENT_NAME_OUTSIDE_FOOTPRINT: 35, MAP_DATE: 7}
+lineage_event_corroborated: 436
 gate:
   error_violations: 0
   warnings_with_findings: [V17]
-  contracts_passing: 34
+  contracts_passing: 35

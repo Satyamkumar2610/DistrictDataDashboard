@@ -38,7 +38,7 @@ Bronze files are committed and must never be modified.
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/pip install -e . --no-deps   # once
-bash scripts/run_all.sh                   # full build + validation gate (~3.5 min)
+bash scripts/run_all.sh                   # = python -m district_evolution build && ... validate
 .venv/bin/python -m pytest tests          # unit tests, golden history, regression baselines (needs a built warehouse)
 source .venv/bin/activate && dvc repro    # same DAG; reruns only what changed; hashes in dvc.lock
 (cd web && npm ci && npm run build)       # web platform; then:
@@ -62,11 +62,11 @@ are evidence and never drive geometry.
 | s01 bronze→silver | Standardize geometry and compute geodesic area/perimeter. Exclude placeholders: unnamed polygons and "Disputed (…)" strips (config `placeholders`). Repair each layer into an exact partition (overlap goes to the enclave). |
 | s02 topology | V1 gate: layer self-overlap |
 | s03 transition matrix | Overlay adjacent vintages and each vintage against 2025. Classify every part as CORE / TRANSFER / BOUNDARY_DISPLACEMENT / SLIVER. |
-| s04 identity | Canonical keys (CKs) by core-territory continuity. Names break ties only when the geometry is ambiguous. |
+| s04 identity | Canonical keys (CKs) by core-territory continuity. Names break ties only when the geometry is ambiguous. A whole district that keeps its name and grows continues (OD-02). |
 | s05 lineage | FORMED_FROM / SPLIT_FROM / MERGED_INTO into new CKs; RECONSTITUTED_FROM across a gap (OD-01). Measured transfers between existing CKs. networkx DAG check. |
 | s06 ledger | Per-CK, per-window area accounting that closes exactly |
 | s07 events | CSV → administrative event grain. A change recorded as both NEW_DISTRICT and SPLIT is one event. |
-| s08 linkage | splink Fellegi-Sunter model linking event names to CK records (name + state-lineage evidence) |
+| s08 linkage | splink Fellegi-Sunter model linking event names to CK records (name + state evidence: the map's state, the district's present-day state, state lineage). V27 warns if a probability class nears the threshold. |
 | s09 reconciliation | Link successors only within the predecessor's territorial footprint. Partition-exact accounting. MEASURED only when there is one event per window. |
 | s10 products | `district_area_admin`, `crosswalk_to_reference`, `district_reference_context` |
 | e01 evidence claims | Every statement of every evidence source (now: the frozen Wikidata snapshot) as a cited claim: NAME, AREA, INCEPTION, PARENT |
@@ -144,7 +144,9 @@ Shared code:
 - Do not keep the working copy in an iCloud-synced folder (e.g. Desktop with iCloud Drive).
   iCloud duplicates rewritten outputs as `<name> 2.<ext>` (V20 now fails on them) and marks
   `.pth` files hidden, which Python 3.13 skips, so `pip install -e .` silently has no effect.
-- SOI 2025 lags Mizoram's 2019 districts (Khawzawl, Saitual; Hnahthial is also absent from the
-  events compilation), producing 3 `MERGED_INTO` edges into Champhai. Documented, not silently
-  fixed: `data/reference/known_geometry_gaps.csv` records the evidence, and `s12` check V19 fails
-  WARNING if a future build produces an undocumented `MERGED_INTO` edge of this kind.
+- SOI 2025 lags Mizoram's 2019 districts (Khawzawl, Saitual; Hnahthial is also absent from the events
+  compilation), Andhra Pradesh's 2022 reorganisation and Rajasthan's 2023 districts. Recorded in
+  `data/reference/known_geometry_gaps.csv` (Mizoram CONFIRMED; the other two EVENTS_ONLY until a second
+  source confirms them). Since OD-02 Champhai continues and absorbs Khawzawl's and Saitual's land as
+  measured transfers; V19 still fails WARNING if a future build produces an undocumented `MERGED_INTO` edge.
+- Credibility work plan: `docs/audit/credibility_report.md`.

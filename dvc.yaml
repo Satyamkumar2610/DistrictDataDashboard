@@ -140,6 +140,7 @@ stages:
       - data/reference/name_aliases.csv
       - data/gold/events/event_participant.parquet
       - data/gold/core/ck_observation.parquet
+      - data/gold/spatial/transition_flow.parquet
     outs:
       - data/gold/events/participant_ck_candidate.parquet: {cache: false}
       - outputs/events/s08_splink_model.json: {cache: false}
@@ -188,6 +189,8 @@ stages:
       - data/products/district_area_admin_wide.csv: {cache: false}
       - data/products/crosswalk_to_reference.parquet: {cache: false}
       - data/products/crosswalk_to_reference.csv: {cache: false}
+      - data/products/crosswalk_coverage.parquet: {cache: false}
+      - data/products/crosswalk_coverage.csv: {cache: false}
       - data/products/district_reference_context.parquet: {cache: false}
       - data/products/district_reference_context.csv: {cache: false}
       - data/products/district_reference_context_wide.csv: {cache: false}
@@ -415,6 +418,7 @@ stages:
       - outputs/audit/credibility_return_flows.csv: {cache: false}
       - outputs/audit/credibility_area_reversals.csv: {cache: false}
       - outputs/audit/credibility_name_changes.csv: {cache: false}
+      - outputs/audit/review_sample.csv: {cache: false}
 
   r02_data_dictionary:
     cmd: python -m district_evolution.stages.r02_data_dictionary
@@ -455,6 +459,7 @@ stages:
       - data/products/district_area_admin.parquet
       - data/products/crosswalk_to_reference.parquet
       - data/products/district_reference_context.parquet
+      - data/products/crosswalk_coverage.parquet
       - data/gold/evidence/research_queue.parquet
       - data/gold/harmonize/stat_observation.parquet
       - data/gold/harmonize/stat_harmonized_value.parquet

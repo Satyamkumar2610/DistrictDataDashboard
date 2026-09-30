@@ -8,7 +8,7 @@ import pandas as pd
 from district_evolution import core
 
 EV = core.CFG["evidence"]
-PREV_MAP = dict(zip(core.YEARS, [None] + core.YEARS[:-1]))
+PREV_MAP = dict(zip(core.YEARS, [None, *core.YEARS[:-1]], strict=True))
 
 # area label -> (verdict, reason). Minor differences count as agreement, as the audit reports them.
 AREA_VERDICT = {

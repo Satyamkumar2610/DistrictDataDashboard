@@ -49,37 +49,38 @@ strips where two editions draw one line differently; not on next map: land the n
 
 ## 4. Districts the events record but no map shows
 
-104 successor districts named in the events compilation match no district on any map.
-By state (full list: `credibility_map_lag.csv`):
+95 successor districts named in the events compilation match no district on any map.
+By state (full list: `credibility_map_lag.csv`; `gap_recorded` is the row in
+`data/reference/known_geometry_gaps.csv`, if any):
 
-| event_state                 |   unmapped_successors |   first_year |   last_year |
-|:----------------------------|----------------------:|-------------:|------------:|
-| Andhra Pradesh              |                    24 |         2022 |        2022 |
-| Rajasthan                   |                    16 |         1982 |        2023 |
-| Arunachal Pradesh           |                    11 |         1951 |        1980 |
-| Sikkim                      |                     8 |         1973 |        2021 |
-| Uttar Pradesh               |                     6 |         2011 |        2011 |
-| Tamil Nadu                  |                     5 |         1956 |        2020 |
-| Kerala                      |                     4 |         1957 |        1958 |
-| Madhya Pradesh              |                     4 |         1956 |        2003 |
-| Nagaland                    |                     4 |         2017 |        2021 |
-| Telangana                   |                     3 |         1978 |        2011 |
-| West Bengal                 |                     3 |         1981 |        2017 |
-| Andaman And Nicobar Islands |                     2 |         1974 |        1974 |
-| Assam                       |                     2 |         2020 |        2020 |
-| Karnataka                   |                     2 |         1951 |        2021 |
-| Manipur                     |                     2 |         1974 |        1974 |
-| Punjab                      |                     2 |         2011 |        2021 |
-| Jammu And Kashmir           |                     1 |         1956 |        1956 |
-| Maharashtra                 |                     1 |         2021 |        2021 |
-| Meghalaya                   |                     1 |         2021 |        2021 |
-| Mizoram                     |                     1 |         1961 |        1961 |
-| Tripura                     |                     1 |         2012 |        2012 |
-| Uttarakhand                 |                     1 |         1960 |        1960 |
+| event_state       |   unmapped_successors |   first_year |   last_year | gap_recorded   |
+|:------------------|----------------------:|-------------:|------------:|:---------------|
+| Andhra Pradesh    |                    24 |         2022 |        2022 | EVENTS_ONLY    |
+| Rajasthan         |                    15 |         2023 |        2023 | EVENTS_ONLY    |
+| Sikkim            |                     8 |         1973 |        2021 |                |
+| Uttar Pradesh     |                     6 |         2011 |        2011 |                |
+| Madhya Pradesh    |                     5 |         1956 |        2003 |                |
+| Tamil Nadu        |                     5 |         1956 |        2020 |                |
+| Daman And Diu     |                     4 |         1961 |        1961 |                |
+| Kerala            |                     4 |         1957 |        1958 |                |
+| Nagaland          |                     4 |         2017 |        2021 |                |
+| West Bengal       |                     3 |         1981 |        2017 |                |
+| Assam             |                     2 |         2020 |        2020 |                |
+| Karnataka         |                     2 |         1951 |        2021 |                |
+| Manipur           |                     2 |         1974 |        1974 |                |
+| Punjab            |                     2 |         2011 |        2021 |                |
+| Uttarakhand       |                     2 |         1960 |        1987 |                |
+| Arunachal Pradesh |                     1 |         1980 |        1980 |                |
+| Chandigarh        |                     1 |         1966 |        1966 |                |
+| Jammu And Kashmir |                     1 |         1956 |        1956 |                |
+| Maharashtra       |                     1 |         2021 |        2021 |                |
+| Meghalaya         |                     1 |         2021 |        2021 |                |
+| Telangana         |                     1 |         2011 |        2011 |                |
+| Tripura           |                     1 |         2012 |        2012 |                |
 
 ## 5. Land that moves and comes back
 
-581 flows are later reversed in part; 81 return at least
+547 flows are later reversed in part; 79 return at least
 100 km² (`credibility_return_flows.csv`). A large return between the same two
 districts often means two editions drew their shared line differently.
 
@@ -90,38 +91,40 @@ districts often means two editions drew their shared line differently.
 | IND-000001 | Ajmer              | IND-000231 | Udaipur       |     1961 |     1971 |          1,354 |          1971 |          1981 |               1,354 |          1,354 |
 | IND-000231 | Udaipur            | IND-000001 | Ajmer         |     1971 |     1981 |          1,354 |          1981 |          1991 |               1,354 |          1,354 |
 | IND-000419 | Kargil             | IND-000326 | Ladakh        |     2001 |     2011 |          1,756 |          2011 |          2021 |               1,172 |          1,172 |
-| IND-000235 | Sorath             | IND-000717 | Gir Somnath   |     2011 |     2021 |          3,745 |          2021 |          2025 |               1,139 |          1,139 |
+| IND-000235 | Sorath             | IND-000712 | Gir Somnath   |     2011 |     2021 |          3,745 |          2021 |          2025 |               1,139 |          1,139 |
 | IND-000119 | Bilaspur           | IND-000425 | Rajnandgaon   |     1971 |     1981 |          1,122 |          1981 |          1991 |               1,122 |          1,122 |
-| IND-000433 | Aizawl             | IND-000743 | Saitual       |     2011 |     2021 |          1,024 |          2021 |          2025 |               1,053 |          1,024 |
-| IND-000435 | Lunglei            | IND-000741 | Hnahthial     |     2011 |     2021 |            999 |          2021 |          2025 |               1,025 |            999 |
+| IND-000559 | Champhai           | IND-000735 | Khawzawl      |     2011 |     2021 |          1,136 |          2021 |          2025 |               1,115 |          1,115 |
+| IND-000433 | Aizawl             | IND-000736 | Saitual       |     2011 |     2021 |          1,024 |          2021 |          2025 |               1,053 |          1,024 |
+| IND-000435 | Lunglei            | IND-000734 | Hnahthial     |     2011 |     2021 |            999 |          2021 |          2025 |               1,025 |            999 |
 | IND-000331 | Eranakulam         | IND-000422 | Idukki        |     1971 |     1981 |            809 |          1981 |          1991 |                 948 |            809 |
 | IND-000352 | North Cachar Hills | IND-000005 | Cachar        |     1981 |     1991 |            732 |          1991 |          2001 |                 732 |            732 |
-| IND-000286 | Raebareli          | IND-000781 | Amethi        |     2011 |     2021 |          1,323 |          2021 |          2025 |                 667 |            667 |
+| IND-000559 | Champhai           | IND-000736 | Saitual       |     2011 |     2021 |            714 |          2021 |          2025 |                 690 |            690 |
+| IND-000286 | Raebareli          | IND-000773 | Amethi        |     2011 |     2021 |          1,323 |          2021 |          2025 |                 667 |            667 |
 | IND-000001 | Ajmer              | IND-000231 | Udaipur       |     1981 |     1991 |          1,354 |          1991 |          2001 |                 602 |            602 |
-| IND-000202 | Kangra             | IND-000468 | Una           |     1981 |     1991 |          1,169 |          2001 |          2011 |                 564 |            564 |
-| IND-000247 | Azamgarh           | IND-000488 | Mau           |     1981 |     1991 |          2,220 |          1991 |          2001 |                 558 |            558 |
+| IND-000202 | Kangra             | IND-000417 | Una           |     1981 |     1991 |          1,169 |          2001 |          2011 |                 564 |            564 |
+| IND-000247 | Azamgarh           | IND-000487 | Mau           |     1981 |     1991 |          2,220 |          1991 |          2001 |                 558 |            558 |
 | IND-000235 | Sorath             | IND-000043 | Amreli        |     1951 |     1961 |            554 |          1991 |          2001 |                 554 |            554 |
 | IND-000203 | Karnal             | IND-000465 | Panipat       |     1981 |     1991 |          1,882 |          1991 |          2001 |                 537 |            537 |
-| IND-000248 | Bahraich           | IND-000625 | Shrawasti     |     1991 |     2001 |          2,510 |          2001 |          2011 |                 524 |            524 |
+| IND-000248 | Bahraich           | IND-000621 | Shrawasti     |     1991 |     2001 |          2,510 |          2001 |          2011 |                 524 |            524 |
 | IND-000368 | South Tripura      | IND-000367 | North Tripura |     1971 |     1981 |            512 |          1981 |          1991 |                 512 |            512 |
 | IND-000200 | Hoshiarpur         | IND-000201 | Jullundur     |     1971 |     1981 |            489 |          1981 |          1991 |                 489 |            489 |
 | IND-000278 | Mathura            | IND-000244 | Aligarh       |     1971 |     1981 |            464 |          1981 |          1991 |                 464 |            464 |
-| IND-000217 | Ganganagar         | IND-000594 | Hanumangarh   |     2001 |     2011 |            477 |          2011 |          2021 |                 462 |            462 |
+| IND-000217 | Ganganagar         | IND-000591 | Hanumangarh   |     2001 |     2011 |            477 |          2011 |          2021 |                 462 |            462 |
 | IND-000380 | Barpeta            | IND-000381 | Bongaigaon    |     1981 |     1991 |            388 |          1991 |          2001 |                 388 |            388 |
-| IND-000140 | Cuddapah           | IND-000145 | Kurnool       |     1951 |     1961 |            362 |          1961 |          1971 |                 362 |            362 |
-| IND-000010 | Lakhimpur          | IND-000382 | Dhemaji       |     1971 |     1981 |          3,321 |          1981 |          1991 |                 346 |            346 |
 
 ## 6. Area that jumps and returns
 
 | canonical_key   | name        |   map |   next_map |   area_km2 |   next_area_km2 |   back_by_map |
 |:----------------|:------------|------:|-----------:|-----------:|----------------:|--------------:|
+| IND-000305      | Calcutta    |  2011 |       2021 |        194 |              99 |          2025 |
 | IND-000331      | Eranakulam  |  1971 |       1981 |      2,925 |           2,116 |          1991 |
 | IND-000347      | Pithoragarh |  1971 |       1981 |      6,896 |           8,698 |          2001 |
 | IND-000433      | Aizawl      |  2011 |       2021 |      3,173 |           2,128 |          2025 |
+| IND-000559      | Champhai    |  2011 |       2021 |      3,497 |           1,578 |          2025 |
 
 ## 7. Name changes not recorded as aliases
 
-152 consecutive-map name changes in 107 identities neither agree
+81 consecutive-map name changes in 61 identities neither agree
 (identity.name_jw) nor appear in `data/reference/name_aliases.csv` (`credibility_name_changes.csv`).
 Most are spellings (Ahmadnagar / Ahmednagar); each unrecorded one weakens the name tie-break.
 
@@ -129,11 +132,22 @@ Most are spellings (Ahmadnagar / Ahmednagar); each unrecorded one weakens the na
 
 | status                          |   events |
 |:--------------------------------|---------:|
-| MEASURED                        |      401 |
-| UNIDENTIFIED_MULTI_EVENT_WINDOW |      186 |
-| NOT_MEASURABLE                  |       22 |
+| MEASURED                        |      399 |
+| UNIDENTIFIED_MULTI_EVENT_WINDOW |      189 |
+| NOT_MEASURABLE                  |       21 |
 
 Sources cited by the 609 events: 3 distinct values, all file names; events citing a
 documentary source (gazette, notification, census handbook): 0.
+
+## 9. Expert review
+
+A fixed sample to check by hand (`review_sample.csv`; the same items on every build). Record each verdict
+(CORRECT, WRONG or UNSURE) with its evidence in `data/reference/review_outcomes.csv`; this section then
+reports the measured error rate with a 95% interval.
+
+| item_type     |   sampled |   reviewed |   wrong | error_rate_95pct   |
+|:--------------|----------:|-----------:|--------:|:-------------------|
+| LINEAGE_EDGE  |        30 |          0 |       0 | not yet reviewed   |
+| CROSSWALK_ROW |        30 |          0 |       0 | not yet reviewed   |
 
 Active districts on the 2025 map: 733.

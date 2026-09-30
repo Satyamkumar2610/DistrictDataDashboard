@@ -11,6 +11,11 @@ crosswalk_to_reference
     assumption. Sliver noise is excluded; boundary displacement is kept (it is
     where the older map places that district). This is the area weight that
     statistical harmonization starts from.
+crosswalk_coverage
+    For each district on each earlier map: how much of its area the reference map's districts
+    cover (share_on_reference) and how much they do not (unallocated_km2). Statistics reported
+    for the unallocated part cannot be restated on the reference districts; weights are never
+    renormalised to hide it (most of it is the Jammu & Kashmir territory some maps leave out).
 district_reference_context
     For each reference-year district and each year Y: how much of it was
     mapped, how many Y districts it drew on, and its primary Y container
@@ -25,17 +30,17 @@ import pandas as pd
 from district_evolution import core
 
 REF = core.REFERENCE_YEAR
-MIN_SOURCE_SHARE = 0.01  # a source counts as "drawn on" if it supplies >= 1% of the target
+MIN_SOURCE_SHARE = core.CFG["products"]["min_source_share"]
 
 
 def main() -> None:
     obs = pd.read_parquet(core.GOLD_CORE_DIR / "ck_observation.parquet")
     reg = pd.read_parquet(core.GOLD_CORE_DIR / "ck_registry.parquet").set_index("canonical_key")
-    ck = dict(zip(obs.geom_obs_id, obs.canonical_key))
+    ck = dict(zip(obs.geom_obs_id, obs.canonical_key, strict=True))
 
     admin = obs[["canonical_key", "year", "district_name", "state", "area_km2"]].sort_values(["canonical_key", "year"])
     # the year these boundaries actually depict (differs from the map label for confirmed cases)
-    admin.insert(2, "depicted_year", [core.depicted_year(s, y) for s, y in zip(admin.state, admin.year)])
+    admin.insert(2, "depicted_year", [core.depicted_year(s, y) for s, y in zip(admin.state, admin.year, strict=True)])
     core.write_table(admin, core.PRODUCTS_DIR / "district_area_admin.parquet", "district_area_admin",
                     csv_copy=core.PRODUCTS_DIR / "district_area_admin.csv")
     wide = admin.pivot(index="canonical_key", columns="year", values="area_km2").add_prefix("area_km2_")
@@ -56,13 +61,23 @@ def main() -> None:
     xw = xw[xw.area_km2 > 0]
     src_area = obs.set_index(["canonical_key", "year"]).area_km2
     tgt_area = ref.set_index("canonical_key").area_km2
-    xw["share_of_source"] = (xw.area_km2 / [src_area[(c, y)] for c, y in zip(xw.source_ck, xw.year)]).clip(upper=1.0)
+    xw["share_of_source"] = (xw.area_km2 / [src_area[(c, y)] for c, y in zip(xw.source_ck, xw.year, strict=True)]).clip(upper=1.0)
     xw["share_of_target"] = (xw.area_km2 / xw.target_ck.map(tgt_area)).clip(upper=1.0)
     depicted = admin.set_index(["canonical_key", "year"]).depicted_year
-    xw["source_depicted_year"] = [depicted[(c, y)] for c, y in zip(xw.source_ck, xw.year)]
+    xw["source_depicted_year"] = [depicted[(c, y)] for c, y in zip(xw.source_ck, xw.year, strict=True)]
     xw = xw.sort_values(["year", "target_ck", "area_km2"], ascending=[True, True, False])
     core.write_table(xw, core.PRODUCTS_DIR / "crosswalk_to_reference.parquet", "crosswalk_to_reference",
                     csv_copy=core.PRODUCTS_DIR / "crosswalk_to_reference.csv")
+
+    cov = admin[admin.year < REF][["year", "canonical_key", "area_km2"]].rename(columns={"canonical_key": "source_ck"})
+    on_ref = xw.groupby(["year", "source_ck"]).agg(on_reference_km2=("area_km2", "sum"), n_targets=("target_ck", "nunique"))
+    cov = cov.merge(on_ref.reset_index(), on=["year", "source_ck"], how="left").fillna({"on_reference_km2": 0.0, "n_targets": 0})
+    cov["n_targets"] = cov.n_targets.astype(int)
+    cov["share_on_reference"] = (cov.on_reference_km2 / cov.area_km2).clip(upper=1.0)
+    cov["unallocated_km2"] = (cov.area_km2 - cov.on_reference_km2).clip(lower=0.0)
+    cov = cov[["year", "source_ck", "area_km2", "on_reference_km2", "unallocated_km2", "share_on_reference", "n_targets"]]
+    core.write_table(cov.sort_values(["year", "source_ck"]), core.PRODUCTS_DIR / "crosswalk_coverage.parquet",
+                     "crosswalk_coverage", csv_copy=core.PRODUCTS_DIR / "crosswalk_coverage.csv")
 
     grp = xw.groupby(["target_ck", "year"])
     primary = xw.drop_duplicates(["target_ck", "year"])  # sorted by area desc within target/year
@@ -75,7 +90,7 @@ def main() -> None:
     ctx["mapped_km2"] = ctx.mapped_km2.fillna(0.0)
     ctx["n_source_districts"] = ctx.n_source_districts.fillna(0).astype(int)
     ctx["primary_source_area_km2"] = [src_area.get((c, y)) if isinstance(c, str) else None
-                                      for c, y in zip(ctx.primary_source_ck, ctx.year)]
+                                      for c, y in zip(ctx.primary_source_ck, ctx.year, strict=True)]
     ctx["primary_source_name"] = ctx.primary_source_ck.map(reg.display_name)
     ctx["target_name"] = ctx.target_ck.map(reg.latest_name)
     ctx["target_state"] = ctx.target_ck.map(reg.latest_state)
@@ -83,7 +98,7 @@ def main() -> None:
                     csv_copy=core.PRODUCTS_DIR / "district_reference_context.csv")
 
     view = ctx.assign(cell=[f"{n} ({s:.0%})" if isinstance(n, str) else "" for n, s in
-                            zip(ctx.primary_source_name, ctx.primary_share_of_target)])
+                            zip(ctx.primary_source_name, ctx.primary_share_of_target, strict=True)])
     view = view.pivot(index=["target_ck", "target_name", "target_state"], columns="year", values="cell")
     view.add_prefix("contained_in_").reset_index().to_csv(
         core.PRODUCTS_DIR / "district_reference_context_wide.csv", index=False)

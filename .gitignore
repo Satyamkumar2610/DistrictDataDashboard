@@ -13,12 +13,14 @@ __pycache__/
 *.geoparquet
 *.gpkg
 data/release/
+logs/
 
 # Hand-curated reference data and the one-off CK migration map are source, not output
 !data/reference/state_lineage.csv
 !data/reference/name_aliases.csv
 !data/reference/ck_migration_v2_to_v3.csv
 !data/reference/ck_migration_v3_to_v4.csv
+!data/reference/review_outcomes.csv
 !data/reference/vintage_depiction.csv
 !data/reference/known_geometry_gaps.csv
 !outputs/research/*.csv

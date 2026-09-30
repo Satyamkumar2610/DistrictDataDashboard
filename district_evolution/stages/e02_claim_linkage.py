@@ -41,7 +41,7 @@ def main() -> None:
             found[["canonical_key", "our_name_norm", "match_geom"]].values
 
     subj["name_agrees"] = [isinstance(o, str) and isinstance(n, str) and core.names_agree(core.normalize_name(n), o)[0]
-                           for n, o in zip(subj.subject_name, subj.our_name_norm)]
+                           for n, o in zip(subj.subject_name, subj.our_name_norm, strict=True)]
     linked = subj.canonical_key.notna()
     subj["link_status"] = np.select([linked & subj.name_agrees, linked], ["LINKED", "LINKED_GEOMETRY_ONLY"],
                                     default="UNLINKED")

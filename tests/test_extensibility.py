@@ -32,5 +32,5 @@ ratios: []
     assert obs.link_status.tolist() == ["LINKED", "LINKED"]
     h = engine.allocate(obs, WEIGHT_METHODS["AREA"].weights(2001), sample.kind)
     expected = sum(v * WEIGHT_METHODS["AREA"].weights(2001).query("source_ck == @ck").weight.sum()
-                   for v, ck in zip(obs.value, obs.canonical_key))
+                   for v, ck in zip(obs.value, obs.canonical_key, strict=True))
     assert h.value.sum() == pytest.approx(expected)

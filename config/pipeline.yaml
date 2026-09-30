@@ -73,6 +73,15 @@ identity:
   # Durg/Raipur/Surguja); none was a reconstitution.
   name_retained: 0.15
   name_jw: 0.90         # similarity threshold for "names agree" (tie-break only)
+  # Rule 1b, growth (OD-02, docs/decisions/OD-02_growth_continuation.md): a district essentially
+  # intact in its successor (r >= strong) that keeps its name continues even when the successor is
+  # built mostly from other land (h < core), if no other district continues into it. Measured on
+  # 4.0.0 before the rule: 10 such cases (Una 1991, Gandhinagar 2001, Hyderabad 2001, Kanpur Nagar
+  # 2001, Chennai 2021, Mumbai 2021, Punch 2021, New Delhi 2021, Champhai 2025, Kolkata 2025), h from
+  # 0.219 to 0.499. growth_min_h 0.15 mirrors name_retained: below it the successor is essentially a
+  # different unit that happens to carry the name.
+  growth_continues: true
+  growth_min_h: 0.15
 
 lineage:
   # Minimum TRANSFER-class area for a cross-CK flow to count as a lineage edge
@@ -86,7 +95,16 @@ lineage:
 
 linkage:
   # splink event-name -> CK record linkage (s08) and resolution (s09).
-  min_match_probability: 0.50
+  # The model's match probabilities fall in discrete classes (one per name level x state level).
+  # The threshold sits in the widest gap around the accept/reject boundary, measured on 4.0.0:
+  # accepted "exact name, compatible state" 0.537-0.554, rejected "Jaro-Winkler >= 0.88, same state"
+  # 0.479-0.496 (two alias sets). 0.50 sat on top of a class before the present-day-state level was
+  # added, and 356 pairs flipped with a 0.05 change in one weight. 0.52 changes no current decision.
+  min_match_probability: 0.52
+  # V27 (WARNING): a class of at least class_min_pairs candidate pairs within threshold_margin of the
+  # threshold means a small change in the training data can flip many links.
+  threshold_margin: 0.015
+  class_min_pairs: 20
   ambiguity_margin: 0.10
   u_sampling_max_pairs: 2000000
   seed: 20260923
@@ -120,6 +138,14 @@ evidence:
   # is agreement; up to area_minor is a minor difference (digitisation or an undated figure).
   area_agree: 0.02
   area_minor: 0.10
+
+products:
+  # s10 district_reference_context: a source district counts as "drawn on" by a reference district
+  # when it supplies at least this share of the target (1%: below it the overlap is edge noise from
+  # two editions' lines, the same scale as boundary displacement).
+  min_source_share: 0.01
+  # Products that are sums of other products must match them to floating-point precision (V26).
+  arithmetic_tol_km2: 1.0e-6
 
 release:
   # Release geometry (r01) is simplified polygon by polygon, keeping each valid. 0.0005 degrees
@@ -159,6 +185,14 @@ audit:
   # to within revert_pct of its earlier area (measured: 3 identities at 25% / 5%).
   reversal_jump_pct: 25
   reversal_revert_pct: 5
+  # Expert review (outputs/audit/review_sample.csv): a fixed sample of lineage edges and crosswalk
+  # rows, drawn by hashing each item's id with the seed, so the same items are drawn on every build
+  # and reviews accumulate in data/reference/review_outcomes.csv. 30 of each gives a 95% interval of
+  # about +/-15 points on an error rate near 10% (Wilson); enough to tell "rare" from "common".
+  # Crosswalk rows smaller than review_min_km2 are edge effects, not weights anyone relies on.
+  review_seed: review-2026-10
+  review_sample_size: 30
+  review_min_km2: 10
 
 determinism:
   # Declared outputs allowed to differ between two builds of the same inputs, each with its

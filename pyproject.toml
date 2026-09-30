@@ -15,3 +15,44 @@ include = ["district_evolution*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 130
+target-version = "py313"
+extend-exclude = ["web", ".dvc"]
+
+[tool.ruff.lint]
+# pyflakes, pycodestyle, bugbear, isort, pyupgrade, simplify, pylint, ruff-specific
+select = ["E", "F", "W", "B", "I", "UP", "SIM", "PL", "RUF"]
+ignore = [
+  "PLR2004",                       # thresholds live in config/pipeline.yaml; literals left are structural (0, 1, years)
+  "PLR0911", "PLR0912", "PLR0913", "PLR0915", "PLR0917",  # stage functions are long by design: one stage, one function
+  "SIM108",                        # nested ternaries read worse than the if/else they replace
+  "PLC0415",                       # local imports are deliberate (contracts <-> core, optional heavy deps)
+  "RUF001", "RUF002", "RUF003",    # km², ×, – and → are intended in text
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["district_evolution"]
+
+[tool.ruff.lint.per-file-ignores]
+"district_evolution/core/__init__.py" = ["F401"]   # the core facade re-exports its modules' names
+
+[tool.mypy]
+python_version = "3.13"
+packages = ["district_evolution"]
+ignore_missing_imports = true        # geopandas, shapely, splink, pandera, duckdb ship partial or no stubs
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+
+[[tool.mypy.overrides]]
+# Stage and evidence scripts are pandas row code: pandas-stubs types every row value as a 12-member
+# union, so these codes are almost all false positives there. attr-defined, return-value, misc and the
+# rest stay on. The library layer (core, contracts, harmonize, release, sources) is checked in full.
+module = ["district_evolution.stages.*", "district_evolution.evidence.*"]
+disable_error_code = ["operator", "arg-type", "union-attr", "index", "assignment", "call-overload",
+                      "list-item", "dict-item", "type-var", "str-bytes-safe",
+                      "var-annotated"]

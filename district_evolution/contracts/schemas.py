@@ -116,7 +116,7 @@ SCHEMAS: dict[str, DataFrameSchema] = {
         "names_agree": Column(bool),
         "continuity_class": Column(str, Check.isin([
             "STRONG", "CARVE_OUT_CORE", "ABSORPTION_CORE", "REORGANISED_CORE",
-            "NAME_RETAINED_CORE", "BREAK_NAME_DIFFERS", "BREAK_NO_CORE"])),
+            "NAME_RETAINED_CORE", "GROWTH_NAME_RETAINED", "BREAK_NAME_DIFFERS", "BREAK_NO_CORE"])),
         "continues": Column(bool),
     }, unique=["year_a", "year_b", "geom_obs_id_a"]),
 
@@ -226,6 +226,15 @@ SCHEMAS: dict[str, DataFrameSchema] = {
         "share_of_target": Column(float, SHARE),
         "source_depicted_year": Column(int, Check.ge(1947)),
     }, unique=["year", "source_ck", "target_ck"]),
+    "crosswalk_coverage": DataFrameSchema({
+        "year": _year(),
+        "source_ck": Column(str, CK),
+        "area_km2": Column(float, Check.gt(0)),
+        "on_reference_km2": _km2(),
+        "unallocated_km2": _km2(),
+        "share_on_reference": Column(float, SHARE),
+        "n_targets": Column(int, Check.ge(0)),
+    }, unique=["year", "source_ck"]),
     "district_reference_context": DataFrameSchema({
         "target_ck": Column(str, CK), "year": _year(),
         "mapped_km2": _km2(),

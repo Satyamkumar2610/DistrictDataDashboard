@@ -11,7 +11,8 @@ from district_evolution import core
 
 
 def outs(lock_path: str) -> dict[str, str]:
-    stages = yaml.safe_load(open(lock_path))["stages"]
+    with open(lock_path) as fh:
+        stages = yaml.safe_load(fh)["stages"]
     return {o["path"]: o["md5"] for s in stages.values() for o in s.get("outs", [])}
 
 

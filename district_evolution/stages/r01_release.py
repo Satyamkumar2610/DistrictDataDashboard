@@ -45,7 +45,7 @@ def geometry(year: int, ck_of: dict) -> tuple[gpd.GeoDataFrame, int]:
     simple = shapely.simplify(g.geometry.values, core.CFG["release"]["simplify_deg"], preserve_topology=True)
     # parts of a multipolygon can end up nested after simplification (Thrissur 2011): keep those at full resolution
     broken = ~shapely.is_valid(simple) | shapely.is_empty(simple)
-    g["geometry"] = [o if b else s for o, s, b in zip(g.geometry.values, simple, broken)]
+    g["geometry"] = [o if b else s for o, s, b in zip(g.geometry.values, simple, broken, strict=True)]
     schemas.validate("release_geometry", pd.DataFrame(g.drop(columns="geometry")))
     return g.sort_values("geom_obs_id").reset_index(drop=True), int(broken.sum())
 
@@ -73,7 +73,7 @@ def main() -> None:
         else:
             shutil.copyfile(src, OUT / "tables" / f"{table}.parquet")
     obs = pd.read_parquet(core.GOLD_CORE_DIR / "ck_observation.parquet")
-    ck_of = dict(zip(obs.geom_obs_id, obs.canonical_key))
+    ck_of = dict(zip(obs.geom_obs_id, obs.canonical_key, strict=True))
     kept_full = {}
     for _, year in core.VINTAGES:
         layer, kept_full[year] = geometry(year, ck_of)
@@ -91,9 +91,10 @@ def main() -> None:
             "vintages": [{"source": s, "year": y} for s, y in core.VINTAGES],
             "geometry_simplify_deg": core.CFG["release"]["simplify_deg"],
             "polygons_kept_at_full_resolution": {str(y): n for y, n in kept_full.items() if n},
-            "citation": "CITATION.cff in the source repository"}
+            "citation": "CITATION.cff in the source repository",
+            "provenance": core.provenance()}
     (OUT / "release_info.json").write_text(json.dumps(info, indent=2) + "\n", encoding="utf-8")
-    files = sorted(p for p in OUT.rglob("*") if p.is_file() and p.name != "MANIFEST.csv" and p.name != ".DS_Store")
+    files = sorted(p for p in OUT.rglob("*") if p.is_file() and p.name not in {"MANIFEST.csv", ".DS_Store"})
     pd.DataFrame({"path": [str(p.relative_to(OUT)) for p in files], "bytes": [p.stat().st_size for p in files],
                   "sha256": [sha256(p) for p in files]}).to_csv(OUT / "MANIFEST.csv", index=False)
     print(f"release v{core.PIPELINE_VERSION}: {len(files)} files, {sum(p.stat().st_size for p in files) / 1e6:.1f} MB")

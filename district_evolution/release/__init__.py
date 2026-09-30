@@ -23,6 +23,7 @@ TABLES = {
     "event_accounting": G / "events/event_accounting.parquet",
     "district_area_admin": P / "district_area_admin.parquet",
     "crosswalk_to_reference": P / "crosswalk_to_reference.parquet",
+    "crosswalk_coverage": P / "crosswalk_coverage.parquet",
     "district_reference_context": P / "district_reference_context.parquet",
     "research_queue": G / "evidence/research_queue.parquet",
     "stat_observation": G / "harmonize/stat_observation.parquet",
@@ -58,6 +59,8 @@ def unit_of(column: str) -> str:
                   "period_start", "period_end", "formed_after", "formed_by", "closed_after", "closed_by",
                   "established_year", "closed_year", "depicted_year", "source_depicted_year", "dissolved_year"}:
         return "year"
-    if column == "match_probability" or column == "name_jw":
-        return "probability 0-1" if column == "match_probability" else "similarity 0-1"
+    if column == "match_probability":
+        return "probability 0-1"
+    if column == "name_jw":
+        return "similarity 0-1"
     return ""

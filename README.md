@@ -22,8 +22,10 @@ same inputs are byte-identical.
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/pip install -e . --no-deps
-source .venv/bin/activate && dvc repro                  # ~4 min: build, evidence, harmonization, release, gate
-pytest -q tests
+source .venv/bin/activate
+python -m district_evolution build                      # all 25 stages in dependency order, then:
+python -m district_evolution validate                   # the gate (exit 1 on any ERROR check)
+pytest -q tests                                         # (dvc repro runs the same DAG with caching)
 (cd web && npm ci && npm run build)                       # the web platform (Node 22+)
 uvicorn district_evolution.release.api:app              # platform at http://127.0.0.1:8000, API reference at /docs
 ```

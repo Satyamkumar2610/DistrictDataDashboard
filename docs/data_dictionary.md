@@ -51,7 +51,7 @@ Written by `s04_identity`.
 | `h_share` | float64 | no | fraction 0-1 | 0 to 1.001 | Share of the later polygon's area that came from the earlier polygon (0-1) |
 | `name_jw` | float64 | no | similarity 0-1 | 0 to 1 | Best Jaro-Winkler name similarity used as the tie-break (0-1) |
 | `names_agree` | bool | no |  |  | Names equal, a documented alias, or similar enough (identity.name_jw) |
-| `continuity_class` | str | no |  | one of STRONG, CARVE_OUT_CORE, ABSORPTION_CORE, REORGANISED_CORE, NAME_RETAINED_CORE, BREAK_NAME_DIFFERS, BREAK_NO_CORE | Which identity rule applied (STRONG, CARVE_OUT_CORE, ..., BREAK_NO_CORE) |
+| `continuity_class` | str | no |  | one of STRONG, CARVE_OUT_CORE, ABSORPTION_CORE, REORGANISED_CORE, NAME_RETAINED_CORE, GROWTH_NAME_RETAINED, BREAK_NAME_DIFFERS, BREAK_NO_CORE | Which identity rule applied (STRONG, CARVE_OUT_CORE, ..., BREAK_NO_CORE) |
 | `continues` | bool | no |  |  | True when the earlier identity continues on the later map |
 
 ## `district_relationship`
@@ -202,6 +202,20 @@ Written by `s10_census_products`.
 | `share_of_source` | float64 | no | fraction 0-1 | 0 to 1.001 | area_km2 / source area (0-1): the area weight for harmonization |
 | `share_of_target` | float64 | no | fraction 0-1 | 0 to 1.001 | area_km2 / target area (0-1) |
 | `source_depicted_year` | int64 | no | year | >= 1947 | Year the source map's boundaries actually show |
+
+## `crosswalk_coverage`
+
+Written by `s10_census_products`.
+
+| column | type | null | unit | allowed | meaning |
+|---|---|---|---|---|---|
+| `year` | int64 | no | year | one of 1951, 1961, 1971, 1981, 1991, 2001, 2011, 2021, 2025 | Map of the source district |
+| `source_ck` | str | no |  | matches ^IND-\d{6}$ | District on map year |
+| `area_km2` | float64 | no | km² | > 0 | Area of the source district on that map (km², geodesic) |
+| `on_reference_km2` | float64 | no | km² | >= 0 | Part of it inside some reference (2025) district (km²; sum of crosswalk_to_reference.area_km2) |
+| `unallocated_km2` | float64 | no | km² | >= 0 | Part of it inside no reference district (km²): statistics for it cannot be restated |
+| `share_on_reference` | float64 | no | fraction 0-1 | 0 to 1.001 | on_reference_km2 / area_km2 (0-1): the sum of this source's crosswalk shares |
+| `n_targets` | int64 | no |  | >= 0 | Reference districts receiving any of its land |
 
 ## `district_reference_context`
 

@@ -28,7 +28,7 @@ def test_sql_questions_run_on_the_release(monkeypatch):
     assert (per_map[1951], per_map[2025]) == (316, 733)
     assert [r[1] for r in results[1]] == ["Kangra"] * 9
     assert len(results[2]) == 10 and {"Kannur", "Kozhikode", "Palakkad"} <= {r[0] for r in results[3]}
-    assert dict(results[4]) == {"MEASURED": 401, "UNIDENTIFIED_MULTI_EVENT_WINDOW": 186, "NOT_MEASURABLE": 22}
+    assert dict(results[4]) == {"MEASURED": 399, "UNIDENTIFIED_MULTI_EVENT_WINDOW": 189, "NOT_MEASURABLE": 21}
 
 
 def test_python_examples_run(capsys):

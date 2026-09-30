@@ -163,7 +163,7 @@ def main() -> None:
             summary.append({"event_id": ev.event_id, "bracket": "NONE", "spatial_class": "UNLINKED"})
             continue
         (a, b), tag, rows, pred_cks, _ = max(tries, key=lambda t: t[4])  # first max wins: earliest window
-        role = dict(zip(parts.participant_id, parts.role))
+        role = dict(zip(parts.participant_id, parts.role, strict=True))
         succ = {}
         for pid, vint, ck, prob, status in rows:
             links.append({"participant_id": pid, "event_id": ev.event_id, "role": role[pid], "vintage": vint,

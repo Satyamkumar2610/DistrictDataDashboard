@@ -26,4 +26,5 @@ focus = ck[0]
 family = {focus} | nx.ancestors(g, focus) | nx.descendants(g, focus)
 print(f"{name} ({focus}): {len(family) - 1} relatives")
 for u, v, d in sorted(g.subgraph(family).edges(data=True), key=lambda e: (e[2]["year_b"], e[0], e[1])):
-    print(f"  {d['year_a']}→{d['year_b']}  {reg.latest_name[u]:>16} {d['relationship_type']:<18} {reg.latest_name[v]:<16} {d['transfer_km2']:>8,.0f} km²")
+    print(f"  {d['year_a']}→{d['year_b']}  {reg.latest_name[u]:>16} {d['relationship_type']:<18} "
+          f"{reg.latest_name[v]:<16} {d['transfer_km2']:>8,.0f} km²")

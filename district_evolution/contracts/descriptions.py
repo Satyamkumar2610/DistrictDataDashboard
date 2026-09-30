@@ -150,6 +150,15 @@ DESCRIPTIONS: dict[str, dict[str, str]] = {
         "share_of_target": "area_km2 / target area (0-1)",
         "source_depicted_year": "Year the source map's boundaries actually show",
     },
+    "crosswalk_coverage": {
+        "year": "Map of the source district",
+        "source_ck": "District on map year",
+        "area_km2": "Area of the source district on that map (km², geodesic)",
+        "on_reference_km2": "Part of it inside some reference (2025) district (km²; sum of crosswalk_to_reference.area_km2)",
+        "unallocated_km2": "Part of it inside no reference district (km²): statistics for it cannot be restated",
+        "share_on_reference": "on_reference_km2 / area_km2 (0-1): the sum of this source's crosswalk shares",
+        "n_targets": "Reference districts receiving any of its land",
+    },
     "district_reference_context": {
         "target_ck": "District on the reference (2025) map",
         "year": "Earlier map",
@@ -214,7 +223,8 @@ DESCRIPTIONS: dict[str, dict[str, str]] = {
         "raw_name": "District name as the source writes it",
         "state": "State as the source writes it",
         "year": "Year the value refers to (agricultural years by their first calendar year)",
-        "map_year": "Map whose boundaries the value is placed on: declared by the source, or the latest map depicting no later than year",
+        "map_year": ("Map whose boundaries the value is placed on: declared by the source, "
+                     "or the latest map depicting no later than year"),
         "value": "Reported value, in unit",
         "unit": "Unit of value",
         "source": "Publisher, table and edition of the value",
@@ -238,7 +248,8 @@ DESCRIPTIONS: dict[str, dict[str, str]] = {
         "target_ck": "District on the reference (2025) map",
         "value": "Sum over source districts of value x weight, in the indicator's unit",
         "n_sources": "Source districts contributing",
-        "coverage_score": "Share of the target's area covered by source districts that reported a value (0-1); nothing is imputed",
+        "coverage_score": ("Share of the target's area covered by source districts that reported a value (0-1); "
+                           "nothing is imputed"),
         "boundary_uncertain": "At least one contributing value is boundary_uncertain",
         "assumption": "The weight method's stated assumption",
     },

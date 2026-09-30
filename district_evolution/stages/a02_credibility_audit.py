@@ -16,6 +16,8 @@ Measures
   6. Area reversals: a district's area jumps and later returns (config audit.reversal_*).
   7. Names: consecutive-map name changes that neither agree nor are recorded aliases.
   8. Events: measurement status, and what each event cites as its source.
+  9. Expert review: a fixed sample of lineage edges and crosswalk rows to check by hand, and the
+     error rate measured from the verdicts recorded in data/reference/review_outcomes.csv.
 """
 
 from __future__ import annotations
@@ -42,6 +44,37 @@ def md(df: pd.DataFrame, floatfmt: str = ",.0f") -> str:
         if c in YEAR_COLUMNS:
             df[c] = df[c].astype(int).astype(str)
     return df.to_markdown(index=False, floatfmt=floatfmt, intfmt=",")
+
+
+def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
+    """95% Wilson score interval for k errors in n reviewed items."""
+    if n == 0:
+        return (float("nan"), float("nan"))
+    p = k / n
+    centre = (p + z * z / (2 * n)) / (1 + z * z / n)
+    half = z * ((p * (1 - p) / n + z * z / (4 * n * n)) ** 0.5) / (1 + z * z / n)
+    return (max(0.0, centre - half), min(1.0, centre + half))
+
+
+def review_sample(rel: pd.DataFrame, names: pd.Series) -> pd.DataFrame:
+    """A fixed sample to check by hand: each item's rank is a hash of its id with the seed."""
+    seed, n = CFG["review_seed"], CFG["review_sample_size"]
+    edges = rel.assign(item_type="LINEAGE_EDGE", item_id=rel.rel_id,
+                       claim=[f"{names[t]} was {k.lower().replace('_', ' ')} {names[f]} between the {a} and {b} maps: "
+                              f"{km:,.0f} km2 moved"
+                              for f, t, k, a, b, km in zip(rel.from_ck, rel.to_ck, rel.relationship_type, rel.year_a,
+                                                           rel.year_b, rel.transfer_km2, strict=True)])
+    xw = pd.read_parquet(core.PRODUCTS_DIR / "crosswalk_to_reference.parquet")
+    xw = xw[(xw.year < core.REFERENCE_YEAR) & (xw.area_km2 >= CFG["review_min_km2"])]
+    xw = xw.assign(item_type="CROSSWALK_ROW", item_id=xw.year.astype(str) + ":" + xw.source_ck + ">" + xw.target_ck,
+                   claim=[f"{p:.1%} of {names[s]} on the {y} map ({km:,.0f} km2) lies in {names[t]} (2025)"
+                          for s, t, y, km, p in zip(xw.source_ck, xw.target_ck, xw.year, xw.area_km2, xw.share_of_source,
+                                                    strict=True)])
+    out = []
+    for part in (edges, xw):
+        rank = part.item_id.map(lambda i: core.stable_id(seed, i))
+        out.append(part.assign(rank=rank).sort_values("rank").head(n)[["item_type", "item_id", "claim"]])
+    return pd.concat(out, ignore_index=True)
 
 
 def home_state(obs: pd.DataFrame, reg: pd.DataFrame) -> pd.Series:
@@ -107,6 +140,10 @@ def main() -> None:
     lag_by_state = (lag.groupby("event_state").agg(unmapped_successors=("participant_id", "size"),
                                                    first_year=("effective_year", "min"), last_year=("effective_year", "max"))
                     .reset_index().sort_values(["unmapped_successors", "event_state"], ascending=[False, True]))
+    gaps = pd.read_csv(core.REFERENCE_DIR / "known_geometry_gaps.csv")
+    recorded = {core.normalize_name(core.canonical_state(st)): stat for st, stat in zip(gaps.state, gaps.status, strict=True)}
+    lag_by_state["gap_recorded"] = [recorded.get(core.normalize_name(core.canonical_state(st)), "")
+                                    for st in lag_by_state.event_state]
 
     # 5. return flows
     rel = pd.read_parquet(G / "events/district_relationship.parquet")
@@ -117,6 +154,9 @@ def main() -> None:
     back = flows.merge(flows, left_on=["from_ck", "to_ck"], right_on=["to_ck", "from_ck"], suffixes=("", "_back"))
     back = back[back.year_a_back > back.year_a].sort_values(["from_ck", "to_ck", "year_a", "year_a_back"])
     back = back.drop_duplicates(["from_ck", "to_ck", "year_a"])  # the first return of each flow
+    # and each return pairs with its most recent earlier flow only, so one return is never counted twice
+    back = back.sort_values(["from_ck", "to_ck", "year_a_back", "year_a"]).drop_duplicates(
+        ["from_ck", "to_ck", "year_a_back"], keep="last")
     back["returned_km2"] = back[["transfer_km2", "transfer_km2_back"]].min(axis=1)
     back["from_name"], back["to_name"] = back.from_ck.map(names), back.to_ck.map(names)
     back = back[["from_ck", "from_name", "to_ck", "to_name", "year_a", "year_b", "transfer_km2",
@@ -135,7 +175,8 @@ def main() -> None:
                 if back_by:
                     rows.append({"canonical_key": ck, "name": names[ck], "map": yr[i], "next_map": yr[i + 1],
                                  "area_km2": round(ar[i]), "next_area_km2": round(ar[i + 1]), "back_by_map": back_by[0]})
-    reversals = pd.DataFrame(rows, columns=["canonical_key", "name", "map", "next_map", "area_km2", "next_area_km2", "back_by_map"])
+    reversals = pd.DataFrame(rows, columns=["canonical_key", "name", "map", "next_map", "area_km2", "next_area_km2",
+                                            "back_by_map"])
     reversals.to_csv(AUDIT_DIR / "credibility_area_reversals.csv", index=False)
 
     # 7. names
@@ -146,8 +187,8 @@ def main() -> None:
         for i in range(len(n) - 1):
             if n[i] != n[i + 1] and not core.names_agree(n[i], n[i + 1])[0]:
                 changes.append({"canonical_key": ck, "map": y[i], "next_map": y[i + 1], "name": raw[i], "next_name": raw[i + 1]})
-    changes = pd.DataFrame(changes, columns=["canonical_key", "map", "next_map", "name", "next_name"])
-    changes.to_csv(AUDIT_DIR / "credibility_name_changes.csv", index=False)
+    name_changes = pd.DataFrame(changes, columns=["canonical_key", "map", "next_map", "name", "next_name"])
+    name_changes.to_csv(AUDIT_DIR / "credibility_name_changes.csv", index=False)
 
     # 8. events
     acc = pd.read_parquet(G / "events/event_accounting.parquet")
@@ -156,6 +197,20 @@ def main() -> None:
     ev_status = be.event_id.map(status).fillna("NOT_MEASURABLE").value_counts().rename_axis("status").reset_index(name="events")
     cites = be.sources_cited.fillna("").str.split(";").explode()
     documentary = int((~cites.str.fullmatch(r"[A-Za-z0-9_-]{20,}\.csv|")).sum())
+
+    # 9. expert review
+    sample = review_sample(rel, names)
+    sample.to_csv(AUDIT_DIR / "review_sample.csv", index=False)
+    outcomes = pd.read_csv(core.REFERENCE_DIR / "review_outcomes.csv", dtype=str)
+    reviewed = outcomes[outcomes.item_id.isin(sample.item_id) & outcomes.verdict.isin(["CORRECT", "WRONG"])]
+    review_rows = []
+    for kind in ("LINEAGE_EDGE", "CROSSWALK_ROW"):
+        r = reviewed[reviewed.item_id.isin(sample[sample.item_type == kind].item_id)]
+        k, n = int((r.verdict == "WRONG").sum()), len(r)
+        lo, hi = wilson(k, n)
+        review_rows.append({"item_type": kind, "sampled": int((sample.item_type == kind).sum()), "reviewed": n,
+                            "wrong": k, "error_rate_95pct": "not yet reviewed" if n == 0 else f"{lo:.0%} to {hi:.0%}"})
+    review = pd.DataFrame(review_rows)
 
     total = len(obs[obs.year == core.REFERENCE_YEAR])
     report = f"""# Credibility audit — pipeline v{core.PIPELINE_VERSION}
@@ -183,12 +238,14 @@ States with fewer districts on a later map (a state rarely loses districts; each
 Core: land that stays in the same district; transfer: land that changes district; displacement: thin
 strips where two editions draw one line differently; not on next map: land the next map does not cover.
 
-{md(cls[["year_a", "year_b", "core_km2", "transfer_km2", "displacement_km2", "displacement_pct", "sliver_km2", "not_on_next_map_km2"]], ",.1f")}
+{md(cls[["year_a", "year_b", "core_km2", "transfer_km2", "displacement_km2", "displacement_pct", "sliver_km2",
+         "not_on_next_map_km2"]], ",.1f")}
 
 ## 4. Districts the events record but no map shows
 
 {len(lag)} successor districts named in the events compilation match no district on any map.
-By state (full list: `credibility_map_lag.csv`):
+By state (full list: `credibility_map_lag.csv`; `gap_recorded` is the row in
+`data/reference/known_geometry_gaps.csv`, if any):
 
 {md(lag_by_state)}
 
@@ -206,7 +263,7 @@ districts often means two editions drew their shared line differently.
 
 ## 7. Name changes not recorded as aliases
 
-{len(changes)} consecutive-map name changes in {changes.canonical_key.nunique()} identities neither agree
+{len(name_changes)} consecutive-map name changes in {name_changes.canonical_key.nunique()} identities neither agree
 (identity.name_jw) nor appear in `data/reference/name_aliases.csv` (`credibility_name_changes.csv`).
 Most are spellings (Ahmadnagar / Ahmednagar); each unrecorded one weakens the name tie-break.
 
@@ -216,6 +273,14 @@ Most are spellings (Ahmadnagar / Ahmednagar); each unrecorded one weakens the na
 
 Sources cited by the {len(be)} events: {cites.nunique()} distinct values, all file names; events citing a
 documentary source (gazette, notification, census handbook): {documentary}.
+
+## 9. Expert review
+
+A fixed sample to check by hand (`review_sample.csv`; the same items on every build). Record each verdict
+(CORRECT, WRONG or UNSURE) with its evidence in `data/reference/review_outcomes.csv`; this section then
+reports the measured error rate with a 95% interval.
+
+{md(review)}
 
 Active districts on the {core.REFERENCE_YEAR} map: {total}.
 """

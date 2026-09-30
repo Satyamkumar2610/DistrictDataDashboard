@@ -103,7 +103,8 @@ def jaro_winkler(s1: str, s2: str, p: float = 0.1) -> float:
             t += s1[i] != s2[k]
             k += 1
     jaro = (matches / l1 + matches / l2 + (matches - t / 2) / matches) / 3.0
-    prefix = next((i for i, (a, b) in enumerate(zip(s1[:4], s2[:4])) if a != b), min(4, l1, l2))
+    # the common prefix of two names of different lengths: zip stops at the shorter one on purpose
+    prefix = next((i for i, (a, b) in enumerate(zip(s1[:4], s2[:4], strict=False)) if a != b), min(4, l1, l2))
     return jaro + prefix * p * (1.0 - jaro)
 
 
@@ -119,7 +120,7 @@ def name_aliases() -> pd.DataFrame:
 @functools.lru_cache(maxsize=1)
 def _alias_map() -> dict[str, str]:
     a = name_aliases()
-    return dict(zip(a["alias_norm"], a["canonical_norm"]))
+    return dict(zip(a["alias_norm"], a["canonical_norm"], strict=True))
 
 
 def alias_key(name_norm: str) -> str:
@@ -131,7 +132,8 @@ def alias_key(name_norm: str) -> str:
 @functools.lru_cache(maxsize=1)
 def _alias_pairs() -> frozenset[tuple[str, str]]:
     a = name_aliases()
-    pairs = set(zip(a["alias_norm"], a["canonical_norm"])) | set(zip(a["canonical_norm"], a["alias_norm"]))
+    pairs = set(zip(a["alias_norm"], a["canonical_norm"], strict=True))
+    pairs |= {(b, a_) for a_, b in pairs}
     # aliases sharing a canonical name are aliases of each other
     for _, grp in a.groupby("canonical_norm"):
         names = list(grp["alias_norm"])

@@ -316,7 +316,7 @@
       "nullable": false,
       "unique": false,
       "unit": "",
-      "allowed": "one of STRONG, CARVE_OUT_CORE, ABSORPTION_CORE, REORGANISED_CORE, NAME_RETAINED_CORE, BREAK_NAME_DIFFERS, BREAK_NO_CORE",
+      "allowed": "one of STRONG, CARVE_OUT_CORE, ABSORPTION_CORE, REORGANISED_CORE, NAME_RETAINED_CORE, GROWTH_NAME_RETAINED, BREAK_NAME_DIFFERS, BREAK_NO_CORE",
       "meaning": "Which identity rule applied (STRONG, CARVE_OUT_CORE, ..., BREAK_NO_CORE)",
       "source_stage": "s04_identity"
     },
@@ -1275,6 +1275,83 @@
       "unit": "year",
       "allowed": ">= 1947",
       "meaning": "Year the source map's boundaries actually show",
+      "source_stage": "s10_census_products"
+    },
+    {
+      "table": "crosswalk_coverage",
+      "column": "year",
+      "dtype": "int64",
+      "nullable": false,
+      "unique": false,
+      "unit": "year",
+      "allowed": "one of 1951, 1961, 1971, 1981, 1991, 2001, 2011, 2021, 2025",
+      "meaning": "Map of the source district",
+      "source_stage": "s10_census_products"
+    },
+    {
+      "table": "crosswalk_coverage",
+      "column": "source_ck",
+      "dtype": "str",
+      "nullable": false,
+      "unique": false,
+      "unit": "",
+      "allowed": "matches ^IND-\\d{6}$",
+      "meaning": "District on map year",
+      "source_stage": "s10_census_products"
+    },
+    {
+      "table": "crosswalk_coverage",
+      "column": "area_km2",
+      "dtype": "float64",
+      "nullable": false,
+      "unique": false,
+      "unit": "km²",
+      "allowed": "> 0",
+      "meaning": "Area of the source district on that map (km², geodesic)",
+      "source_stage": "s10_census_products"
+    },
+    {
+      "table": "crosswalk_coverage",
+      "column": "on_reference_km2",
+      "dtype": "float64",
+      "nullable": false,
+      "unique": false,
+      "unit": "km²",
+      "allowed": ">= 0",
+      "meaning": "Part of it inside some reference (2025) district (km²; sum of crosswalk_to_reference.area_km2)",
+      "source_stage": "s10_census_products"
+    },
+    {
+      "table": "crosswalk_coverage",
+      "column": "unallocated_km2",
+      "dtype": "float64",
+      "nullable": false,
+      "unique": false,
+      "unit": "km²",
+      "allowed": ">= 0",
+      "meaning": "Part of it inside no reference district (km²): statistics for it cannot be restated",
+      "source_stage": "s10_census_products"
+    },
+    {
+      "table": "crosswalk_coverage",
+      "column": "share_on_reference",
+      "dtype": "float64",
+      "nullable": false,
+      "unique": false,
+      "unit": "fraction 0-1",
+      "allowed": "0 to 1.001",
+      "meaning": "on_reference_km2 / area_km2 (0-1): the sum of this source's crosswalk shares",
+      "source_stage": "s10_census_products"
+    },
+    {
+      "table": "crosswalk_coverage",
+      "column": "n_targets",
+      "dtype": "int64",
+      "nullable": false,
+      "unique": false,
+      "unit": "",
+      "allowed": ">= 0",
+      "meaning": "Reference districts receiving any of its land",
       "source_stage": "s10_census_products"
     },
     {

@@ -57,7 +57,7 @@ def resolve_overlaps(geoms: list, areas: list[float], ids: list[str]) -> tuple[l
     left, right = tree.query(geoms, predicate="intersects")
     rank = {i: (areas[i], ids[i]) for i in range(len(geoms))}
     smaller_of: dict[int, list[int]] = {}
-    for i, j in zip(left, right):
+    for i, j in zip(left, right, strict=True):
         if i != j and rank[j] < rank[i]:
             smaller_of.setdefault(int(i), []).append(int(j))
     out, log = list(geoms), []
@@ -75,7 +75,7 @@ def resolve_overlaps(geoms: list, areas: list[float], ids: list[str]) -> tuple[l
     return out, log
 
 
-def process_vintage(source: str, year: int) -> tuple[dict, list[dict]]:
+def process_vintage(source: str, year: int) -> tuple[dict, list[dict], list[dict]]:
     gdf = sources.load(source, year)
     n_raw = len(gdf)
 
@@ -87,7 +87,7 @@ def process_vintage(source: str, year: int) -> tuple[dict, list[dict]]:
         "district_name_original": r.district_name_original, "state_name_original": r.state_name_original,
         "area_km2": round(core.geodesic_area_km2(r.geometry), 2),
         "reason": "UNNAMED_NON_ADMINISTRATIVE_FEATURE" if u else "DISPUTED_BOUNDARY_STRIP",
-    } for r, u in zip(gdf[unnamed | disputed].itertuples(), unnamed[unnamed | disputed])]
+    } for r, u in zip(gdf[unnamed | disputed].itertuples(), unnamed[unnamed | disputed], strict=True)]
     gdf = gdf[~(unnamed | disputed)]
 
     kept, n_repaired, n_empty = [], 0, 0
@@ -108,7 +108,7 @@ def process_vintage(source: str, year: int) -> tuple[dict, list[dict]]:
     trimmed = {x["geom_obs_id"] for x in overlap_log}
 
     records = []
-    for (r, gid, _, invalid), mp in zip(kept, geoms):
+    for (r, gid, _, invalid), mp in zip(kept, geoms, strict=True):
         area, perim = core.geodesic_area_perimeter(mp)
         state_std = core.canonical_state(r.state_name_original)
         records.append({

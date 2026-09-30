@@ -10,13 +10,26 @@ Read `docs/architecture/REVAMP_PLAN_V3.md` before changing identity, lineage or 
 ## Set up and check your change
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/pip install -e . --no-deps
-source .venv/bin/activate && dvc repro        # full build and validation gate
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
+.venv/bin/pip install -e . --no-deps && .venv/bin/pre-commit install
+source .venv/bin/activate
+python -m district_evolution build            # every stage in dependency order (or: dvc repro, with caching)
+python -m district_evolution validate         # the gate; exits 1 on any ERROR check
 pytest -q tests                               # unit tests, golden histories, baselines
+ruff check district_evolution tests scripts examples && mypy
 ```
 
-CI builds twice and fails on any byte difference between the builds (except the outputs listed in
-`config/pipeline.yaml` under `determinism`), on any ERROR check, and on any failing test.
+CI runs lint and type checks, builds twice, and fails on any byte difference between the builds
+(except the outputs listed in `config/pipeline.yaml` under `determinism`), on any ERROR check, and on
+any failing test.
+
+Code rules, enforced by ruff and mypy (`pyproject.toml`): `zip()` is always `strict=True` unless unequal
+lengths are the point (then `strict=False` with a comment); stage code is checked for attribute and
+return errors, the library layer (`core`, `contracts`, `harmonize`, `release`, `sources`) for everything.
+
+Curated reference files (`data/reference/`) are source: add rows only with the evidence the file's
+column asks for, and `tests/test_reference_data.py` must pass. Proposed rows from rules
+(`scripts/curation/`) are reviewed before they are written.
 
 ## Adding things without touching the core
 

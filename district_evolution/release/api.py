@@ -74,7 +74,7 @@ def rows(sql: str, params: list | None = None) -> list[dict]:
     with _lock:
         res = _db.cursor().execute(sql, params or [])
         cols = [d[0] for d in res.description]
-        return [dict(zip(cols, r)) for r in res.fetchall()]
+        return [dict(zip(cols, r, strict=True)) for r in res.fetchall()]
 
 
 def ok(data) -> dict:
@@ -141,19 +141,21 @@ def _tile(year: int, z: int, x: int, y: int) -> bytes:
     with _lock:
         b = _db.cursor().execute(f"""
             WITH env AS (SELECT ST_TileEnvelope({z}, {x}, {y}) AS e)
-            SELECT ST_AsMVT({{'geom': ST_AsMVTGeom(ST_Simplify(geom3857, {tolerance}), ST_Extent((SELECT e FROM env)), 4096, 64, true),
+            SELECT ST_AsMVT({{'geom': ST_AsMVTGeom(ST_Simplify(geom3857, {tolerance}),
+                                                   ST_Extent((SELECT e FROM env)), 4096, 64, true),
                               'ck': canonical_key, 'name': district_name, 'state': state,
                               'area_km2': round(area_km2, 1), 'is_new': is_new, 'area_change_pct': area_change_pct}},
                              'districts')
-            FROM tile_source, env WHERE year = ? AND ST_Intersects(box::GEOMETRY, e)""", [year]).fetchone()[0]
-    return b or b""
+            FROM tile_source, env WHERE year = ? AND ST_Intersects(box::GEOMETRY, e)""", [year]).fetchone()
+    return (b[0] if b else None) or b""
 
 
 @api.get("/districts")
 def districts(q: str | None = Query(None, description="Part of a district name (any map)"),
               state: str | None = None, year: int | None = Query(None, description="Only identities on this map"),
               active: bool | None = None, limit: int = Query(50, le=1000)):
-    where, params = ["1=1"], []
+    where: list[str] = ["1=1"]
+    params: list[object] = []
     if q:
         where.append("canonical_key IN (SELECT canonical_key FROM ck_observation WHERE district_name ILIKE ?)")
         params.append(f"%{q}%")
@@ -216,10 +218,12 @@ def genealogy(ck: str = PathParam(pattern=CK), max_depth: int = Query(12, le=32)
     registry_row(ck)
     edges = rows("""WITH RECURSIVE up(ck, depth, rel_id) AS (
             SELECT from_ck, 1, rel_id FROM district_relationship WHERE to_ck = ?
-            UNION ALL SELECT r.from_ck, u.depth + 1, r.rel_id FROM up u JOIN district_relationship r ON r.to_ck = u.ck WHERE u.depth < ?),
+            UNION ALL SELECT r.from_ck, u.depth + 1, r.rel_id
+                      FROM up u JOIN district_relationship r ON r.to_ck = u.ck WHERE u.depth < ?),
           down(ck, depth, rel_id) AS (
             SELECT to_ck, 1, rel_id FROM district_relationship WHERE from_ck = ?
-            UNION ALL SELECT r.to_ck, d.depth + 1, r.rel_id FROM down d JOIN district_relationship r ON r.from_ck = d.ck WHERE d.depth < ?)
+            UNION ALL SELECT r.to_ck, d.depth + 1, r.rel_id
+                      FROM down d JOIN district_relationship r ON r.from_ck = d.ck WHERE d.depth < ?)
         SELECT DISTINCT r.rel_id, r.from_ck, r.to_ck, r.relationship_type, r.year_a, r.year_b, r.period_start, r.period_end,
                r.transfer_km2 FROM district_relationship r WHERE r.rel_id IN (SELECT rel_id FROM up UNION SELECT rel_id FROM down)
         ORDER BY r.year_b, r.rel_id""", [ck, max_depth, ck, max_depth])
@@ -314,7 +318,8 @@ def crosswalk(from_year: int, ck: str, direction: str = Query("forward", pattern
 
 @api.get("/events")
 def events(ck: str | None = None, year: int | None = None, limit: int = Query(200, le=2000)):
-    where, params = ["1=1"], []
+    where: list[str] = ["1=1"]
+    params: list[object] = []
     if ck:
         where.append("e.event_id IN (SELECT event_id FROM event_linkage WHERE canonical_key = ?)")
         params.append(ck)

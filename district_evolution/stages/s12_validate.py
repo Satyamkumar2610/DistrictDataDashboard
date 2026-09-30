@@ -40,6 +40,7 @@ CONTRACTS = {
     "event_accounting": G / "events/event_accounting.parquet",
     "district_area_admin": core.PRODUCTS_DIR / "district_area_admin.parquet",
     "crosswalk_to_reference": core.PRODUCTS_DIR / "crosswalk_to_reference.parquet",
+    "crosswalk_coverage": core.PRODUCTS_DIR / "crosswalk_coverage.parquet",
     "district_reference_context": core.PRODUCTS_DIR / "district_reference_context.parquet",
     "evidence_claim": G / "evidence/evidence_claim.parquet",
     "claim_ck_link": G / "evidence/claim_ck_link.parquet",
@@ -97,7 +98,10 @@ def merge_check() -> dict:
     reg = pd.read_csv(core.OUTPUT_DIR / "s04_ck_registry.csv").set_index("canonical_key").latest_state
     m = rel[rel.relationship_type == "MERGED_INTO"].copy()
     m["target_state"] = m.to_ck.map(reg)
-    unexplained = m[[not core.is_documented_geometry_gap(s, y) for s, y in zip(m.target_state, m.year_b)]]
+    # a boolean Series, not a list: an empty list would select zero columns, not zero rows
+    documented = pd.Series([core.is_documented_geometry_gap(s, y) for s, y in zip(m.target_state, m.year_b, strict=True)],
+                           index=m.index, dtype=bool)
+    unexplained = m[~documented]
     return {"check_id": "V19", "description": "MERGED_INTO edge into an undocumented geometry gap (see known_geometry_gaps.csv)",
             "severity": "WARNING", "n_violations": len(unexplained),
             "detail": "; ".join(f"{a}->{b} ({y})" for a, b, y in
@@ -150,7 +154,7 @@ def undeclared_check(declared: set[str]) -> dict:
     row = {"check_id": "V20", "description": "file in a generated-output directory that no stage declares and git does not track",
            "severity": "ERROR", "n_violations": 0, "detail": None}
     git = subprocess.run(["git", "ls-files", "-z", "--", *CHECKED_ROOTS], cwd=core.PROJECT_ROOT,
-                         capture_output=True, text=True)
+                         capture_output=True, text=True, check=False)
     if git.returncode != 0:
         return row | {"severity": "INFO", "detail": "not a git work tree; check skipped"}
     tracked = set(filter(None, git.stdout.split("\0")))

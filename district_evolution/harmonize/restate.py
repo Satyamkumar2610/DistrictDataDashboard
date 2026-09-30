@@ -38,8 +38,8 @@ def candidates(obs: pd.DataFrame, tables: Path | None) -> list[list[dict]]:
     ck_obs = engine.read("ck_observation", tables)
     ck_obs["name_norm"] = ck_obs.district_name.map(core.normalize_name)
     ck_obs["state_norm"] = ck_obs.state.map(lambda s: core.normalize_name(core.canonical_state(s)))
-    out = []
-    for name, state, my, status in zip(obs.raw_name, obs.state, obs.map_year, obs.link_status):
+    out: list[list[dict]] = []
+    for name, state, my, status in zip(obs.raw_name, obs.state, obs.map_year, obs.link_status, strict=True):
         if status == "LINKED" or pd.isna(my):
             out.append([])
             continue
@@ -67,10 +67,11 @@ def restate(df: pd.DataFrame, kind: str = "extensive", indicator: str = "value",
         raise ValueError(f"map_year must be one of the maps {core.YEARS}")
     obs = engine.link(observations(df, indicator, map_year), tables)
     obs.loc[obs.value.isna() & (obs.link_status == "LINKED"), "link_status"] = "NO_VALUE"
-    obs["candidates"] = candidates(obs, tables)
+    obs["candidates"] = pd.Series(candidates(obs, tables), index=obs.index, dtype=object)
     ck_obs = engine.read("ck_observation", tables)
     names = ck_obs.set_index(["canonical_key", "year"]).district_name
-    obs["matched_name"] = [names.get((c, int(y))) if isinstance(c, str) else None for c, y in zip(obs.canonical_key, obs.map_year.fillna(0))]
+    obs["matched_name"] = [names.get((c, int(y))) if isinstance(c, str) else None
+                           for c, y in zip(obs.canonical_key, obs.map_year.fillna(0), strict=True)]
     used = obs[obs.link_status == "LINKED"]
     years = sorted(int(y) for y in used.map_year.unique())
     w = AreaWeight()

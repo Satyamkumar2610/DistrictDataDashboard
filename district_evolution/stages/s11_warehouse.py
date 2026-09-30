@@ -21,7 +21,7 @@ turns into the pass/fail gate:
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import duckdb
@@ -146,6 +146,16 @@ CREATE TABLE crosswalk_to_reference (
   source_depicted_year INTEGER NOT NULL CHECK (source_depicted_year >= year),
   PRIMARY KEY (year, source_ck, target_ck));
 
+CREATE TABLE crosswalk_coverage (
+  year INTEGER NOT NULL REFERENCES vintage(year),
+  source_ck VARCHAR NOT NULL REFERENCES ck_registry(canonical_key),
+  area_km2 DOUBLE NOT NULL CHECK (area_km2 > 0),
+  on_reference_km2 DOUBLE NOT NULL CHECK (on_reference_km2 >= 0),
+  unallocated_km2 DOUBLE NOT NULL CHECK (unallocated_km2 >= 0),
+  share_on_reference DOUBLE NOT NULL CHECK (share_on_reference BETWEEN 0 AND 1),
+  n_targets INTEGER NOT NULL CHECK (n_targets >= 0),
+  PRIMARY KEY (year, source_ck));
+
 CREATE TABLE validation_result (
   check_id VARCHAR NOT NULL, description VARCHAR NOT NULL,
   severity VARCHAR NOT NULL CHECK (severity IN ('ERROR','WARNING','INFO')),
@@ -164,7 +174,7 @@ def pq(path: Path) -> str:
 def load(con: duckdb.DuckDBPyConnection) -> None:
     con.executemany("INSERT INTO vintage VALUES (?, ?, ?)",
                     [(y, i, s) for i, (s, y) in enumerate(core.VINTAGES)])
-    for s, y in core.VINTAGES:
+    for _source, y in core.VINTAGES:
         con.execute(f"""INSERT INTO geometry_observation
             SELECT geom_obs_id, source_dataset, source_year, source_pk, district_name_std, state_name_std,
                    area_km2, perimeter_km, geometry FROM {pq(core.silver_path(y))}""")
@@ -183,6 +193,7 @@ def load(con: duckdb.DuckDBPyConnection) -> None:
         "lineage_corroboration": G / "events/lineage_corroboration.parquet",
         "district_area_admin": P / "district_area_admin.parquet",
         "crosswalk_to_reference": P / "crosswalk_to_reference.parquet",
+        "crosswalk_coverage": P / "crosswalk_coverage.parquet",
     }
     for table, path in tables.items():
         cols = [r[0] for r in con.execute(f"DESCRIBE {table}").fetchall()]
@@ -208,6 +219,7 @@ def invariants(con: duckdb.DuckDBPyConnection) -> list[tuple]:
     err_pct = core.CFG["closure"]["error_pct"]
     area_pct = core.CFG["area_check"]["max_rel_diff_pct"]
     ref = core.REFERENCE_YEAR
+    eps = core.CFG["products"]["arithmetic_tol_km2"]
     checks = [
         ("V3", "overlay closure broken (excess > closure.error_pct of polygon)", "ERROR",
          f"SELECT count(*) FROM transition_residual WHERE closure_error_km2 > area_km2 * {err_pct} / 100"),
@@ -245,7 +257,8 @@ def invariants(con: duckdb.DuckDBPyConnection) -> list[tuple]:
                   GROUP BY 1, 2) WHERE a > s * (1 + {core.CFG['closure']['tol_pct']} / 100) + {core.CFG['closure']['tol_km2']})
              + (SELECT count(*) FROM (SELECT x.year, x.target_ck, sum(x.area_km2) a, max(d.area_km2) t
                   FROM crosswalk_to_reference x JOIN district_area_admin d ON d.canonical_key = x.target_ck AND d.year = {ref}
-                  GROUP BY 1, 2) WHERE a > t * (1 + {core.CFG['closure']['tol_pct']} / 100) + {core.CFG['closure']['tol_km2']})"""),
+                  GROUP BY 1, 2)
+             WHERE a > t * (1 + {core.CFG['closure']['tol_pct']} / 100) + {core.CFG['closure']['tol_km2']})"""),
         ("V16", "area ledger closure beyond tolerance", "WARNING",
          "SELECT count(*) FROM district_ledger WHERE NOT closure_ok"),
         ("V17", "overlap repair changed a polygon's area by more than 0.1% (review)", "WARNING",
@@ -254,6 +267,17 @@ def invariants(con: duckdb.DuckDBPyConnection) -> list[tuple]:
         ("V21", "evidence claim linked to a CK that does not exist", "ERROR",
          """SELECT count(*) FROM claim_ck_link l LEFT JOIN ck_registry r USING (canonical_key)
              WHERE l.canonical_key IS NOT NULL AND r.canonical_key IS NULL"""),
+        ("V26", "crosswalk coverage does not add up (on_reference + unallocated != area, or != crosswalk sum)", "ERROR",
+         f"""SELECT count(*) FROM crosswalk_coverage c
+             LEFT JOIN (SELECT year, source_ck, sum(area_km2) s FROM crosswalk_to_reference GROUP BY 1, 2) x
+                  USING (year, source_ck)
+             WHERE abs(c.on_reference_km2 + c.unallocated_km2 - greatest(c.area_km2, c.on_reference_km2)) > {eps}
+                OR abs(c.on_reference_km2 - coalesce(x.s, 0)) > {eps}"""),
+        ("V27", "a linkage probability class lies near the match threshold (links may flip; see config linkage)", "WARNING",
+         f"""SELECT count(*) FROM (SELECT round(match_probability, 3) AS p, count(*) AS n
+                                   FROM participant_ck_candidate GROUP BY 1)
+             WHERE n >= {core.CFG['linkage']['class_min_pairs']}
+               AND abs(p - {core.CFG['linkage']['min_match_probability']}) < {core.CFG['linkage']['threshold_margin']}"""),
         ("V25", "a placeholder (unnamed or disputed strip) holds a district identity", "ERROR",
          f"""SELECT count(*) FROM ck_observation
              WHERE regexp_matches(lower(district_name), '{core.CFG["placeholders"]["disputed_name_pattern"]}')
@@ -287,7 +311,7 @@ def main() -> None:
     results = invariants(con)
     con.executemany("INSERT INTO validation_result VALUES (?, ?, ?, ?, ?)", results)
     con.execute("INSERT INTO pipeline_run VALUES (?, ?, ?, ?)",
-                [core.PIPELINE_VERSION, datetime.now(timezone.utc).replace(tzinfo=None),
+                [core.PIPELINE_VERSION, datetime.now(UTC).replace(tzinfo=None),
                  sha256(core.CONFIG_DIR / "pipeline.yaml"), sha256(core.EVENTS_CSV)])
     con.close()
     tmp.replace(core.WAREHOUSE_PATH)

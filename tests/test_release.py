@@ -37,7 +37,8 @@ def test_release_manifest_matches_the_files(release):
     man = pd.read_csv(release / "MANIFEST.csv")
     for row in man.itertuples():
         assert hashlib.sha256((release / row.path).read_bytes()).hexdigest() == row.sha256, row.path
-    on_disk = {str(p.relative_to(release)) for p in release.rglob("*") if p.is_file() and p.name not in {"MANIFEST.csv", ".DS_Store"}}
+    on_disk = {str(p.relative_to(release)) for p in release.rglob("*")
+               if p.is_file() and p.name not in {"MANIFEST.csv", ".DS_Store"}}
     assert on_disk == set(man.path)
 
 
@@ -64,7 +65,8 @@ def test_kangra_one_identity_with_its_carve_outs(api):
     ck = api.get("/api/districts", params={"q": "Kangra"}).json()["data"][0]["canonical_key"]
     d = api.get(f"/api/districts/{ck}").json()["data"]
     assert (d["established_year"], d["closed_year"]) == (1951, None)
-    kids = {r["to_name"] for r in api.get(f"/api/districts/{ck}/lineage?direction=descendants&max_depth=1").json()["data"]["descendants"]}
+    lineage = api.get(f"/api/districts/{ck}/lineage?direction=descendants&max_depth=1").json()["data"]
+    kids = {r["to_name"] for r in lineage["descendants"]}
     assert {"Kullu", "Hamirpur"} <= kids
     xw = api.get("/api/crosswalk", params={"from_year": 1951, "ck": ck}).json()["data"]
     assert sum(r["share_of_source"] for r in xw) == pytest.approx(1.0, abs=0.01)
@@ -101,7 +103,7 @@ def test_overview_event_status_matches_the_pipeline_rule(api):
     totals = {}
     for e in events:
         totals[e["status"]] = totals.get(e["status"], 0) + e["events"]
-    assert totals == {"MEASURED": 401, "UNIDENTIFIED_MULTI_EVENT_WINDOW": 186, "NOT_MEASURABLE": 22}
+    assert totals == {"MEASURED": 399, "UNIDENTIFIED_MULTI_EVENT_WINDOW": 189, "NOT_MEASURABLE": 21}
 
 
 def test_release_states_its_validation(api):

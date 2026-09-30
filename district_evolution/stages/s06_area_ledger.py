@@ -17,7 +17,7 @@ from district_evolution import core
 
 def main() -> None:
     reg = pd.read_parquet(core.GOLD_CORE_DIR / "ck_registry.parquet")
-    established = dict(zip(reg.canonical_key, reg.established_year))
+    established = dict(zip(reg.canonical_key, reg.established_year, strict=True))
     obs = pd.read_parquet(core.GOLD_CORE_DIR / "ck_observation.parquet")
     f = pd.read_parquet(core.GOLD_SPATIAL_DIR / "ck_flow.parquet")
     res = pd.read_parquet(core.GOLD_SPATIAL_DIR / "transition_residual.parquet")

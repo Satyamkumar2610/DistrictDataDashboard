@@ -16,11 +16,11 @@ from __future__ import annotations
 
 import json
 import ssl
-import sys
 import urllib.parse
 import urllib.request
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 import certifi
 
@@ -68,7 +68,7 @@ def run(query: str) -> list[dict]:
 
 def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    snapshot = {"source": "Wikidata SPARQL endpoint", "endpoint": ENDPOINT,
+    snapshot: dict[str, Any] = {"source": "Wikidata SPARQL endpoint", "endpoint": ENDPOINT,
                 "retrieved": date.today().isoformat(), "queries": QUERIES,
                 "results": {name: run(q) for name, q in QUERIES.items()}}
     out = OUT_DIR / f"wikidata_districts_{snapshot['retrieved']}.json"
@@ -79,4 +79,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

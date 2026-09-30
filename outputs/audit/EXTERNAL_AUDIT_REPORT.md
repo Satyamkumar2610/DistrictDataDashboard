@@ -2,7 +2,7 @@
 
 Wikidata is independent of the Stanford/SOI maps and of the events CSV, so
 agreement here is external corroboration. It is crowd-maintained: of its district
-area claims, only 3 of those matched carry a source reference, and almost none
+area claims, only 4 of those matched carry a source reference, and almost none
 carry a date. A disagreement is therefore a lead to check, not proof of our error.
 
 ## 1. Coverage (reference year 2025)
@@ -11,27 +11,27 @@ Current Wikidata district items with coordinates: 779.
 
 | verdict                    |   n |
 |:---------------------------|----:|
-| GEOMETRY_AND_NAME          | 624 |
-| GEOMETRY_ONLY_NAME_DIFFERS | 154 |
+| GEOMETRY_AND_NAME          | 633 |
+| GEOMETRY_ONLY_NAME_DIFFERS | 145 |
 | NO_POLYGON                 |   1 |
 
 Our 733 active districts matched to a Wikidata item by geometry and name:
-**624** (85.1%).
-Not matched: 109. Wikidata items whose point falls in one of our districts but whose
+**633** (86.4%).
+Not matched: 100. Wikidata items whose point falls in one of our districts but whose
 name differs are listed in `wikidata_match.csv`. They are mostly districts formed after the SOI
 2025 map, or outdated coordinates.
 
 ## 2. Area (our 2025 geodesic area vs Wikidata)
 
-Compared: 565 districts. Median absolute difference: 1.61%.
+Compared: 574 districts. Median absolute difference: 1.60%.
 
 | verdict                           |   n |
 |:----------------------------------|----:|
-| AGREE_WITHIN_2PCT                 | 300 |
+| AGREE_WITHIN_2PCT                 | 305 |
 | MINOR_2_TO_10PCT                  | 124 |
-| DISTRICT_REORGANISED_AFTER_2011   |  48 |
-| UNEXPLAINED_OVER_10PCT            |  47 |
-| WIKIDATA_MATCHES_OUR_EARLIER_AREA |  40 |
+| UNEXPLAINED_OVER_10PCT            |  52 |
+| DISTRICT_REORGANISED_AFTER_2011   |  46 |
+| WIKIDATA_MATCHES_OUR_EARLIER_AREA |  41 |
 | WIKIDATA_MAGNITUDE_ERROR          |   6 |
 
 How to read the verdicts:
@@ -45,13 +45,14 @@ How to read the verdicts:
   so an undated Wikidata figure may predate it.
 
 Share of compared districts that agree or whose difference is explained:
-**91.7%**.
+**90.9%**.
 
-Unexplained differences over 10% (47). These are leads to check against official figures:
+Unexplained differences over 10% (52). These are leads to check against official figures:
 
 | label                        | our_name       |   wd_area_km2 |   our_area_2025_km2 |   our_area_2011_km2 |   rel_diff_2025 |
 |:-----------------------------|:---------------|--------------:|--------------------:|--------------------:|----------------:|
 | Harda district               | Harda          |         26    |            3341.42  |            3316.49  |         127.516 |
+| Chennai district             | Chennai        |        174    |             334.375 |             177.646 |           0.922 |
 | Srinagar district            | Srinagar       |       1979    |             281.804 |             477.218 |          -0.858 |
 | Shravasti district           | Shrawasti      |       1126    |            1931.14  |            1953.7   |           0.715 |
 | Faridabad district           | Faridabad      |       2151    |             743.339 |             751.944 |          -0.654 |
@@ -74,13 +75,12 @@ Unexplained differences over 10% (47). These are leads to check against official
 | Zunheboto district           | Zunheboto      |       1255    |            1575.2   |            1537.34  |           0.255 |
 | Dhemaji district             | Dhemaji        |       3237    |            2478.99  |            2577.94  |          -0.234 |
 | Jammu district               | Jammu          |       3097    |            2411.61  |            2253     |          -0.221 |
+| Peren district               | Paren          |       2300    |            1827.63  |            1644.88  |          -0.205 |
 | Nagpur district              | Nagpur         |       8253    |            9897.32  |            9894.62  |           0.199 |
 | Udaipur district             | Udaipur        |      14621    |           11712.2   |           11682.8   |          -0.199 |
 | Kulgam district              | Kulgam         |       1067    |            1265.72  |            1165.83  |           0.186 |
 | Nuh district                 | Mewat          |       1860    |            1515.06  |            1531.02  |          -0.185 |
 | Rudraprayag district         | Rudraprayag    |       2439    |            1987.94  |            1985.48  |          -0.185 |
-| Nandurbar district           | Nandurbar      |       5035    |            5955.6   |            5905.83  |           0.183 |
-| Ganderbal district           | Ganderbal      |       1979    |            1620.89  |            1286.54  |          -0.181 |
 
 ## 3. Formation year (Wikidata inception vs the map where our CK first appears)
 
@@ -88,10 +88,10 @@ Compared: 141 districts with inception ≥ 1947.
 
 | verdict                     |   n |
 |:----------------------------|----:|
-| CONSISTENT                  | 125 |
+| CONSISTENT                  | 126 |
 | CONSISTENT_WITH_ONE_MAP_LAG |  10 |
 | OURS_EARLIER_THAN_INCEPTION |   4 |
-| OURS_LATER_THAN_INCEPTION   |   2 |
+| OURS_LATER_THAN_INCEPTION   |   1 |
 
 ## 4. Lineage (Wikidata separated-from / replaces / replaced-by)
 
@@ -107,7 +107,7 @@ coverage.
 
 For each new district we take its creation year from the events compilation. That source is
 independent of the maps. Where Wikidata also has an inception year, it is used to corroborate.
-Dates confirmed in `data/reference/vintage_depiction.csv` are applied first. Of 390 new
+Dates confirmed in `data/reference/vintage_depiction.csv` are applied first. Of 391 new
 districts with a recorded creation year, **7** still appear on a
 map depicting a date before that year.
 

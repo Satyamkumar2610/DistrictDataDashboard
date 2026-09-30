@@ -34,8 +34,8 @@ def ck_flows() -> pd.DataFrame:
     flow = pd.read_parquet(core.GOLD_SPATIAL_DIR / "transition_flow.parquet")
     flow = flow[flow.kind == "ADJACENT"]
     obs = pd.read_parquet(core.GOLD_CORE_DIR / "ck_observation.parquet")
-    ck = dict(zip(obs.geom_obs_id, obs.canonical_key))
-    area = dict(zip(obs.geom_obs_id, obs.area_km2))
+    ck = dict(zip(obs.geom_obs_id, obs.canonical_key, strict=True))
+    area = dict(zip(obs.geom_obs_id, obs.area_km2, strict=True))
     f = flow.assign(from_ck=flow.geom_obs_id_a.map(ck), to_ck=flow.geom_obs_id_b.map(ck),
                     from_area=flow.geom_obs_id_a.map(area), to_area=flow.geom_obs_id_b.map(area))
     agg = f.groupby(["year_a", "year_b", "from_ck", "to_ck"], as_index=False).agg(
@@ -75,8 +75,8 @@ def reconstitutions(reg: pd.DataFrame, rel: pd.DataFrame) -> pd.DataFrame:
 
 def main() -> None:
     reg = pd.read_parquet(core.GOLD_CORE_DIR / "ck_registry.parquet")
-    established = dict(zip(reg.canonical_key, reg.established_year))
-    closed = dict(zip(reg.canonical_key, reg.closed_year))
+    established = dict(zip(reg.canonical_key, reg.established_year, strict=True))
+    closed = dict(zip(reg.canonical_key, reg.closed_year, strict=True))
 
     f = ck_flows()
     f.to_parquet(core.GOLD_SPATIAL_DIR / "ck_flow.parquet", index=False)
@@ -86,8 +86,8 @@ def main() -> None:
     cross["transfer_km2"] = cross.material_km2
     # the change happened between the dates the two maps DEPICT for these districts
     state = pd.read_parquet(core.GOLD_CORE_DIR / "ck_observation.parquet").set_index(["canonical_key", "year"]).state
-    cross["period_start"] = [core.depicted_year(state[(c, y)], y) for c, y in zip(cross.from_ck, cross.year_a)]
-    cross["period_end"] = [core.depicted_year(state[(c, y)], y) for c, y in zip(cross.to_ck, cross.year_b)]
+    cross["period_start"] = [core.depicted_year(state[(c, y)], y) for c, y in zip(cross.from_ck, cross.year_a, strict=True)]
+    cross["period_end"] = [core.depicted_year(state[(c, y)], y) for c, y in zip(cross.to_ck, cross.year_b, strict=True)]
     is_new = cross.apply(lambda r: established[r.to_ck] == r.year_b, axis=1)
 
     rel = cross[is_new].copy()
@@ -98,8 +98,8 @@ def main() -> None:
         else ("MERGED_INTO" if n_closing.get((r.to_ck, r.year_b), 0) >= 2 else "SPLIT_FROM")
         for r in rel.itertuples()]
     recon = reconstitutions(reg, rel)
-    recon["period_start"] = [core.depicted_year(state[(c, y)], y) for c, y in zip(recon.from_ck, recon.year_a)]
-    recon["period_end"] = [core.depicted_year(state[(c, y)], y) for c, y in zip(recon.to_ck, recon.year_b)]
+    recon["period_start"] = [core.depicted_year(state[(c, y)], y) for c, y in zip(recon.from_ck, recon.year_a, strict=True)]
+    recon["period_end"] = [core.depicted_year(state[(c, y)], y) for c, y in zip(recon.to_ck, recon.year_b, strict=True)]
     rel = pd.concat([rel, recon], ignore_index=True)
     rel["rel_id"] = [core.stable_id("REL", r.from_ck, r.to_ck, r.year_a, r.year_b) for r in rel.itertuples()]
     rel["lineage_basis"] = "SPATIAL"
@@ -117,7 +117,7 @@ def main() -> None:
 
     dag = lineage_graph.lineage_dag(rel, reg)
     lineage_graph.assert_acyclic(dag)
-    backwards = rel[[established[a] >= established[b] for a, b in zip(rel.from_ck, rel.to_ck)]]
+    backwards = rel[[established[a] >= established[b] for a, b in zip(rel.from_ck, rel.to_ck, strict=True)]]
     if len(backwards):
         raise AssertionError(f"{len(backwards)} lineage edges do not point forward in time")
 

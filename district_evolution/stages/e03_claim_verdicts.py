@@ -33,8 +33,8 @@ def main() -> None:
     area = obs.set_index(["canonical_key", "year"]).area_km2
     name_at = obs.set_index(["canonical_key", "year"]).district_name
     reorganised = rules.reorganised_after_2011(rel, reg)
-    edges = set(zip(rel.from_ck, rel.to_ck))
-    gave_land = {(a, b, y) for a, b, y, m in zip(flow.from_ck, flow.to_ck, flow.year_b, flow.material_km2) if m > 0}
+    edges = set(zip(rel.from_ck, rel.to_ck, strict=True))
+    gave_land = {(a, b, y) for a, b, y, m in zip(flow.from_ck, flow.to_ck, flow.year_b, flow.material_km2, strict=True) if m > 0}
 
     c = claims.merge(link, on="claim_id")
     where = {}  # parent qid -> (lon, lat), from the subjects the sources describe

@@ -21,10 +21,18 @@ jobs:
           python-version: "3.13"
           cache: pip
 
-      - name: Install pinned dependencies and the package
+      - name: Install pinned dependencies, dev tools and the package
         run: |
-          pip install -r requirements.txt
+          pip install -r requirements.txt -r requirements-dev.txt
           pip install -e . --no-deps
+
+      - name: Lint and types
+        run: |
+          ruff check district_evolution tests scripts examples
+          mypy
+
+      - name: Stage order is derived from dvc.yaml (the CLI and dvc repro agree)
+        run: python -m district_evolution stages
 
       - name: Unit tests
         run: pytest -q tests
@@ -35,8 +43,8 @@ jobs:
           cp dvc.lock /tmp/dvc.lock.build1
           cp outputs/pipeline/s12_output_manifest.csv /tmp/manifest.build1.csv
 
-      - name: Golden histories and regression baselines against the built warehouse
-        run: pytest -q tests
+      - name: Golden histories and regression baselines against the built warehouse, with coverage
+        run: pytest -q tests --cov=district_evolution --cov-report=term --cov-report=xml
 
       - uses: actions/setup-node@v4
         with:

@@ -47,7 +47,7 @@ def main() -> None:
                       f"first map {r.first_map} (depicts {r.depicted}), created {int(r.csv_year)} per the events compilation"))
 
     q = pd.DataFrame(items, columns=["topic", "ref", "subject", "state", "detail"])
-    q.insert(0, "queue_item_id", [core.stable_id("QUEUE", t, ref) for t, ref in zip(q.topic, q.ref)])
+    q.insert(0, "queue_item_id", [core.stable_id("QUEUE", t, ref) for t, ref in zip(q.topic, q.ref, strict=True)])
     findings = schemas.validate("research_finding", pd.read_csv(FINDINGS, dtype=str))
     linked = findings.dropna(subset=["queue_item_id"]).set_index("queue_item_id")
     q["status"] = q.queue_item_id.map(linked.status).fillna("OPEN")

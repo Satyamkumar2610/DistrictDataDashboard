@@ -44,48 +44,48 @@
                 {
                     "sql_condition": "\"name_norm_l\" = \"name_norm_r\"",
                     "label_for_charts": "Exact match on name_norm",
-                    "m_probability": 0.637789499929,
-                    "u_probability": 0.000923835047,
+                    "m_probability": 0.611710529183,
+                    "u_probability": 0.000921263123,
                     "fix_m_probability": false,
                     "fix_u_probability": false
                 },
                 {
                     "sql_condition": "\"alias_norm_l\" = \"alias_norm_r\"",
                     "label_for_charts": "documentary alias",
-                    "m_probability": 0.044588915314,
-                    "u_probability": 8.4873487e-05,
+                    "m_probability": 0.093628854926,
+                    "u_probability": 0.000158430509,
                     "fix_m_probability": false,
                     "fix_u_probability": false
                 },
                 {
                     "sql_condition": "jaro_winkler_similarity(\"name_norm_l\", \"name_norm_r\") >= 0.95",
                     "label_for_charts": "Jaro-Winkler distance of name_norm >= 0.95",
-                    "m_probability": 0.048244664646,
-                    "u_probability": 6.8927559e-05,
+                    "m_probability": 0.046084364404,
+                    "u_probability": 6.8413174e-05,
                     "fix_m_probability": false,
                     "fix_u_probability": false
                 },
                 {
                     "sql_condition": "jaro_winkler_similarity(\"name_norm_l\", \"name_norm_r\") >= 0.88",
                     "label_for_charts": "Jaro-Winkler distance of name_norm >= 0.88",
-                    "m_probability": 0.107148189258,
-                    "u_probability": 0.000674872818,
+                    "m_probability": 0.095996166973,
+                    "u_probability": 0.000652239888,
                     "fix_m_probability": false,
                     "fix_u_probability": false
                 },
                 {
                     "sql_condition": "jaro_winkler_similarity(\"name_norm_l\", \"name_norm_r\") >= 0.8",
                     "label_for_charts": "Jaro-Winkler distance of name_norm >= 0.8",
-                    "m_probability": 0.15371200383,
-                    "u_probability": 0.003724145735,
+                    "m_probability": 0.144421755689,
+                    "u_probability": 0.003675279182,
                     "fix_m_probability": false,
                     "fix_u_probability": false
                 },
                 {
                     "sql_condition": "ELSE",
                     "label_for_charts": "All other comparisons",
-                    "m_probability": 0.008516727023,
-                    "u_probability": 0.994523345353,
+                    "m_probability": 0.008158328825,
+                    "u_probability": 0.994524374122,
                     "fix_m_probability": false,
                     "fix_u_probability": false
                 }
@@ -105,16 +105,24 @@
                 {
                     "sql_condition": "\"state_norm_l\" = \"state_norm_r\"",
                     "label_for_charts": "Exact match on state_norm",
-                    "m_probability": 0.893417338482,
-                    "u_probability": 0.042664101601,
+                    "m_probability": 0.89046887911,
+                    "u_probability": 0.04264558375,
+                    "fix_m_probability": false,
+                    "fix_u_probability": false
+                },
+                {
+                    "sql_condition": "\"today_state_norm_l\" = \"today_state_norm_r\"",
+                    "label_for_charts": "district's state today",
+                    "m_probability": 0.084089636976,
+                    "u_probability": 0.003181469803,
                     "fix_m_probability": false,
                     "fix_u_probability": false
                 },
                 {
                     "sql_condition": "list_contains(state_compat_l, state_norm_r) OR list_contains(state_compat_r, state_norm_l)",
                     "label_for_charts": "compatible via state lineage",
-                    "m_probability": 0.09662208306,
-                    "u_probability": 0.072818879979,
+                    "m_probability": 0.015472785773,
+                    "u_probability": 0.069822588693,
                     "fix_m_probability": false,
                     "fix_u_probability": false
                 },
@@ -122,7 +130,7 @@
                     "sql_condition": "ELSE",
                     "label_for_charts": "All other comparisons",
                     "m_probability": 0.01,
-                    "u_probability": 0.88451701842,
+                    "u_probability": 0.884350357755,
                     "fix_m_probability": true,
                     "fix_u_probability": false
                 }

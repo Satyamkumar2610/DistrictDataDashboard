@@ -74,7 +74,7 @@ def flows_and_residuals(parts, year_a, year_b, kind):
     flow = flow.sort_values(["geom_obs_id_a", "geom_obs_id_b"]).reset_index(drop=True)
 
     res = []
-    for side, layer, key, yr in (("SOURCE", a, "obs_a", year_a), ("TARGET", b, "obs_b", year_b)):
+    for side, layer, key, _year in (("SOURCE", a, "obs_a", year_a), ("TARGET", b, "obs_b", year_b)):
         covered = parts.groupby(key)["part_km2"].sum()
         r = layer[["geom_obs_id", "area_km2"]].copy()
         r["covered_km2"] = r["geom_obs_id"].map(covered).fillna(0.0)
@@ -127,14 +127,14 @@ def main() -> None:
                     "transition_flow")
     core.write_table(pd.concat(residuals, ignore_index=True), core.GOLD_SPATIAL_DIR / "transition_residual.parquet",
                     "transition_residual")
-    summary = pd.DataFrame(summary)
-    summary.to_csv(core.OUTPUT_DIR / "s03_transition_summary.csv", index=False)
+    summary_df = pd.DataFrame(summary)
+    summary_df.to_csv(core.OUTPUT_DIR / "s03_transition_summary.csv", index=False)
     # a fixed gpkg_contents.last_change keeps the file byte-reproducible
     pyogrio.set_gdal_config_options({"OGR_CURRENT_DATE": "2000-01-01T00:00:00.000Z"})
     gpd.GeoDataFrame(pd.concat(inspect, ignore_index=True), geometry="geometry", crs="EPSG:4326").to_file(
         core.OUTPUT_DIR / "s03_transfer_and_displacement_parts.gpkg", driver="GPKG")
 
-    print(summary.to_string(index=False))
+    print(summary_df.to_string(index=False))
 
 
 if __name__ == "__main__":

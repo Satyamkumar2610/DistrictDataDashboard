@@ -74,3 +74,12 @@ def test_package_and_citation_versions_match_pipeline_version():
     citation = yaml.safe_load((core.PROJECT_ROOT / "CITATION.cff").read_text())
     assert pyproject["project"]["version"] == core.PIPELINE_VERSION
     assert str(citation["version"]) == core.PIPELINE_VERSION
+
+
+def test_name_similarity_handles_names_of_different_lengths():
+    """Jaro-Winkler's prefix step compares up to four leading characters of two names of any lengths."""
+    from district_evolution.core.names import jaro_winkler
+    assert 0.8 < jaro_winkler("kangra", "kangraa") < 1.0
+    assert jaro_winkler("un", "una") > 0.8 and jaro_winkler("a", "abcdefgh") > 0
+    # a one-letter spelling variant can fall just under the agreement threshold: why spellings are recorded as aliases
+    assert 0.85 < core.names_agree("ahmadnagar", "ahmednagar")[1] < core.CFG["identity"]["name_jw"]

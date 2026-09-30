@@ -74,7 +74,7 @@ class WikidataEvidence:
             dissolved=("dissolved", lambda s: np.nanmin([year_of(v) for v in s]) if s.notna().any() else np.nan))
         ln = pd.DataFrame(r["lineage"]).assign(qid=lambda d: d.d.map(qid_of), prop=lambda d: d.prop.map(qid_of),
                                                target_qid=lambda d: d.target.map(qid_of))
-        labels = {**dict(zip(ln.target_qid, ln.targetLabel)), **subj.label.dropna().to_dict()}
+        labels = {**dict(zip(ln.target_qid, ln.targetLabel, strict=True)), **subj.label.dropna().to_dict()}
 
         rows = []
 
@@ -109,5 +109,5 @@ class WikidataEvidence:
         c["dissolved_year"] = c.source_ref.map(subj.dissolved)
         c["retrieved_at"] = retrieved
         c.insert(0, "claim_id", [core.stable_id(self.source_id, q, t, v, u, qu) for q, t, v, u, qu in
-                                 zip(c.source_ref, c.claim_type, c.value, c.unit, c.qualifier)])
+                                 zip(c.source_ref, c.claim_type, c.value, c.unit, c.qualifier, strict=True)])
         return c.drop_duplicates("claim_id").sort_values("claim_id").reset_index(drop=True)

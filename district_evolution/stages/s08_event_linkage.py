@@ -10,7 +10,16 @@ are estimated from the data and written out for inspection.
 Comparisons
   name   exact / documentary alias (data/reference/name_aliases.csv) /
          Jaro-Winkler >= 0.95 / >= 0.88 / >= 0.80 / else
-  state  exact / historically compatible (data/reference/state_lineage.csv) / else
+  state  exact / the state holding the district's land today / historically compatible
+         (data/reference/state_lineage.csv) / else
+
+The events compilation files events under present-day states (a 1991 Dhanbad event is filed
+under Jharkhand, created 2000; a 1957 Malabar event under Kerala), while each map record carries
+the state printed on that map (Bihar, Madras). So each record is also compared through its
+district's present-day state: the state of the reference-map district that holds most of the
+land of the district's last observation (s03 REFERENCE overlay). Without this level, "exact name,
+compatible state", the common case for every pre-reorganisation map, scored 0.506 against a 0.50
+threshold and flipped with any change to the training data (4.0.0 audit).
 
 The output lists every candidate record with its match probability. Choosing
 among candidates is not done here: s09 restricts candidates to districts that
@@ -38,6 +47,22 @@ def with_keys(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def present_day_state(obs: pd.DataFrame) -> pd.Series:
+    """canonical_key -> state of the reference-map district holding most of the land of its last
+    observation (its own state if it is on the reference map)."""
+    ref_year = core.REFERENCE_YEAR
+    state_of = obs.set_index("geom_obs_id").state
+    last = obs.sort_values(["canonical_key", "year"]).drop_duplicates("canonical_key", keep="last")
+    flow = pd.read_parquet(core.GOLD_SPATIAL_DIR / "transition_flow.parquet",
+                           columns=["kind", "year_b", "geom_obs_id_a", "geom_obs_id_b", "total_km2"])
+    flow = flow[(flow.kind == "REFERENCE") & (flow.year_b == ref_year) & flow.geom_obs_id_a.isin(last.geom_obs_id)]
+    main = (flow.sort_values(["geom_obs_id_a", "total_km2", "geom_obs_id_b"], ascending=[True, False, True])
+            .drop_duplicates("geom_obs_id_a").set_index("geom_obs_id_a").geom_obs_id_b.map(state_of))
+    today = last.set_index("canonical_key").geom_obs_id.map(main)
+    own = last.set_index("canonical_key").state
+    return today.where(today.notna(), own)
+
+
 def build_inputs() -> tuple[pd.DataFrame, pd.DataFrame]:
     pt = pd.read_parquet(core.GOLD_EVENTS_DIR / "event_participant.parquet")
     left = (pt[["name_norm", "event_state_norm"]].drop_duplicates()
@@ -46,11 +71,15 @@ def build_inputs() -> tuple[pd.DataFrame, pd.DataFrame]:
     left.insert(0, "uid", [f"P{i:05d}" for i in range(len(left))])
 
     obs = pd.read_parquet(core.GOLD_CORE_DIR / "ck_observation.parquet")
+    state_key = lambda s: core.normalize_name(core.canonical_state(s))  # noqa: E731
     right = pd.DataFrame({
         "canonical_key": obs.canonical_key, "year": obs.year,
         "name_norm": obs.district_name.map(core.normalize_name),
-        "state_norm": obs.state.map(lambda s: core.normalize_name(core.canonical_state(s))),
+        "state_norm": obs.state.map(state_key),
+        "today_state_norm": obs.canonical_key.map(present_day_state(obs)).map(state_key),
     }).sort_values(["canonical_key", "year"]).reset_index(drop=True)
+    # an event names one (present-day) state; compared with a record's own state and its district's state today
+    left["today_state_norm"] = left["state_norm"]
     right.insert(0, "uid", [f"R{i:05d}" for i in range(len(right))])
     return with_keys(left), with_keys(right)
 
@@ -72,6 +101,7 @@ def settings() -> SettingsCreator:
         comparison_levels=[
             cll.NullLevel("state_norm"),
             cll.ExactMatchLevel("state_norm"),
+            cll.ExactMatchLevel("today_state_norm").configure(label_for_charts="district's state today"),
             cll.CustomLevel("list_contains(state_compat_l, state_norm_r) "
                             "OR list_contains(state_compat_r, state_norm_l)",
                             label_for_charts="compatible via state lineage"),
@@ -106,7 +136,7 @@ def stable_model(value):
 
 def main() -> None:
     left, right = build_inputs()
-    model_cols = ["uid", "name_norm", "alias_norm", "state_norm", "state_compat"]
+    model_cols = ["uid", "name_norm", "alias_norm", "state_norm", "today_state_norm", "state_compat"]
     linker = Linker([left[model_cols], right[model_cols]], settings(), db_api=DuckDBAPI(),
                     input_table_aliases=["events", "districts"])
     linker.training.estimate_probability_two_random_records_match(

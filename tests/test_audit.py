@@ -20,7 +20,10 @@ def test_no_placeholder_holds_an_identity():
 def test_v3_keys_all_resolve():
     m = pd.read_csv(core.REFERENCE_DIR / "ck_migration_v3_to_v4.csv", keep_default_na=False)
     assert len(m) == 804 and m.v3_ck.is_unique
-    assert m.relation.value_counts().to_dict() == {"IDENTICAL": 792, "RETIRED_NON_ADMINISTRATIVE": 9, "RENUMBERED": 3}
+    assert m.relation.value_counts().to_dict() == {"IDENTICAL": 461, "RENUMBERED": 314, "MERGED_INTO_V4_CK": 20,
+                                                   "RETIRED_NON_ADMINISTRATIVE": 9}
+    una = m.set_index("v3_ck").v4_ck
+    assert una["IND-000417"] == una["IND-000468"]  # OD-02: Una 1981 and Una 1991 are one district
     reg = set(pd.read_parquet(core.GOLD_CORE_DIR / "ck_registry.parquet").canonical_key)
     assert set(m.loc[m.v4_ck != "", "v4_ck"]) == reg
 
@@ -42,3 +45,4 @@ def test_known_artifact_is_listed(audit):
     back = pd.read_csv(audit / "credibility_return_flows.csv")
     kangra_una = back[(back.from_name == "Kangra") & (back.to_name == "Una")]
     assert len(kangra_una) == 1 and kangra_una.returned_km2.iloc[0] > 500
+    assert back.groupby(["from_ck", "to_ck", "year_a_back"]).size().max() == 1  # a return is counted once

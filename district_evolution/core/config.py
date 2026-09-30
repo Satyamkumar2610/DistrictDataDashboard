@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 from pathlib import Path
 
 import yaml
@@ -36,7 +37,7 @@ VINTAGES: list[tuple[str, int]] = [(s, int(y)) for s, y in CFG["vintages"]]
 YEARS: list[int] = [y for _, y in VINTAGES]
 SOURCE_BY_YEAR: dict[int, str] = {y: s for s, y in VINTAGES}
 REFERENCE_YEAR: int = int(CFG["reference_year"])
-WINDOWS: list[tuple[int, int]] = list(zip(YEARS[:-1], YEARS[1:]))
+WINDOWS: list[tuple[int, int]] = list(itertools.pairwise(YEARS))
 
 
 def silver_path(year: int) -> Path:
