@@ -1,5 +1,5 @@
 {
-  "pipeline_version": "3.8.0",
+  "pipeline_version": "3.9.0",
   "columns": [
     {
       "table": "ck_registry",

@@ -1,7 +1,7 @@
 # Pipeline v3 configuration. Every threshold used by any stage lives here with
 # its rationale; code reads it via lib.CFG. See docs/architecture/REVAMP_PLAN_V3.md.
 
-pipeline_version: "3.8.0"
+pipeline_version: "3.9.0"
 
 vintages:
   # (source, year) in chronological order. The last entry is the reference

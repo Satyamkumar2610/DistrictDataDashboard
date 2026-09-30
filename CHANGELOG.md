@@ -18,6 +18,8 @@ product, evidence or harmonization changes.
   `docs/operations/deploy.md`. The release is mounted read-only at run time and never copied into
   the image (licensing). Runs as an unprivileged user on a read-only file system. CI builds it and
   runs the browser tests against it (`PW_BASE_URL` in `web/playwright.config.ts`).
+- `examples/`: five questions in plain DuckDB SQL over the release, restating statistics from an
+  old map, and a district's family tree with networkx. `tests/test_examples.py` runs them.
 
 ## 3.8.0
 
