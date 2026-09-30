@@ -124,7 +124,8 @@ def cmd_validate(_: argparse.Namespace) -> int:
 
 
 def cmd_info(_: argparse.Namespace) -> int:
-    print(json.dumps(core.provenance(), indent=2))
+    from district_evolution.core.provenance import source_commit
+    print(json.dumps({**core.provenance(), "source_commit": source_commit()}, indent=2))
     return 0
 
 

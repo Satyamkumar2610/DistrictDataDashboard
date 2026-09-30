@@ -435,10 +435,8 @@ stages:
   r01_release:
     cmd: python -m district_evolution.stages.r01_release
     deps:
-      - district_evolution/stages/r01_release.py
-      - district_evolution/release/__init__.py
-      - district_evolution/core
-      - district_evolution/contracts
+      # the whole package: release_info.json records a hash of all of its code (core.provenance)
+      - district_evolution
       - config/pipeline.yaml
       - data/bronze/events/district_evolution_master.csv
       - data/silver/geometry

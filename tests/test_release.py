@@ -156,3 +156,12 @@ def test_district_research_lists_its_open_questions(api):
     ids = pd.read_parquet(core.RELEASE_DIR / "tables" / "research_queue.parquet")
     items = api.get("/api/districts/IND-000202/research").json()["data"]
     assert all(i["queue_item_id"] in set(ids.queue_item_id) for i in items)
+
+
+def test_release_provenance_is_content_addressed(release):
+    """release_info records a hash of the code that built it, not a git commit (which would make
+    every commit invalidate the release's own hash in dvc.lock)."""
+    prov = json.loads((core.RELEASE_DIR / "release_info.json").read_text())["provenance"]
+    assert "source_commit" not in prov and len(prov["code_sha256"]) == 64
+    from district_evolution.core.provenance import code_sha256
+    assert prov["code_sha256"] == code_sha256()

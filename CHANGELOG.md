@@ -56,7 +56,9 @@ explained in `tests/baselines/v4.0.0.yaml`.
   `logs/`), `stages`, `validate` (exit 1 on an ERROR check), `info`, `harmonize`, `serve`.
   `scripts/run_all.sh` ran 12 of 25 stages and would have failed at s11 on a clean checkout; it now calls
   the CLI.
-- The release records its provenance (source commit, Python and package versions).
+- The release records its provenance: pipeline version, config hash, a sha256 of the package's code, Python
+  and package versions. Content-addressed rather than a git commit, so a release's hash in dvc.lock stays
+  valid across commits that do not change it; `info` also prints the commit.
 - ruff and mypy configured and clean; every `zip()` is `strict=True` unless unequal lengths are intended.
   CI runs them; `requirements-dev.txt`, `.pre-commit-config.yaml`; tests for the CLI, the curated
   reference files and the identity rules.
