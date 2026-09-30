@@ -1,4 +1,4 @@
-# Validation report — pipeline v3.4.0
+# Validation report — pipeline v3.5.0
 
 **Gate: PASS** — 0 ERROR check(s) failing, 1 WARNING check(s) with findings.
 
@@ -28,11 +28,12 @@
 | V20            | ERROR      |              0 | file in a generated-output directory that no stage declares and git does not track |                                                                                                |
 | V22            | INFO       |            395 | open research questions (outputs/evidence/e04_research_queue.csv)                  | CLAIM_CONFLICT: 214; EVENT_NAME_OUTSIDE_FOOTPRINT: 42; EVENT_NAME_UNRESOLVED: 132; MAP_DATE: 7 |
 | V23            | WARNING    |              0 | curated finding refers to a research question that no longer exists                |                                                                                                |
+| V24            | ERROR      |              0 | harmonized totals not conserved (outputs/harmonize/h05_report.md)                  |                                                                                                |
 
-V11 data contracts (pandera): 29 / 29 tables pass.
+V11 data contracts (pandera): 34 / 34 tables pass.
 
 V5 determinism: `outputs/pipeline/s12_output_manifest.csv` holds the sha256 of each of the
-40 data outputs declared in `dvc.yaml` (silver, gold, products). Two runs on the same inputs
+45 data outputs declared in `dvc.yaml` (silver, gold, products). Two runs on the same inputs
 must produce identical manifests (checked in CI).
 
 ## Key figures

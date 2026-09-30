@@ -3,6 +3,30 @@
 Versions follow semantic versioning of `pipeline_version` (config/pipeline.yaml).
 A MAJOR change can renumber canonical keys or change the meaning of a product.
 
+## 3.5.0
+
+Phase 4: the harmonization engine. No key, lineage, area, product or evidence changes.
+
+### Added
+- Stages h01–h05 and `config/indicators.yaml`. h01 links each reported value to the identity that
+  carried its name in the same (or a historically compatible) state on the map it reports on:
+  the latest map depicting no later than its year, or the map the source declares. h02 builds
+  weights (AREA from `crosswalk_to_reference`, each row with a stated assumption). h03 allocates
+  extensive totals; allocating a ratio raises. h04 recomputes ratios such as yield from harmonized
+  numerator and denominator. h05 checks conservation and a self-check: harmonizing every district's
+  own mapped area reproduces `district_reference_context.mapped_km2` for all 6,678 district-years
+  (max difference 7e-12 km²; 4,614 of 4,614 values linked to the correct identity).
+- A value whose district changed between its map and its year is flagged `boundary_uncertain`;
+  districts that did not report lower `coverage_score`; nothing is imputed.
+- Check V24 (ERROR): harmonized totals not conserved. Harmonized tables in the warehouse, the
+  release, the dictionary and the API (`/districts/{ck}/harmonized`).
+- `docs/sources/README.md`: the evaluation every outside source needs before ingestion.
+
+### Waiting for data (by decision)
+- Crop statistics and a cropland raster: the owner will supply them. The engine, contracts and
+  checks are in place; a `CROPLAND` weight method and the method-sensitivity report (area vs
+  cropland, Kangra 1951 as the test case) follow the raster.
+
 ## 3.4.0
 
 Phase 3: a data service. No key, lineage, area, product or evidence changes.

@@ -295,6 +295,45 @@ SCHEMAS.update({
         "finding_id": Column(str, nullable=True),
     }),
 })
+# ---- harmonization (h01-h05): never read by s01-s10 -----------------------------------
+SCHEMAS.update({
+    "stat_observation": DataFrameSchema({
+        "obs_id": Column(str, SHA, unique=True),
+        "indicator": Column(str, TEXT), "raw_name": Column(str), "state": Column(str),
+        "year": Column(int, Check.in_range(1900, 2100)),
+        "map_year": Column(float, Check.isin(YEARS), nullable=True),
+        "value": Column(float, nullable=True), "unit": Column(str, TEXT), "source": Column(str, TEXT),
+        "canonical_key": Column(str, CK, nullable=True),
+        "link_status": Column(str, Check.isin(["LINKED", "AMBIGUOUS", "UNLINKED", "BEFORE_FIRST_MAP"])),
+        "boundary_uncertain": Column(bool),
+    }, checks=[Check(lambda d: (d.link_status == "LINKED") == d.canonical_key.notna(),
+                     error="an observation has a key exactly when it is linked")]),
+    "statistical_crosswalk": DataFrameSchema({
+        "year": _year(), "source_ck": Column(str, CK), "target_ck": Column(str, CK),
+        "method": Column(str, TEXT), "assumption": Column(str, Check.str_length(min_value=10)),
+        "weight": Column(float, SHARE), "area_km2": _km2(),
+    }, unique=["year", "source_ck", "target_ck", "method"],
+        checks=[Check(lambda d: (d.groupby(["year", "source_ck", "method"]).weight.transform("sum") <= 1 + 1e-9),
+                      error="a source district's weights sum to at most 1")]),
+    "stat_harmonized_value": DataFrameSchema({
+        "indicator": Column(str, TEXT), "year": Column(int), "method": Column(str, TEXT),
+        "target_ck": Column(str, CK), "value": Column(float, nullable=True),
+        "n_sources": Column(int, Check.ge(1)), "coverage_score": Column(float, SHARE),
+        "boundary_uncertain": Column(bool), "assumption": Column(str, Check.str_length(min_value=10)),
+    }, unique=["indicator", "year", "method", "target_ck"]),
+    "stat_ratio_value": DataFrameSchema({
+        "indicator": Column(str, TEXT), "year": Column(int), "method": Column(str, TEXT),
+        "target_ck": Column(str, CK), "value": Column(float),
+        "coverage_score": Column(float, SHARE), "boundary_uncertain": Column(bool),
+    }, unique=["indicator", "year", "method", "target_ck"]),
+    "harmonization_check": DataFrameSchema({
+        "indicator": Column(str, TEXT), "year": Column(int), "method": Column(str, TEXT),
+        "n_observations": Column(int, Check.ge(0)), "n_linked": Column(int, Check.ge(0)),
+        "reported_total": Column(float), "expected_total": Column(float), "harmonized_total": Column(float),
+        "conservation_error": Column(float, Check.ge(0)), "passes": Column(bool),
+    }),
+})
+
 SCHEMAS["release_geometry"] = DataFrameSchema({
     "geom_obs_id": Column(str, SHA, unique=True), "canonical_key": Column(str, CK), "year": _year(),
     "district_name": Column(str), "state": Column(str), "area_km2": Column(float, Check.gt(0)),

@@ -45,6 +45,11 @@ CONTRACTS = {
     "claim_ck_link": G / "evidence/claim_ck_link.parquet",
     "claim_verdict": G / "evidence/claim_verdict.parquet",
     "research_queue": G / "evidence/research_queue.parquet",
+    "stat_observation": G / "harmonize/stat_observation.parquet",
+    "statistical_crosswalk": G / "harmonize/statistical_crosswalk.parquet",
+    "stat_harmonized_value": G / "harmonize/stat_harmonized_value.parquet",
+    "stat_ratio_value": G / "harmonize/stat_ratio_value.parquet",
+    "harmonization_check": G / "harmonize/harmonization_check.parquet",
 }
 
 
@@ -124,6 +129,15 @@ def research_checks() -> list[dict]:
              "severity": "WARNING", "n_violations": len(stale), "detail": "; ".join(stale.finding_id) or None}]
 
 
+def harmonization_check() -> dict:
+    """V24: harmonization lost or created quantity (h05 conservation)."""
+    c = pd.read_parquet(G / "harmonize" / "harmonization_check.parquet")
+    bad = c[~c.passes]
+    return {"check_id": "V24", "description": "harmonized totals not conserved (outputs/harmonize/h05_report.md)",
+            "severity": "ERROR", "n_violations": len(bad),
+            "detail": "; ".join(f"{r.indicator} {r.year} {r.method}" for r in bad.itertuples()) or None}
+
+
 def manifest(declared: set[str]) -> pd.DataFrame:
     """V5 scope: the declared data outputs (silver, gold, products)."""
     files = sorted(f for f in declared if f.startswith(MANIFEST_ROOTS) and f.endswith(MANIFEST_SUFFIXES))
@@ -187,6 +201,7 @@ def main() -> None:
     declared = declared_outputs()
     rows.append(undeclared_check(declared))
     rows += research_checks()
+    rows.append(harmonization_check())
     checks = pd.DataFrame(rows)
     checks.to_csv(core.OUTPUT_DIR / "s12_checks.csv", index=False)
     man = manifest(declared)

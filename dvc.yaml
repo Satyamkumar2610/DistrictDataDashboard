@@ -258,6 +258,79 @@ stages:
       - data/gold/evidence/research_queue.parquet: {cache: false}
       - outputs/evidence/e04_research_queue.csv: {cache: false}
 
+  h01_stat_observation:
+    cmd: python -m district_evolution.stages.h01_stat_observation
+    deps:
+      - district_evolution/stages/h01_stat_observation.py
+      - district_evolution/harmonize
+      - district_evolution/core
+      - district_evolution/contracts
+      - config/indicators.yaml
+      - config/pipeline.yaml
+      - data/reference
+      - data/gold/core/ck_observation.parquet
+      - data/gold/events/event_linkage.parquet
+      - data/gold/events/boundary_event.parquet
+      - data/products/district_area_admin.parquet
+    outs:
+      - data/gold/harmonize/stat_observation.parquet: {cache: false}
+      - outputs/harmonize/h01_stat_observation.csv: {cache: false}
+
+  h02_statistical_crosswalk:
+    cmd: python -m district_evolution.stages.h02_statistical_crosswalk
+    deps:
+      - district_evolution/stages/h02_statistical_crosswalk.py
+      - district_evolution/harmonize
+      - district_evolution/core
+      - district_evolution/contracts
+      - data/gold/harmonize/stat_observation.parquet
+      - data/products/crosswalk_to_reference.parquet
+    outs:
+      - data/gold/harmonize/statistical_crosswalk.parquet: {cache: false}
+
+  h03_allocate:
+    cmd: python -m district_evolution.stages.h03_allocate
+    deps:
+      - district_evolution/stages/h03_allocate.py
+      - district_evolution/harmonize
+      - district_evolution/core
+      - district_evolution/contracts
+      - config/indicators.yaml
+      - data/gold/harmonize/stat_observation.parquet
+      - data/gold/harmonize/statistical_crosswalk.parquet
+      - data/products/district_area_admin.parquet
+    outs:
+      - data/gold/harmonize/stat_harmonized_value.parquet: {cache: false}
+      - outputs/harmonize/h03_stat_harmonized_value.csv: {cache: false}
+
+  h04_ratios:
+    cmd: python -m district_evolution.stages.h04_ratios
+    deps:
+      - district_evolution/stages/h04_ratios.py
+      - district_evolution/harmonize
+      - district_evolution/core
+      - district_evolution/contracts
+      - config/indicators.yaml
+      - data/gold/harmonize/stat_harmonized_value.parquet
+    outs:
+      - data/gold/harmonize/stat_ratio_value.parquet: {cache: false}
+      - outputs/harmonize/h04_stat_ratio_value.csv: {cache: false}
+
+  h05_validate:
+    cmd: python -m district_evolution.stages.h05_validate
+    deps:
+      - district_evolution/stages/h05_validate.py
+      - district_evolution/core
+      - district_evolution/contracts
+      - config/pipeline.yaml
+      - data/gold/harmonize/stat_observation.parquet
+      - data/gold/harmonize/statistical_crosswalk.parquet
+      - data/gold/harmonize/stat_harmonized_value.parquet
+      - data/products/district_reference_context.parquet
+    outs:
+      - data/gold/harmonize/harmonization_check.parquet: {cache: false}
+      - outputs/harmonize/h05_report.md: {cache: false}
+
   s11_warehouse:
     cmd: python -m district_evolution.stages.s11_warehouse
     deps:
@@ -270,6 +343,7 @@ stages:
       - data/gold/events
       - data/products
       - data/gold/evidence
+      - data/gold/harmonize
       - outputs/pipeline/s01_overlap_repairs.csv
     outs:
       - data/gold/district_evolution.duckdb: {cache: false}
@@ -287,6 +361,7 @@ stages:
       - outputs/pipeline/s02_topology_audit.csv
       - data/gold/evidence/research_queue.parquet
       - data/reference/research_findings.csv
+      - data/gold/harmonize/harmonization_check.parquet
     outs:
       - outputs/pipeline/s12_checks.csv: {cache: false}
       - outputs/pipeline/s12_output_manifest.csv: {cache: false}
@@ -353,5 +428,8 @@ stages:
       - data/gold/evidence/claim_ck_link.parquet
       - data/gold/evidence/claim_verdict.parquet
       - data/gold/evidence/research_queue.parquet
+      - data/gold/harmonize/stat_observation.parquet
+      - data/gold/harmonize/stat_harmonized_value.parquet
+      - data/gold/harmonize/stat_ratio_value.parquet
     outs:
       - data/release: {cache: false}

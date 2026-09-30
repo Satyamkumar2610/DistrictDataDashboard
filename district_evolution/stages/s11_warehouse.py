@@ -195,7 +195,12 @@ def load(con: duckdb.DuckDBPyConnection) -> None:
                         "evidence_claim": G / "evidence/evidence_claim.parquet",
                         "claim_ck_link": G / "evidence/claim_ck_link.parquet",
                         "claim_verdict": G / "evidence/claim_verdict.parquet",
-                        "research_queue": G / "evidence/research_queue.parquet"}.items():
+                        "research_queue": G / "evidence/research_queue.parquet",
+                        "stat_observation": G / "harmonize/stat_observation.parquet",
+                        "statistical_crosswalk": G / "harmonize/statistical_crosswalk.parquet",
+                        "stat_harmonized_value": G / "harmonize/stat_harmonized_value.parquet",
+                        "stat_ratio_value": G / "harmonize/stat_ratio_value.parquet",
+                        "harmonization_check": G / "harmonize/harmonization_check.parquet"}.items():
         con.execute(f"CREATE TABLE {table} AS SELECT * FROM {pq(path)}")
 
 

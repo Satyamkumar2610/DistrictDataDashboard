@@ -1,7 +1,7 @@
 # Pipeline v3 configuration. Every threshold used by any stage lives here with
 # its rationale; code reads it via lib.CFG. See docs/architecture/REVAMP_PLAN_V3.md.
 
-pipeline_version: "3.4.0"
+pipeline_version: "3.5.0"
 
 vintages:
   # (source, year) in chronological order. The last entry is the reference
@@ -118,6 +118,14 @@ release:
   # layers' shared borders are digitised independently (183 polygons with mismatched edges in 2025)
   # and it distorted them (Tumakuru -26%). Areas in the release are always the full-resolution ones.
   simplify_deg: 0.0005
+
+harmonize:
+  # h05 checks. Conservation: the harmonized national total must equal sum(value x sum of its
+  # weights) for every indicator, year and method; the mapped-area self-check must reproduce
+  # district_reference_context.mapped_km2. Both are exact up to floating-point summation:
+  # measured max difference 7e-12 km2 over 6,678 district-years.
+  conservation_rel_tol: 1.0e-9
+  self_check_tol_km2: 1.0e-6
 
 determinism:
   # Declared outputs allowed to differ between two builds of the same inputs, each with its

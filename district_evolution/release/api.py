@@ -146,6 +146,20 @@ def evidence(ck: str = PathParam(pattern=CK_PATTERN)):
                                          ORDER BY topic, queue_item_id""", [ck, ck, ck])})
 
 
+@app.get("/districts/{ck}/harmonized")
+def harmonized(ck: str = PathParam(pattern=CK_PATTERN), indicator: str | None = None):
+    """Statistics restated on this 2025 district, with method, stated assumption and coverage."""
+    registry_row(ck)
+    where, params = ["target_ck = ?"], [ck]
+    if indicator:
+        where.append("indicator = ?")
+        params.append(indicator)
+    return ok({"totals": rows(f"SELECT * FROM stat_harmonized_value WHERE {' AND '.join(where)} "
+                              "ORDER BY indicator, method, year", params),
+               "ratios": rows(f"SELECT * FROM stat_ratio_value WHERE {' AND '.join(where)} "
+                              "ORDER BY indicator, method, year", params)})
+
+
 @app.get("/crosswalk")
 def crosswalk(from_year: int, ck: str, direction: str = Query("forward", pattern="^(forward|reverse)$")):
     col = "source_ck" if direction == "forward" else "target_ck"

@@ -1,0 +1,25 @@
+# District statistics to harmonize onto the 2025 districts (WP4 stages h01-h05).
+#
+# kind: extensive  totals (crop area, production): allocated with a weight method
+# kind: ratio      never listed here; declared under `ratios` and recomputed from harmonized
+#                  numerator / denominator (allocating a yield directly is refused in code)
+#
+# Before adding a source, record its licence, coverage and the boundary vintage it already uses
+# in docs/sources/<source>.md. Place the file under data/bronze/agri/ (bronze is never modified).
+#
+# The mapped_area_km2 indicator (each district's own area on each map) is always harmonized: it
+# must reproduce the crosswalk exactly and proves the engine end to end (h05).
+
+indicators: []
+# - code: rice_production_t
+#   unit: tonnes
+#   kind: extensive
+#   path: data/bronze/agri/<file>.csv
+#   source: "<publisher, table, edition>"
+#   columns: {raw_name: District, state: State, year: Year, value: Production}
+
+ratios: []
+# - code: rice_yield_t_per_ha
+#   unit: t/ha
+#   numerator: rice_production_t
+#   denominator: rice_area_ha

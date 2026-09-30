@@ -28,6 +28,9 @@ TABLES = {
     "claim_ck_link": G / "evidence/claim_ck_link.parquet",
     "claim_verdict": G / "evidence/claim_verdict.parquet",
     "research_queue": G / "evidence/research_queue.parquet",
+    "stat_observation": G / "harmonize/stat_observation.parquet",
+    "stat_harmonized_value": G / "harmonize/stat_harmonized_value.parquet",
+    "stat_ratio_value": G / "harmonize/stat_ratio_value.parquet",
 }
 
 

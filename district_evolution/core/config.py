@@ -14,16 +14,18 @@ GOLD_SPATIAL_DIR = PROJECT_ROOT / "data" / "gold" / "spatial"
 GOLD_EVENTS_DIR = PROJECT_ROOT / "data" / "gold" / "events"
 GOLD_CORE_DIR = PROJECT_ROOT / "data" / "gold" / "core"
 GOLD_EVIDENCE_DIR = PROJECT_ROOT / "data" / "gold" / "evidence"
+GOLD_HARMONIZE_DIR = PROJECT_ROOT / "data" / "gold" / "harmonize"
 PRODUCTS_DIR = PROJECT_ROOT / "data" / "products"
 RELEASE_DIR = PROJECT_ROOT / "data" / "release"
 WAREHOUSE_PATH = PROJECT_ROOT / "data" / "gold" / "district_evolution.duckdb"
 OUTPUT_DIR = PROJECT_ROOT / "outputs" / "pipeline"
 EVENTS_OUTPUT_DIR = PROJECT_ROOT / "outputs" / "events"
 EVIDENCE_OUTPUT_DIR = PROJECT_ROOT / "outputs" / "evidence"
+HARMONIZE_OUTPUT_DIR = PROJECT_ROOT / "outputs" / "harmonize"
 EVENTS_CSV = PROJECT_ROOT / "data" / "bronze" / "events" / "district_evolution_master.csv"
 
-for _d in (SILVER_GEOM_DIR, GOLD_SPATIAL_DIR, GOLD_EVENTS_DIR, GOLD_CORE_DIR, GOLD_EVIDENCE_DIR,
-           PRODUCTS_DIR, OUTPUT_DIR, EVENTS_OUTPUT_DIR, EVIDENCE_OUTPUT_DIR):
+for _d in (SILVER_GEOM_DIR, GOLD_SPATIAL_DIR, GOLD_EVENTS_DIR, GOLD_CORE_DIR, GOLD_EVIDENCE_DIR, GOLD_HARMONIZE_DIR,
+           PRODUCTS_DIR, OUTPUT_DIR, EVENTS_OUTPUT_DIR, EVIDENCE_OUTPUT_DIR, HARMONIZE_OUTPUT_DIR):
     _d.mkdir(parents=True, exist_ok=True)
 
 with open(CONFIG_DIR / "pipeline.yaml") as _fh:

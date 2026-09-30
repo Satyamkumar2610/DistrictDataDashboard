@@ -70,6 +70,7 @@ are evidence and never drive geometry.
 | e01 evidence claims | Every statement of every evidence source (now: the frozen Wikidata snapshot) as a cited claim: NAME, AREA, INCEPTION, PARENT |
 | e02 claim linkage | Locate each claim's subject by its coordinate on the map of its date; the name only qualifies the link |
 | e03 claim verdicts | AGREE / EXPLAINED / CONFLICT / NOT_CHECKABLE with a reason, using the rules the audit uses; PARENT by the footprint rule |
+| h01–h05 harmonization | Link reported statistics (config/indicators.yaml) to identities on the map they report on; allocate totals with a stated weight method (AREA now); recompute ratios such as yield from harmonized totals, never allocate them; check conservation and a mapped-area self-check that must reproduce s10 |
 | r02 data dictionary | `docs/data_dictionary.md`, generated from the contracts; every column's meaning lives in `contracts/descriptions.py` |
 | r01 release | `data/release/`: tables, simplified geometry per map, `load.sql` (DuckDB views), `release_info.json`, `MANIFEST.csv`; byte-reproducible |
 | e04 research queue | Every open question in one table; closed only by a curated row in `data/reference/research_findings.csv` |
@@ -86,6 +87,9 @@ Shared code:
   partition repair and area, so no source can bypass them.
 - `district_evolution/core/interfaces.py`: the extension points (`BoundarySource`,
   `EvidenceSource`, `Indicator`, `WeightMethod`).
+- `district_evolution/harmonize/`: indicators (`CsvIndicator` for a supplied file), weight methods
+  (`AreaWeight`), the engine (`link`, `allocate` refuses ratios, `ratios`). A new crop statistic is one
+  entry in `config/indicators.yaml` plus a `docs/sources/<source>.md` evaluation.
 - `district_evolution/evidence/`: evidence sources (`EVIDENCE_SOURCES`), shared verdict rules
   (`rules.py`), point location (`geo.py`), the Wikidata snapshot and the external audit (a01).
   Evidence stages write only to `data/gold/evidence` and `outputs/evidence`, and no s01–s10 stage
