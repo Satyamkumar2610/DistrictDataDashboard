@@ -38,6 +38,22 @@ jobs:
       - name: Golden histories and regression baselines against the built warehouse
         run: pytest -q tests
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Web app - typecheck, build, and browser tests against the built release
+        working-directory: web
+        env:
+          PW_CHANNEL: chromium
+        run: |
+          npm ci
+          npm run build
+          npx playwright install --with-deps chromium
+          npx playwright test
+
       - name: Build 2 and determinism check (V5)
         run: |
           dvc repro --force

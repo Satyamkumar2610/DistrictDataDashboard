@@ -1,0 +1,112 @@
+/* Layout: a fixed top bar, pages in a 1280px column; the atlas and district map fill their panels. */
+:root {
+  --bg: #f3f5f3; --surface: #ffffff; --sunk: #e8ecea; --ink: #13201b; --ink-2: #44524c; --muted: #6d7a74;
+  --line: #d4dbd7; --line-strong: #b9c3be; --accent: #0d6a59; --accent-soft: #d7ebe5; --accent-ink: #ffffff;
+  --ochre: #9a5a0a; --new: #2a78d6; --out: #eb6834; --in: #1baf7a; --neutral: #c9d1cd;
+  --gain: #2a78d6; --loss: #d03b3b; --good: #0c8a0c; --warn: #b97c00; --crit: #c73636;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --r: 6px;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #0e1311; --surface: #151b19; --sunk: #1c2421; --ink: #e7edea; --ink-2: #b4bfba; --muted: #88948f;
+  --line: #28312e; --line-strong: #3a4541; --accent: #45b89f; --accent-soft: #17332c; --accent-ink: #06201a;
+  --ochre: #e09a48; --new: #3987e5; --out: #d95926; --in: #199e70; --neutral: #3a4541;
+  --gain: #3987e5; --loss: #e66767; --good: #2fbf2f; --warn: #e0a526; --crit: #e66767;
+  color-scheme: dark;
+}
+* { box-sizing: border-box }
+html, body, #root { height: 100% }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.55 var(--sans) }
+a { color: var(--accent) }
+h1, h2, h3 { margin: 0; line-height: 1.25; text-wrap: balance }
+h1 { font-size: 26px; font-weight: 600 } h2 { font-size: 18px; font-weight: 600 } h3 { font-size: 14px; font-weight: 600 }
+.mono { font-family: var(--mono); font-size: 12px }
+.muted { color: var(--muted) }
+.num { font-variant-numeric: tabular-nums }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+
+.topbar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 18px; padding: 10px 20px;
+  background: var(--surface); border-bottom: 1px solid var(--line) }
+.brand { font-weight: 600; font-size: 15px; color: var(--ink); text-decoration: none; white-space: nowrap }
+.brand span { color: var(--accent) }
+.nav { display: flex; gap: 2px; overflow-x: auto }
+.nav a { padding: 6px 10px; border-radius: var(--r); color: var(--ink-2); text-decoration: none; white-space: nowrap }
+.nav a:hover { background: var(--sunk) } .nav a.active { background: var(--accent-soft); color: var(--ink); font-weight: 500 }
+.topbar .spacer { flex: 1 }
+.version { font: 12px var(--mono); color: var(--muted); white-space: nowrap }
+.iconbtn { border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-2); border-radius: var(--r);
+  padding: 5px 9px; cursor: pointer; font: inherit }
+
+.page { max-width: 1280px; margin: 0 auto; padding: 24px 20px 48px; display: grid; gap: 20px }
+.page-head { display: grid; gap: 6px }
+.lede { color: var(--ink-2); max-width: 75ch }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px }
+@media (max-width: 900px) { .grid2, .grid3 { grid-template-columns: 1fr } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; min-width: 0 }
+.panel h2 { margin-bottom: 4px } .panel .sub { color: var(--muted); font-size: 13px; margin-bottom: 12px }
+.src { display: block; margin-top: 8px; font: 11px/1.4 var(--mono); color: var(--muted) }
+
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line);
+  border: 1px solid var(--line); border-radius: var(--r); overflow: hidden }
+@media (max-width: 900px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+.tile { background: var(--surface); padding: 14px 16px }
+.tile .v { font-size: 26px; font-weight: 600 } .tile .l { color: var(--ink-2); font-size: 13px }
+
+table.data { border-collapse: collapse; width: 100%; font-size: 13px }
+table.data th, table.data td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top }
+table.data th { font: 500 11px/1.3 var(--mono); text-transform: uppercase; letter-spacing: .04em; color: var(--muted) }
+table.data td.r, table.data th.r { text-align: right }
+.scroll { overflow: auto; max-height: 460px }
+
+.chip { display: inline-block; font: 500 11px/1 var(--mono); padding: 4px 7px; border-radius: 999px; border: 1px solid var(--line-strong);
+  color: var(--ink-2); white-space: nowrap }
+.chip.good { color: var(--good); border-color: currentColor } .chip.warn { color: var(--warn); border-color: currentColor }
+.chip.crit { color: var(--crit); border-color: currentColor } .chip.accent { color: var(--accent); border-color: currentColor }
+
+.seg { display: inline-flex; flex-wrap: wrap; gap: 4px }
+.seg button { border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-2); border-radius: 999px;
+  padding: 5px 11px; cursor: pointer; font: inherit; font-size: 13px }
+.seg button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink) }
+input, select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line-strong);
+  border-radius: var(--r); padding: 7px 10px }
+label.field { display: grid; gap: 4px; font-size: 12px; color: var(--muted) }
+.controls { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: end }
+
+.search { position: relative; min-width: 260px }
+.search input { width: 100% }
+.search ul { position: absolute; z-index: 20; left: 0; right: 0; top: 100%; margin: 4px 0 0; padding: 4px; list-style: none;
+  background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r); max-height: 320px; overflow: auto;
+  box-shadow: 0 8px 24px rgba(0,0,0,.12) }
+.search li button { width: 100%; text-align: left; border: 0; background: none; color: var(--ink); padding: 6px 8px; border-radius: 4px;
+  cursor: pointer; font: inherit }
+.search li button:hover, .search li button[aria-selected="true"] { background: var(--sunk) }
+
+.atlas { display: grid; grid-template-columns: minmax(0, 1fr) 360px; height: calc(100vh - 53px) }
+@media (max-width: 900px) { .atlas { grid-template-columns: minmax(0, 1fr); height: auto } .atlas .mapwrap { height: 60vh } }
+.mapwrap { position: relative; min-height: 360px }
+.mapview { position: absolute; inset: 0 }
+.mapview .map { position: absolute; inset: 0 }
+.overlay { position: absolute; left: 12px; right: 12px; bottom: 12px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; pointer-events: none }
+.overlay > * { pointer-events: auto }
+.years { display: flex; gap: 4px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 6px; width: max-content; max-width: 100% }
+.years button { border: 0; background: none; color: var(--ink-2); padding: 5px 9px; border-radius: 4px; cursor: pointer; font: 500 13px var(--mono) }
+.years button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink) }
+.legend { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; font-size: 12px;
+  color: var(--ink-2); width: max-content; max-width: 100%; display: flex; gap: 12px; flex-wrap: wrap; align-items: center }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 5px; vertical-align: -2px }
+.side { border-left: 1px solid var(--line); background: var(--surface); overflow: auto; padding: 16px; display: grid; gap: 14px; align-content: start }
+.tooltip { position: absolute; pointer-events: none; z-index: 5; background: var(--ink); color: var(--bg); padding: 6px 9px;
+  border-radius: 5px; font-size: 12px; white-space: nowrap }
+
+.caption { padding: 7px 10px; border-left: 3px solid var(--line-strong); background: var(--bg); border-radius: 0 4px 4px 0; font-size: 13px }
+.caption.out { border-color: var(--out) } .caption.in { border-color: var(--in) } .caption.warn { border-color: var(--warn) }
+.caption.crit { border-color: var(--crit) }
+.stack { display: grid; gap: 6px; align-content: start }
+.empty { color: var(--muted); font-size: 13px; padding: 8px 0 }
+.chart { width: 100%; height: 280px }
+.dmap { height: 440px; position: relative; border-radius: var(--r); overflow: hidden; border: 1px solid var(--line) }
+@media (max-width: 600px) { .version { display: none } .topbar { gap: 10px; padding: 10px 12px } .brand span { display: none } }

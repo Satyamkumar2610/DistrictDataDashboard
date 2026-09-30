@@ -1,0 +1,75 @@
+# Regression baselines for pipeline v3.6.0.
+# Delta from v3.5.0 (WP6 web platform): none. The release gains its validation files; no table changes.
+# Delta from v3.4.0 (WP4 harmonization): five harmonization tables and their contracts
+# (V11 29 -> 34 table checks). Every earlier count is unchanged.
+# Delta from v3.3.0 (WP3 data service): none. The release, dictionary and API add outputs
+# outside the gold tables; every count below is unchanged.
+# Delta from v3.2.0 (WP2 evidence layer): four new evidence tables and their contracts
+# (25 -> 29). Every core, lineage, event and product count is unchanged.
+# Delta from v3.1.0 (OD-01 decided: new key + RECONSTITUTED_FROM edge): district_relationship
+# 631 -> 633 and lineage_corroboration 631 -> 633, from two RECONSTITUTED_FROM edges (Fatehgarh Sahib
+# 1951 -> 2001, Barnala 1951 -> 2011). No key, product or other count changes.
+# Delta from v3.0.0 (in v3.1.0): V18 has no findings; the map-date rule counted RENAME rows as creations.
+# A PR that changes any value here must update it in the same PR and explain each delta.
+# Golden histories (Kangra, Hoshangabad, Durg, Jhansi, Nellore, Belgaum, Adilabad, Malabar,
+# 24 Parganas) are asserted in tests/test_golden_history.py.
+
+row_counts:
+  ck_registry: 804
+  ck_observation: 4614
+  continuity_decision: 3872
+  district_relationship: 633
+  measured_area_transfer: 1358
+  lineage_corroboration: 633
+  transition_flow: 51991
+  boundary_event: 609
+  event_summary: 609
+  event_linkage: 1777
+  crosswalk_to_reference: 23398
+  district_area_admin: 4614
+  district_reference_context: 6678
+  evidence_claim: 1771
+  claim_ck_link: 1771
+  claim_verdict: 1771
+  research_queue: 395
+  stat_observation: 4614
+  statistical_crosswalk: 23398
+  stat_harmonized_value: 6678
+  stat_ratio_value: 0
+  harmonization_check: 9
+
+breakdowns:
+  - table: ck_registry
+    column: is_active
+    counts: {true: 742, false: 62}
+  - table: continuity_decision
+    column: continuity_class
+    counts: {STRONG: 3243, CARVE_OUT_CORE: 302, ABSORPTION_CORE: 124, NAME_RETAINED_CORE: 101,
+             BREAK_NAME_DIFFERS: 43, REORGANISED_CORE: 40, BREAK_NO_CORE: 19}
+  - table: district_relationship
+    column: relationship_type
+    counts: {FORMED_FROM: 494, SPLIT_FROM: 134, MERGED_INTO: 3, RECONSTITUTED_FROM: 2}
+  # measurement_status lives in event_summary, not boundary_event
+  - table: event_summary
+    column: measurement_status
+    counts: {MEASURED: 401, UNIDENTIFIED_MULTI_EVENT_WINDOW: 186, NOT_MEASURABLE: 22}
+  - table: event_linkage
+    column: link_status
+    counts: {LINKED: 1094, RETAINED_SELF: 469, UNRESOLVED_NAME: 132, OUTSIDE_FOOTPRINT: 42,
+             LINKED_NAME_ONLY: 25, LINKED_AMBIGUOUS: 15}
+  - table: claim_ck_link
+    column: link_status
+    counts: {LINKED: 1395, LINKED_GEOMETRY_ONLY: 331, UNLINKED: 45}
+  - table: claim_verdict
+    column: verdict
+    counts: {AGREE: 1213, CONFLICT: 214, EXPLAINED: 105, NOT_CHECKABLE: 239}
+  - table: research_queue
+    column: topic
+    counts: {CLAIM_CONFLICT: 214, EVENT_NAME_OUTSIDE_FOOTPRINT: 42, EVENT_NAME_UNRESOLVED: 132, MAP_DATE: 7}
+
+lineage_event_corroborated: 431
+
+gate:
+  error_violations: 0
+  warnings_with_findings: [V17]
+  contracts_passing: 34

@@ -40,7 +40,8 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/
 bash scripts/run_all.sh                   # full build + validation gate (~3.5 min)
 .venv/bin/python -m pytest tests          # unit tests, golden history, regression baselines (needs a built warehouse)
 source .venv/bin/activate && dvc repro    # same DAG; reruns only what changed; hashes in dvc.lock
-.venv/bin/uvicorn district_evolution.release.api:app   # read-only API + explorer at http://127.0.0.1:8000
+(cd web && npm ci && npm run build)       # web platform; then:
+.venv/bin/uvicorn district_evolution.release.api:app   # platform at http://127.0.0.1:8000, API under /api, OpenAPI at /docs
 ```
 
 `s12_validate` exits non-zero if any ERROR check fails. The report is

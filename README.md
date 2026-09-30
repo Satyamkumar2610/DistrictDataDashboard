@@ -24,8 +24,12 @@ same inputs are byte-identical.
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/pip install -e . --no-deps
 source .venv/bin/activate && dvc repro                  # ~4 min: build, evidence, harmonization, release, gate
 pytest -q tests
-uvicorn district_evolution.release.api:app              # API and explorer at http://127.0.0.1:8000
+(cd web && npm ci && npm run build)                       # the web platform (Node 22+)
+uvicorn district_evolution.release.api:app              # platform at http://127.0.0.1:8000, API reference at /docs
 ```
+
+For development, run the API with uvicorn and `npm run dev` in `web/` (Vite proxies `/api`).
+Browser tests: `npm run test:e2e` in `web/` (uses the installed Chrome; `PW_CHANNEL=chromium` for Playwright's own).
 
 The gate report is `outputs/pipeline/s12_validation_report.md`; the data dictionary is
 `docs/data_dictionary.md`; the release (tables, simplified geometry, DuckDB `load.sql`) is
@@ -39,7 +43,8 @@ The gate report is `outputs/pipeline/s12_validation_report.md`; the data diction
 | `district_evolution/core/` | config, the one area method, IDs, names, reference tables, table writer, interfaces |
 | `district_evolution/contracts/` | pandera contracts and the meaning of every column |
 | `district_evolution/sources/`, `evidence/`, `harmonize/` | plug-in points for maps, evidence and statistics |
-| `district_evolution/release/` | release definition, read-only API, explorer |
+| `district_evolution/release/` | release definition and the read-only API (JSON, vector tiles) |
+| `web/` | the web platform: React, TypeScript, MapLibre GL, Apache ECharts, Playwright tests |
 | `config/` | `pipeline.yaml` (every threshold), `sources.yaml`, `indicators.yaml` |
 | `data/reference/` | curated reference tables (confirmed rows only) and research findings |
 | `docs/` | design (`architecture/`), decisions, operations runbooks, data dictionary |

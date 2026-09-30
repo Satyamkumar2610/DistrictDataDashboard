@@ -3,11 +3,27 @@
 Versions follow semantic versioning of `pipeline_version` (config/pipeline.yaml).
 A MAJOR change can renumber canonical keys or change the meaning of a product.
 
-## Unreleased
+## 3.6.0
 
-Phase 5 (open data lab), in progress. No pipeline output changes.
+The web platform. No key, lineage, area, product, evidence or harmonization changes.
 
 ### Added
+- `web/`: React + TypeScript (Vite), MapLibre GL and Apache ECharts, all open source; fonts
+  self-hosted; no third-party basemap (works offline, no tile licence). Pages: Overview (release
+  figures), Atlas (every district on any of the 9 maps; colour by new identity or area change),
+  District (one identity through every map, with the land it gave or received in each window drawn
+  and its km² from the measured tables, lineage Sankey, events, Wikidata verdicts, open questions,
+  harmonized values), Crosswalk (area weights to 2025, CSV download), Research queue, Data and
+  quality (gate, release, data dictionary). Every caption names its source table and row.
+- API under `/api`: vector tiles per map built by DuckDB (`ST_AsMVT`, no tile server), change
+  parcels, overview, validation, dictionary. The event-level measurement status follows s09's rule
+  (401 / 186 / 22). The release carries its validation checks and the dictionary.
+- Playwright browser tests (6) and CI steps that build the app and run them against the release.
+
+### Removed
+- `release/explorer.html` (replaced by the platform).
+
+### Added (Phase 5 groundwork, open data lab)
 - `README.md`, `CONTRIBUTING.md` (adding a map source, evidence source, indicator or weight method
   without touching `stages/` or `core/`; review rules), `tests/test_extensibility.py` (an indicator
   added by config alone is linked and harmonized).

@@ -411,6 +411,9 @@ stages:
       - data/bronze/events/district_evolution_master.csv
       - data/silver/geometry
       - docs/data_dictionary.md
+      - docs/data_dictionary.json
+      - outputs/pipeline/s12_checks.csv
+      - outputs/pipeline/s12_validation_report.md
       - data/gold/core/ck_registry.parquet
       - data/gold/core/ck_observation.parquet
       - data/gold/core/continuity_decision.parquet

@@ -6,7 +6,8 @@
   load.sql                          DuckDB views over the files (a DuckDB database file is not
                                     byte-reproducible; the views give the same queries)
   release_info.json                 version and the sha256 of the inputs that define it
-  DATA_DICTIONARY.md                copied from docs/data_dictionary.md (r02)
+  DATA_DICTIONARY.md, data_dictionary.json   copied from docs/ (r02)
+  validation/                       the gate's checks and report (s12), so the release states its own quality
   MANIFEST.csv                      sha256 of every other file
 
 Rebuilding from the same tag yields identical bytes (checked by the determinism CI).
@@ -70,6 +71,10 @@ def main() -> None:
         layer.to_parquet(OUT / "geometry" / f"districts_{year}.geoparquet", index=False)
     (OUT / "load.sql").write_text(load_sql(), encoding="utf-8")
     shutil.copyfile(core.PROJECT_ROOT / "docs" / "data_dictionary.md", OUT / "DATA_DICTIONARY.md")
+    shutil.copyfile(core.PROJECT_ROOT / "docs" / "data_dictionary.json", OUT / "data_dictionary.json")
+    (OUT / "validation").mkdir(exist_ok=True)
+    for name in ("s12_checks.csv", "s12_validation_report.md"):
+        shutil.copyfile(core.OUTPUT_DIR / name, OUT / "validation" / name)
     info = {"pipeline_version": core.PIPELINE_VERSION,
             "config_sha256": sha256(core.CONFIG_DIR / "pipeline.yaml"),
             "events_csv_sha256": sha256(core.EVENTS_CSV),

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "district-evolution"
 # Must equal pipeline_version in config/pipeline.yaml (tests/test_core.py checks it).
-version = "3.5.0"
+version = "3.6.0"
 description = "India district boundary evolution 1951-2025: identity, lineage, area accounting and harmonization crosswalks"
 requires-python = ">=3.13"
 # Dependencies are pinned in requirements.txt; install with: pip install -r requirements.txt && pip install -e . --no-deps
