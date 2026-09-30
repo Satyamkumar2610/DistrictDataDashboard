@@ -124,8 +124,9 @@ Shared code:
 
 - **Licensing blocks any public data release** (`docs/decisions/licensing.md`). The 1951–2021 maps
   are ML InfoMap data licensed to Stanford affiliates only, "not to be reproduced or used for any
-  purpose without permission"; the GitHub repository is public and contains them. Do not tag a
-  release or publish `data/` until the owner decides. No LICENSE file until then.
+  purpose without permission"; the GitHub repository contains them in its history. It was made
+  private on 2026-09-30, which stops publication but not the history. Do not tag a release, publish
+  `data/`, or make the repository public again until the owner decides. No LICENSE file until then.
 - DVC remote and moving bronze out of git history (the `.git` directory is 691 MB). Needs a remote
   and a force-push coordinated with collaborators.
 - Zenodo DOI: wired (`.github/workflows/release.yml`, `docs/operations/release.md`); needs the

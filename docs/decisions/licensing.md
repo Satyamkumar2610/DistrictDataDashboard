@@ -1,6 +1,9 @@
 # Licensing of the sources — blocks the open release (WP5)
 
 Status: **decision needed from the project owner.** Found 2026-09-30 while preparing WP5.
+The repository was made **private** on 2026-09-30 (verified: the GitHub API returns 404 to an
+unauthenticated request). That stops further public distribution but settles nothing below: the
+files remain in the git history, so the exposure returns if the repository is made public again.
 
 ## What the sources allow
 
@@ -13,9 +16,11 @@ Status: **decision needed from the project owner.** Found 2026-09-30 while prepa
 
 ## What this means for the project
 
-1. **The public GitHub repository already redistributes the Stanford files** (`data/bronze/stanford`,
-   committed in git history). The repository is public (checked via the GitHub API on 2026-09-30).
-   Under the terms above this needs the publisher's permission.
+1. **The GitHub repository carries the Stanford files** (`data/bronze/stanford`, committed in git
+   history). It was public until 2026-09-30 and is now private, so the files are no longer
+   published; they are still hosted, and still in every commit. Under the terms above,
+   redistribution needs the publisher's permission, and the history rewrite in
+   `docs/operations/data_storage.md` is what removes them.
 2. **The release (r01)** ships the polygons of all nine maps (simplified) and tables derived from
    them. A Zenodo archive of the repository would also include the bronze files and their history.
 3. **The API and explorer** serve those polygons.
@@ -38,9 +43,10 @@ Nothing in the pipeline's method depends on this; it decides only what may be pu
 
 ## Immediate step, whatever the choice
 
-Consider making the GitHub repository private until this is settled, and do not tag a release
-(the release workflow would publish to Zenodo once it is enabled). Removing the files from public
-history needs the history rewrite in `docs/operations/data_storage.md`.
+Making the repository private: **done, 2026-09-30.** Still outstanding: do not tag a release (the
+release workflow would publish to Zenodo once it is enabled), and do not make the repository public
+again before this is settled. Removing the files from history needs the rewrite in
+`docs/operations/data_storage.md`.
 
 Recommendation: A, with B in force until an answer arrives. Code can be opened now under a
 permissive licence (MIT or Apache-2.0); data licensing waits for the licensors.
