@@ -53,6 +53,15 @@ _db.execute("""CREATE VIEW event_status AS
                             WHEN bool_and(a.measurement_status = 'MEASURED') THEN 'MEASURED'
                             ELSE 'UNIDENTIFIED_MULTI_EVENT_WINDOW' END AS measurement_status
     FROM boundary_event e LEFT JOIN event_accounting a USING (event_id) GROUP BY 1""")
+# The state an identity belongs to today: the state of the 2025 district holding most of its land on its
+# last map (for an active identity, its own). Groups historical states (Madras, PEPSU) under today's.
+_db.execute("""CREATE TABLE ck_home AS
+    WITH last AS (SELECT canonical_key, max(year) AS y FROM ck_observation GROUP BY 1),
+         main AS (SELECT x.source_ck AS canonical_key, arg_max(x.target_ck, x.area_km2) AS target_ck
+                  FROM crosswalk_to_reference x JOIN last l ON l.canonical_key = x.source_ck AND l.y = x.year GROUP BY 1)
+    SELECT m.canonical_key, lower(t.latest_state) AS state_key FROM main m JOIN ck_registry t ON t.canonical_key = m.target_ck""")
+_db.execute("""CREATE TABLE state_name AS
+    SELECT lower(latest_state) AS state_key, mode(latest_state) AS state FROM ck_registry WHERE is_active GROUP BY 1""")
 _lock = threading.Lock()
 
 
@@ -193,6 +202,27 @@ def lineage(ck: str = PathParam(pattern=CK), direction: str = Query("both", patt
     return ok(out)
 
 
+@api.get("/districts/{ck}/genealogy")
+def genealogy(ck: str = PathParam(pattern=CK), max_depth: int = Query(12, le=32)):
+    """The whole family of an identity: every ancestor and descendant edge, and each member's span on the maps."""
+    registry_row(ck)
+    edges = rows("""WITH RECURSIVE up(ck, depth, rel_id) AS (
+            SELECT from_ck, 1, rel_id FROM district_relationship WHERE to_ck = ?
+            UNION ALL SELECT r.from_ck, u.depth + 1, r.rel_id FROM up u JOIN district_relationship r ON r.to_ck = u.ck WHERE u.depth < ?),
+          down(ck, depth, rel_id) AS (
+            SELECT to_ck, 1, rel_id FROM district_relationship WHERE from_ck = ?
+            UNION ALL SELECT r.to_ck, d.depth + 1, r.rel_id FROM down d JOIN district_relationship r ON r.from_ck = d.ck WHERE d.depth < ?)
+        SELECT DISTINCT r.rel_id, r.from_ck, r.to_ck, r.relationship_type, r.year_a, r.year_b, r.period_start, r.period_end,
+               r.transfer_km2 FROM district_relationship r WHERE r.rel_id IN (SELECT rel_id FROM up UNION SELECT rel_id FROM down)
+        ORDER BY r.year_b, r.rel_id""", [ck, max_depth, ck, max_depth])
+    keys = sorted({ck} | {e["from_ck"] for e in edges} | {e["to_ck"] for e in edges})
+    nodes = rows(f"""SELECT r.canonical_key, r.latest_name, r.latest_state, r.established_year, r.is_active,
+                            (SELECT max(year) FROM ck_observation o WHERE o.canonical_key = r.canonical_key) AS last_map
+                     FROM ck_registry r WHERE r.canonical_key IN ({','.join('?' * len(keys))})
+                     ORDER BY r.established_year, r.latest_name""", keys)
+    return ok({"focus": ck, "nodes": nodes, "edges": edges})
+
+
 @api.get("/districts/{ck}/geometry")
 def geometry(year: int, ck: str = PathParam(pattern=CK)):
     found = rows("SELECT canonical_key, year, district_name, state, area_km2, ST_AsGeoJSON(geometry) AS g "
@@ -303,6 +333,52 @@ def research(topic: str | None = None, status: str = "OPEN", state: str | None =
         params.append(state)
     return ok(rows(f"SELECT * FROM research_queue WHERE {' AND '.join(where)} ORDER BY topic, state, subject LIMIT ?",
                    [*params, limit]))
+
+
+@api.get("/states")
+def states():
+    """Every state, with how many district identities it has had and how many districts on each map."""
+    per_map = rows("""SELECT s.state, o.year, count(*) AS districts FROM ck_observation o
+                       JOIN ck_home h USING (canonical_key) JOIN state_name s USING (state_key) GROUP BY 1, 2 ORDER BY 1, 2""")
+    summary = rows("""SELECT s.state, count(*) AS identities, sum(r.is_active::INT) AS active
+                       FROM ck_registry r JOIN ck_home h USING (canonical_key) JOIN state_name s USING (state_key)
+                       GROUP BY 1 ORDER BY 1""")
+    for s in summary:
+        s["districts_by_map"] = {p["year"]: p["districts"] for p in per_map if p["state"] == s["state"]}
+    return ok(summary)
+
+
+@api.get("/states/{state}")
+def state(state: str):
+    """One state's district history: districts per map, and every lineage edge into a district now in it."""
+    key = rows("SELECT state_key, state FROM state_name WHERE state_key = lower(?)", [state])
+    if not key:
+        raise HTTPException(404, f"no state {state}")
+    k = key[0]["state_key"]
+    return ok({
+        "state": key[0]["state"],
+        "maps": rows("""SELECT o.year, count(*) AS districts, round(sum(o.area_km2)) AS km2 FROM ck_observation o
+                          JOIN ck_home h USING (canonical_key) WHERE h.state_key = ? GROUP BY 1 ORDER BY 1""", [k]),
+        "identities": rows("""SELECT r.canonical_key, r.latest_name, r.established_year, r.closed_year, r.is_active, r.origin_kind
+                                FROM ck_registry r JOIN ck_home h USING (canonical_key) WHERE h.state_key = ?
+                                ORDER BY r.is_active DESC, r.latest_name""", [k]),
+        "changes": rows("""SELECT r.*, f.latest_name AS from_name, t.latest_name AS to_name
+                             FROM district_relationship r JOIN ck_home h ON h.canonical_key = r.to_ck
+                             JOIN ck_registry f ON f.canonical_key = r.from_ck JOIN ck_registry t ON t.canonical_key = r.to_ck
+                             WHERE h.state_key = ? ORDER BY r.year_b, r.period_start, t.latest_name""", [k]),
+    })
+
+
+@api.get("/download/{table}.{fmt}")
+def download(table: str, fmt: str):
+    """A release table as Parquet (the file itself) or CSV."""
+    if table not in TABLES or fmt not in ("csv", "parquet"):
+        raise HTTPException(404, f"no table {table}.{fmt}; tables: {', '.join(TABLES)}")
+    path = RELEASE / "tables" / f"{table}.parquet"
+    if fmt == "parquet":
+        return FileResponse(path, media_type="application/vnd.apache.parquet", filename=f"{table}.parquet")
+    return Response(pd.read_parquet(path).to_csv(index=False), media_type="text/csv",
+                    headers={"Content-Disposition": f'attachment; filename="{table}.csv"'})
 
 
 @api.get("/validation")

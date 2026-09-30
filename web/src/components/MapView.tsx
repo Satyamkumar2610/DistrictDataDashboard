@@ -18,6 +18,7 @@ type Props = {
   parcels?: Parcel[];
   fitTo?: [number, number, number, number] | null;
   onSelect?: (ck: string) => void;
+  syncGroup?: string; // maps in the same group follow each other's camera
   testId?: string;
 };
 
@@ -41,7 +42,7 @@ function fillColor(mode: ColorMode, highlight: Record<string, number>): Expressi
   return ["literal", css("--sunk")];
 }
 
-export default function MapView({ year, mode = "plain", selected = null, highlight = {}, parcels = [], fitTo = null, onSelect, testId }: Props) {
+export default function MapView({ year, mode = "plain", selected = null, highlight = {}, parcels = [], fitTo = null, onSelect, syncGroup, testId }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [ready, setReady] = useState(false);
@@ -114,6 +115,23 @@ export default function MapView({ year, mode = "plain", selected = null, highlig
     // the map is created once; props are applied by the effects below
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const m = map.current;
+    if (!ready || !m || !syncGroup) return;
+    const id = Math.random().toString(36);
+    const send = (e: { originalEvent?: unknown }) => {
+      if (!e.originalEvent) return; // only moves the viewer made, so synced maps do not echo
+      window.dispatchEvent(new CustomEvent("mapsync", { detail: { group: syncGroup, id, center: m.getCenter(), zoom: m.getZoom() } }));
+    };
+    const receive = (e: Event) => {
+      const d = (e as CustomEvent).detail;
+      if (d.group === syncGroup && d.id !== id) m.jumpTo({ center: d.center, zoom: d.zoom });
+    };
+    m.on("move", send);
+    window.addEventListener("mapsync", receive);
+    return () => { m.off("move", send); window.removeEventListener("mapsync", receive); };
+  }, [ready, syncGroup]);
 
   useEffect(() => {
     if (!ready || !map.current) return;

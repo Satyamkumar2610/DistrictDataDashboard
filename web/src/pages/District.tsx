@@ -8,6 +8,14 @@ import {
   type Changes, type Claim, type Edge, type EventRow, type QueueItem, type Registry, type Timeline,
 } from "../api";
 
+type Genealogy = {
+  focus: string;
+  nodes: { canonical_key: string; latest_name: string; latest_state: string; established_year: number; is_active: boolean; last_map: number }[];
+  edges: { rel_id: string; from_ck: string; to_ck: string; relationship_type: string; period_start: number; period_end: number; transfer_km2: number }[];
+};
+const EDGE_COLOR: Record<string, string> = { FORMED_FROM: "--new", SPLIT_FROM: "--out", MERGED_INTO: "--crit", RECONSTITUTED_FROM: "--ochre" };
+const cssVar = (n: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
 const STATUS: Record<string, string> = {
   MEASURED: "measured", UNIDENTIFIED_MULTI_EVENT_WINDOW: "bound only (shared window)", NOT_MEASURABLE: "not measurable",
 };
@@ -24,6 +32,7 @@ export default function District() {
   const ev = useQuery({ queryKey: ["evidence", ck], queryFn: () => get<{ claims: Claim[]; research_queue: QueueItem[] }>(`/districts/${ck}/evidence`) });
   const events = useQuery({ queryKey: ["events", ck], queryFn: () => get<EventRow[]>(`/events?ck=${ck}`) });
   const harm = useQuery({ queryKey: ["harmonized", ck], queryFn: () => get<{ totals: Record<string, unknown>[] }>(`/districts/${ck}/harmonized`) });
+  const fam = useQuery({ queryKey: ["genealogy", ck], queryFn: () => get<Genealogy>(`/districts/${ck}/genealogy`) });
 
   const d = reg.data;
   const maps = d?.observations.map((o) => o.year) ?? [];
@@ -73,6 +82,37 @@ export default function District() {
         label: { color: getComputedStyle(document.documentElement).getPropertyValue("--ink").trim() } }],
     };
   }, [lin.data, d]);
+
+  const tree = useMemo(() => {
+    const g = fam.data;
+    if (!g || g.edges.length === 0) return null;
+    const col = (y: number) => YEARS.indexOf(y);
+    const perCol: Record<number, number> = {};
+    const nodes = g.nodes.map((n) => {
+      const c = col(n.established_year), row = (perCol[c] = (perCol[c] ?? 0) + 1) - 1;
+      const focus = n.canonical_key === g.focus;
+      return { id: n.canonical_key, name: n.latest_name, x: c * 170, y: row * 46 + 40, value: `${n.established_year}–${n.is_active ? "today" : n.last_map}`,
+        symbolSize: focus ? 16 : 10, itemStyle: { color: cssVar(focus ? "--accent" : n.is_active ? "--ink-2" : "--muted") },
+        label: { show: true, position: "right" as const, color: cssVar(focus ? "--ink" : "--ink-2"), fontWeight: focus ? ("bold" as const) : ("normal" as const) } };
+    });
+    // one column per map; a label row names the map year above each used column
+    const header = [...new Set(g.nodes.map((n) => col(n.established_year)))].map((c) => ({
+      id: `map-${YEARS[c]}`, name: String(YEARS[c]), x: c * 170, y: 0, symbolSize: 0, tooltip: { show: false },
+      label: { show: true, position: "inside" as const, color: cssVar("--muted"), fontFamily: "IBM Plex Mono" } }));
+    return {
+      tooltip: { formatter: (params: unknown) => {
+        const p = params as { dataType: string; data: { name?: string; value?: string; rel?: Genealogy["edges"][number] } };
+        return p.dataType === "edge" && p.data.rel
+          ? `${KIND[p.data.rel.relationship_type] ?? p.data.rel.relationship_type} ${p.data.rel.period_start}–${p.data.rel.period_end}: ${fmt(p.data.rel.transfer_km2)} km²`
+          : `${p.data.name} · on the maps ${p.data.value}`;
+      } },
+      xAxis: { show: false, min: -20, max: (YEARS.length - 1) * 170 + 140 }, yAxis: { show: false, inverse: true },
+      series: [{ type: "graph" as const, layout: "none" as const, coordinateSystem: undefined, roam: true, edgeSymbol: ["none", "arrow"], edgeSymbolSize: 6,
+        top: 16, bottom: 24, left: 24, right: 130, data: [...header, ...nodes],
+        links: g.edges.map((e) => ({ source: e.from_ck, target: e.to_ck, rel: e,
+          lineStyle: { color: cssVar(EDGE_COLOR[e.relationship_type] ?? "--muted"), width: Math.max(1, Math.min(6, Math.sqrt(e.transfer_km2) / 25)), curveness: 0.15, opacity: 0.8 } })) }],
+    };
+  }, [fam.data]);
 
   if (reg.isError) return <main className="page"><h1>No district identity {ck}</h1><Link to="/">Back</Link></main>;
   if (!d) return <main className="page"><p className="muted">Loading…</p></main>;
@@ -126,6 +166,14 @@ export default function District() {
             : <p className="empty">No lineage edges: it never gave or took a new district's land.</p>}
           <span className="src">district_relationship</span></section>
       </div>
+
+      {tree && (
+        <section className="panel"><h2>Family tree</h2>
+          <p className="sub">Every ancestor and descendant, placed at the map on which each first appears. Blue: carved out; orange: split;
+            ochre: restored after a gap; red: merged. Line width grows with the land that moved. Click a district to open it; drag or scroll to move.</p>
+          <Chart option={tree} height={Math.max(240, 46 * Math.max(...Object.values(fam.data!.nodes.reduce<Record<number, number>>((a, n) => ({ ...a, [n.established_year]: (a[n.established_year] ?? 0) + 1 }), {}))) + 110)}
+            testId="genealogy" onItemClick={(it) => it.dataType === "node" && it.data?.id?.startsWith("IND-") && it.data.id !== ck && nav(`/district/${it.data.id}`)} />
+          <span className="src">district_relationship, ck_registry</span></section>)}
 
       <div className="grid2">
         <section className="panel"><h2>Administrative events</h2><p className="sub">From the events compilation, linked to this identity by name within land that moved.</p>

@@ -44,7 +44,7 @@ The gate report is `outputs/pipeline/s12_validation_report.md`; the data diction
 | `district_evolution/contracts/` | pandera contracts and the meaning of every column |
 | `district_evolution/sources/`, `evidence/`, `harmonize/` | plug-in points for maps, evidence and statistics |
 | `district_evolution/release/` | release definition and the read-only API (JSON, vector tiles) |
-| `web/` | the web platform: React, TypeScript, MapLibre GL, Apache ECharts, Playwright tests |
+| `web/` | the web platform (atlas with side-by-side compare, states, district histories and family trees, crosswalk, research queue, downloads): React, TypeScript, MapLibre GL, Apache ECharts, Playwright tests |
 | `config/` | `pipeline.yaml` (every threshold), `sources.yaml`, `indicators.yaml` |
 | `data/reference/` | curated reference tables (confirmed rows only) and research findings |
 | `docs/` | design (`architecture/`), decisions, operations runbooks, data dictionary |

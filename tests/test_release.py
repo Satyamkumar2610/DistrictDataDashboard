@@ -107,3 +107,32 @@ def test_overview_event_status_matches_the_pipeline_rule(api):
 def test_release_states_its_validation(api):
     checks = api.get("/api/validation").json()["data"]["checks"]
     assert not [c for c in checks if c["severity"] == "ERROR" and c["n_violations"] > 0]
+
+
+def test_states_count_districts_on_every_map(api):
+    states = {s["state"]: s for s in api.get("/api/states").json()["data"]}
+    assert sum(s["active"] for s in states.values()) == 742
+    hp = states["Himachal Pradesh"]
+    assert (hp["districts_by_map"]["1951"], hp["districts_by_map"]["2025"]) == (8, 12)
+
+
+def test_state_history_lists_its_lineage(api):
+    d = api.get("/api/states/Himachal Pradesh").json()["data"]
+    assert {i["canonical_key"] for i in d["identities"]} >= {"IND-000202", "IND-000416"}
+    assert any(e["to_name"] == "Hamirpur" and e["from_name"] == "Kangra" for e in d["changes"])
+    assert api.get("/api/states/Atlantis").status_code == 404
+
+
+def test_genealogy_walks_ancestors_and_descendants(api):
+    d = api.get("/api/districts/IND-000148/genealogy").json()["data"]
+    names = {n["latest_name"] for n in d["nodes"]}
+    assert d["focus"] == "IND-000148" and {"Malabar", "Kozhikode", "Palakkad"} <= names
+    keys = {n["canonical_key"] for n in d["nodes"]}
+    assert all(e["from_ck"] in keys and e["to_ck"] in keys for e in d["edges"])
+
+
+def test_release_tables_download(api):
+    r = api.get("/api/download/crosswalk_to_reference.csv")
+    assert r.status_code == 200 and "share_of_source" in r.text.splitlines()[0]
+    assert api.get("/api/download/crosswalk_to_reference.parquet").content[:4] == b"PAR1"
+    assert api.get("/api/download/not_a_table.csv").status_code == 404

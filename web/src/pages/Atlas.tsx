@@ -15,6 +15,8 @@ export default function Atlas() {
   const year = YEARS.includes(Number(params.get("year"))) ? Number(params.get("year")) : 2025;
   const mode = (["plain", "new", "change"].includes(params.get("mode") ?? "") ? params.get("mode") : "new") as ColorMode;
   const ck = params.get("ck");
+  const compare = params.get("compare") === "1";
+  const yearB = YEARS.includes(Number(params.get("year2"))) ? Number(params.get("year2")) : YEARS[Math.max(0, YEARS.indexOf(year) - 1)];
   const update = (patch: Record<string, string | null>) => setParams((p) => {
     const next = new URLSearchParams(p);
     Object.entries(patch).forEach(([k, v]) => (v === null ? next.delete(k) : next.set(k, v)));
@@ -52,16 +54,30 @@ export default function Atlas() {
   return (
     <main className="atlas">
       <div className="mapwrap">
-        <MapView year={year} mode={mode} selected={ck} fitTo={fit} onSelect={setCk} testId="atlas-map" />
+        {compare ? (
+          <div className="compare" data-testid="compare">
+            <div className="pane">
+              <MapView year={yearB} mode={mode} selected={ck} fitTo={fit} onSelect={setCk} syncGroup="atlas" testId="atlas-map-b" />
+              <div className="years pane-years" role="group" aria-label="Left map year">
+                {YEARS.map((y) => <button key={y} type="button" aria-pressed={y === yearB} onClick={() => update({ year2: String(y) })}>{y}</button>)}
+              </div>
+            </div>
+            <div className="pane">
+              <MapView year={year} mode={mode} selected={ck} fitTo={fit} onSelect={setCk} syncGroup="atlas" testId="atlas-map" />
+            </div>
+          </div>
+        ) : <MapView year={year} mode={mode} selected={ck} fitTo={fit} onSelect={setCk} testId="atlas-map" />}
         <div className="overlay">
           <div className="legend">
             <div className="seg" role="group" aria-label="Colour districts by">
               {MODES.map((m) => <button key={m.id} type="button" aria-pressed={mode === m.id} onClick={() => setMode(m.id)}>{m.label}</button>)}
             </div>
-            {mode === "new" && <span><i style={{ background: "var(--new)" }} />first appears on the {year} map</span>}
+            <div className="seg"><button type="button" aria-pressed={compare}
+              onClick={() => update({ compare: compare ? null : "1", year2: compare ? null : String(yearB) })}>Compare two maps</button></div>
+            {mode === "new" && <span><i style={{ background: "var(--new)" }} />first appears on {compare ? "each" : `the ${year}`} map</span>}
             {mode === "change" && <span><i style={{ background: "var(--loss)" }} />lost area · <i style={{ background: "var(--gain)" }} />gained area (same identity, previous map)</span>}
           </div>
-          <div className="years" role="group" aria-label="Map year">
+          <div className="years" role="group" aria-label={compare ? "Right map year" : "Map year"}>
             <button type="button" aria-pressed={playing} aria-label={playing ? "Stop" : "Play through the maps"}
               onClick={() => { if (!playing && year === YEARS[YEARS.length - 1]) setYear(YEARS[0]); setPlaying(!playing); }}>{playing ? "❚❚" : "▶"}</button>
             {YEARS.map((y) => <button key={y} type="button" aria-pressed={y === year} onClick={() => { setPlaying(false); setYear(y); }}>{y}</button>)}

@@ -1,27 +1,31 @@
 import type { EChartsOption } from "echarts";
-import { BarChart, LineChart, SankeyChart } from "echarts/charts";
+import { BarChart, GraphChart, LineChart, SankeyChart } from "echarts/charts";
 import { GridComponent, LegendComponent, TooltipComponent } from "echarts/components";
 import * as echarts from "echarts/core";
 import { SVGRenderer } from "echarts/renderers";
 
 import { useEffect, useRef } from "react";
 
-echarts.use([BarChart, LineChart, SankeyChart, GridComponent, LegendComponent, TooltipComponent, SVGRenderer]);
+echarts.use([BarChart, GraphChart, LineChart, SankeyChart, GridComponent, LegendComponent, TooltipComponent, SVGRenderer]);
 
 const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
 /** Theme-aware ECharts. Pass an option; text, axes and grid take the page's colour tokens. */
-export default function Chart({ option, height = 280, testId, onClick }:
-  { option: EChartsOption; height?: number; testId?: string; onClick?: (dataIndex: number) => void }) {
+export default function Chart({ option, height = 280, testId, onClick, onItemClick }:
+  { option: EChartsOption; height?: number; testId?: string; onClick?: (dataIndex: number) => void;
+    onItemClick?: (item: { dataType?: string; data?: { id?: string } }) => void }) {
   const box = useRef<HTMLDivElement>(null);
   const chart = useRef<echarts.ECharts | null>(null);
   const clickRef = useRef(onClick);
   clickRef.current = onClick;
+  const nodeClickRef = useRef(onItemClick);
+  nodeClickRef.current = onItemClick;
 
   useEffect(() => {
     const c = echarts.init(box.current!, undefined, { renderer: "svg" });
     chart.current = c;
     // a click anywhere in a category column (not only on a bar) selects that column
+    c.on("click", (p) => nodeClickRef.current?.(p as { dataType?: string; data?: { id?: string } }));
     c.getZr().on("click", (e) => {
       const at: [number, number] = [e.offsetX, e.offsetY];
       if (!clickRef.current || !c.containPixel("grid", at)) return;

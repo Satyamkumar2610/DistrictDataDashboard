@@ -1,4 +1,4 @@
-# Harmonization checks — pipeline v3.6.0
+# Harmonization checks — pipeline v3.7.0
 
 Conservation: 9 of 9 indicator-year-method totals conserved (max error 4.66e-10).
 

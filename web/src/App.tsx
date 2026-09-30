@@ -10,6 +10,7 @@ const Data = lazy(() => import("./pages/Data"));
 const District = lazy(() => import("./pages/District"));
 const Overview = lazy(() => import("./pages/Overview"));
 const Research = lazy(() => import("./pages/Research"));
+const States = lazy(() => import("./pages/States"));
 
 function toggleTheme() {
   const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
@@ -27,6 +28,7 @@ export default function App() {
         <nav className="nav" aria-label="Sections">
           <NavLink to="/" end>Overview</NavLink>
           <NavLink to="/atlas">Atlas</NavLink>
+          <NavLink to="/states">States</NavLink>
           <NavLink to="/crosswalk">Crosswalk</NavLink>
           <NavLink to="/research">Research queue</NavLink>
           <NavLink to="/data">Data &amp; quality</NavLink>
@@ -40,6 +42,8 @@ export default function App() {
         <Route path="/" element={<Overview />} />
         <Route path="/atlas" element={<Atlas />} />
         <Route path="/district/:ck" element={<District />} />
+        <Route path="/states" element={<States />} />
+        <Route path="/states/:state" element={<States />} />
         <Route path="/crosswalk" element={<Crosswalk />} />
         <Route path="/research" element={<Research />} />
         <Route path="/data" element={<Data />} />

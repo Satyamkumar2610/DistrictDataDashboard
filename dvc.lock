@@ -5,7 +5,7 @@ stages:
     deps:
     - path: config/pipeline.yaml
       hash: md5
-      md5: 3565f03b750218e8c9c898fd904424ee
+      md5: 401df9dfaff724be8bef354fa1d5ba6b
       size: 6598
     - path: config/sources.yaml
       hash: md5
@@ -98,7 +98,7 @@ stages:
     deps:
     - path: config/pipeline.yaml
       hash: md5
-      md5: 3565f03b750218e8c9c898fd904424ee
+      md5: 401df9dfaff724be8bef354fa1d5ba6b
       size: 6598
     - path: data/silver/geometry
       hash: md5
@@ -124,7 +124,7 @@ stages:
     deps:
     - path: config/pipeline.yaml
       hash: md5
-      md5: 3565f03b750218e8c9c898fd904424ee
+      md5: 401df9dfaff724be8bef354fa1d5ba6b
       size: 6598
     - path: data/silver/geometry
       hash: md5
@@ -171,7 +171,7 @@ stages:
     deps:
     - path: config/pipeline.yaml
       hash: md5
-      md5: 3565f03b750218e8c9c898fd904424ee
+      md5: 401df9dfaff724be8bef354fa1d5ba6b
       size: 6598
     - path: data/gold/spatial/transition_flow.parquet
       hash: md5
@@ -230,7 +230,7 @@ stages:
     deps:
     - path: config/pipeline.yaml
       hash: md5
-      md5: 3565f03b750218e8c9c898fd904424ee
+      md5: 401df9dfaff724be8bef354fa1d5ba6b
       size: 6598
     - path: data/gold/core/ck_observation.parquet
       hash: md5
@@ -408,7 +408,7 @@ stages:
     deps:
     - path: config/pipeline.yaml
       hash: md5
-      md5: 3565f03b750218e8c9c898fd904424ee
+      md5: 401df9dfaff724be8bef354fa1d5ba6b
       size: 6598
     - path: data/gold/core/ck_observation.parquet
       hash: md5
@@ -454,7 +454,7 @@ stages:
     deps:
     - path: config/pipeline.yaml
       hash: md5
-      md5: 3565f03b750218e8c9c898fd904424ee
+      md5: 401df9dfaff724be8bef354fa1d5ba6b
       size: 6598
     - path: data/gold/core/ck_observation.parquet
       hash: md5
@@ -618,7 +618,7 @@ stages:
     deps:
     - path: config/pipeline.yaml
       hash: md5
-      md5: 3565f03b750218e8c9c898fd904424ee
+      md5: 401df9dfaff724be8bef354fa1d5ba6b
       size: 6598
     - path: data/gold/core
       hash: md5
@@ -671,8 +671,8 @@ stages:
     outs:
     - path: data/gold/district_evolution.duckdb
       hash: md5
-      md5: 5a641d39c2c8bd8a324a1da428c6e761
-      size: 171192320
+      md5: 029f2cae7ecb32550f5cdd2c58f5a3a3
+      size: 171454464
     - path: outputs/pipeline/s11_invariants.csv
       hash: md5
       md5: 568f875d03c6d0d8c9e2b9afc620f60d
@@ -686,8 +686,8 @@ stages:
       size: 170629
     - path: data/gold/district_evolution.duckdb
       hash: md5
-      md5: 5a641d39c2c8bd8a324a1da428c6e761
-      size: 171192320
+      md5: 029f2cae7ecb32550f5cdd2c58f5a3a3
+      size: 171454464
     - path: data/gold/evidence/research_queue.parquet
       hash: md5
       md5: 3e32988af180bfa21e6adf8e71e0f31e
@@ -737,14 +737,14 @@ stages:
       size: 4903
     - path: outputs/pipeline/s12_validation_report.md
       hash: md5
-      md5: d76b35e9203fe74b116a36bb83dd6903
+      md5: 823418206b0a74d8ef0dbb3ff835b69a
       size: 10474
   a01_external_audit:
     cmd: python -m district_evolution.evidence.wikidata_audit
     deps:
     - path: config/pipeline.yaml
       hash: md5
-      md5: 3565f03b750218e8c9c898fd904424ee
+      md5: 401df9dfaff724be8bef354fa1d5ba6b
       size: 6598
     - path: data/bronze/events/district_evolution_master.csv
       hash: md5
@@ -848,7 +848,7 @@ stages:
     deps:
     - path: config/pipeline.yaml
       hash: md5
-      md5: 3565f03b750218e8c9c898fd904424ee
+      md5: 401df9dfaff724be8bef354fa1d5ba6b
       size: 6598
     - path: data/gold/core/ck_observation.parquet
       hash: md5
@@ -901,7 +901,7 @@ stages:
     deps:
     - path: config/pipeline.yaml
       hash: md5
-      md5: 3565f03b750218e8c9c898fd904424ee
+      md5: 401df9dfaff724be8bef354fa1d5ba6b
       size: 6598
     - path: data/gold/core/ck_observation.parquet
       hash: md5
@@ -1029,7 +1029,7 @@ stages:
     deps:
     - path: config/pipeline.yaml
       hash: md5
-      md5: 3565f03b750218e8c9c898fd904424ee
+      md5: 401df9dfaff724be8bef354fa1d5ba6b
       size: 6598
     - path: district_evolution/contracts
       hash: md5
@@ -1052,18 +1052,18 @@ stages:
     outs:
     - path: docs/data_dictionary.json
       hash: md5
-      md5: 0766dc5458bd42e28e9ef5266a6f563f
+      md5: f1ae8eb2dad4e16dc794e39260ff2630
       size: 63258
     - path: docs/data_dictionary.md
       hash: md5
-      md5: db77e0090856cc64804ef5319be16ad6
+      md5: 925f61f3847e821badbbf281d808bfdb
       size: 24049
   r01_release:
     cmd: python -m district_evolution.stages.r01_release
     deps:
     - path: config/pipeline.yaml
       hash: md5
-      md5: 3565f03b750218e8c9c898fd904424ee
+      md5: 401df9dfaff724be8bef354fa1d5ba6b
       size: 6598
     - path: data/bronze/events/district_evolution_master.csv
       hash: md5
@@ -1174,11 +1174,11 @@ stages:
       size: 5016
     - path: docs/data_dictionary.json
       hash: md5
-      md5: 0766dc5458bd42e28e9ef5266a6f563f
+      md5: f1ae8eb2dad4e16dc794e39260ff2630
       size: 63258
     - path: docs/data_dictionary.md
       hash: md5
-      md5: db77e0090856cc64804ef5319be16ad6
+      md5: 925f61f3847e821badbbf281d808bfdb
       size: 24049
     - path: outputs/pipeline/s12_checks.csv
       hash: md5
@@ -1186,12 +1186,12 @@ stages:
       size: 3988
     - path: outputs/pipeline/s12_validation_report.md
       hash: md5
-      md5: d76b35e9203fe74b116a36bb83dd6903
+      md5: 823418206b0a74d8ef0dbb3ff835b69a
       size: 10474
     outs:
     - path: data/release
       hash: md5
-      md5: 034197a73ddd8e95610230013b12fddb.dir
+      md5: af385a4e5410376fe0896afa867b4cc0.dir
       size: 61775265
       nfiles: 36
   h01_stat_observation:
@@ -1203,7 +1203,7 @@ stages:
       size: 1083
     - path: config/pipeline.yaml
       hash: md5
-      md5: 3565f03b750218e8c9c898fd904424ee
+      md5: 401df9dfaff724be8bef354fa1d5ba6b
       size: 6598
     - path: data/gold/core/ck_observation.parquet
       hash: md5
@@ -1380,7 +1380,7 @@ stages:
     deps:
     - path: config/pipeline.yaml
       hash: md5
-      md5: 3565f03b750218e8c9c898fd904424ee
+      md5: 401df9dfaff724be8bef354fa1d5ba6b
       size: 6598
     - path: data/gold/harmonize/stat_harmonized_value.parquet
       hash: md5
@@ -1419,5 +1419,5 @@ stages:
       size: 6757
     - path: outputs/harmonize/h05_report.md
       hash: md5
-      md5: 1f7da542def560d3210791fde12ddf0b
+      md5: 5760ab2d14821fd3ea7698951f840c3f
       size: 526

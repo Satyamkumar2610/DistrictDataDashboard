@@ -31,8 +31,10 @@ export default function Data() {
         <section className="panel" data-testid="release">
           <h2>Release</h2>
           {meta && <p className="sub">Version {meta.pipeline_version} · config sha256 <span className="mono">{meta.config_sha256.slice(0, 16)}…</span></p>}
-          <div className="scroll"><table className="data"><thead><tr><th>table</th><th className="r">rows</th></tr></thead>
-            <tbody>{Object.entries(info?.row_counts ?? {}).map(([t, n]) => <tr key={t}><td className="mono">{t}</td><td className="r num">{fmt(n)}</td></tr>)}</tbody></table></div>
+          <div className="scroll"><table className="data"><thead><tr><th>table</th><th className="r">rows</th><th>download</th></tr></thead>
+            <tbody>{Object.entries(info?.row_counts ?? {}).map(([t, n]) => (
+              <tr key={t}><td className="mono">{t}</td><td className="r num">{fmt(n)}</td>
+                <td><a href={`/api/download/${t}.csv`}>CSV</a> · <a href={`/api/download/${t}.parquet`}>Parquet</a></td></tr>))}</tbody></table></div>
           <p className="muted">Machine access: <a href="/docs">API reference (OpenAPI)</a>. Files: <span className="mono">data/release/</span> with <span className="mono">load.sql</span> for DuckDB.
             {info && ` Map polygons are simplified by ${info.geometry_simplify_deg}° for display; every area is the full-resolution geodesic area.`}</p>
         </section>

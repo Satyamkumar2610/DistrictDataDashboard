@@ -3,6 +3,22 @@
 Versions follow semantic versioning of `pipeline_version` (config/pipeline.yaml).
 A MAJOR change can renumber canonical keys or change the meaning of a product.
 
+## 3.7.0
+
+Platform insights. No key, lineage, area, product, evidence or harmonization changes.
+
+### Added
+- Atlas compare mode: two maps side by side, moving together (`/atlas?compare=1&year=1981&year2=1971`).
+- States pages: each state's districts on every map, and every lineage edge into its districts,
+  window by window, with its `district_relationship` row. A district identity belongs to the state
+  that holds most of its land on the 2025 map (`crosswalk_to_reference`), so early districts count
+  under their present state.
+- District family tree: every ancestor and descendant placed at the map on which it first appears,
+  coloured by relationship, line width by km² moved.
+- Downloads of every release table as CSV or Parquet from the Data page.
+- API: `/api/states`, `/api/states/{state}`, `/api/districts/{ck}/genealogy`,
+  `/api/download/{table}.{csv|parquet}`; 4 Python tests and 4 browser tests.
+
 ## 3.6.0
 
 The web platform. No key, lineage, area, product, evidence or harmonization changes.
