@@ -30,4 +30,7 @@ Paths are relative to `district_evolution/`. Tables are in `data/gold/district_e
 | Claim linkage | `stages/e02_claim_linkage.py`, `evidence/geo.py` | `claim_ck_link` | `test_evidence.py` |
 | Claim verdicts | `stages/e03_claim_verdicts.py`, `evidence/rules.py` | `claim_verdict` | `test_evidence.py` |
 | Research queue | `stages/e04_research_queue.py` | `research_queue` (closed by `data/reference/research_findings.csv`) | `test_baselines.py` |
+| Data dictionary | `stages/r02_data_dictionary.py`, `contracts/descriptions.py` | `docs/data_dictionary.md`, `.json` | `test_release.py` |
+| Release | `stages/r01_release.py`, `release/__init__.py` | `data/release/` | `test_release.py` |
+| API and explorer | `release/api.py`, `release/explorer.html` | read-only | `test_release.py` |
 | External audit (Wikidata) | `evidence/wikidata_snapshot.py`, `evidence/wikidata_audit.py` | `data/reference/external/*.json`, `outputs/audit/*` | — |

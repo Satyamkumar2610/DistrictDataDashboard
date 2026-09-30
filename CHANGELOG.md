@@ -3,6 +3,24 @@
 Versions follow semantic versioning of `pipeline_version` (config/pipeline.yaml).
 A MAJOR change can renumber canonical keys or change the meaning of a product.
 
+## 3.4.0
+
+Phase 3: a data service. No key, lineage, area, product or evidence changes.
+
+### Added
+- r02: `docs/data_dictionary.md` / `.json`, generated from the contracts: 170 columns in 18 tables,
+  each with type, nullability, unit, allowed values, meaning and the stage that writes it.
+  `tests/test_release.py` fails on any released column without a contract or a meaning.
+- r01: `data/release/`, byte-reproducible: 17 tables, the polygons of all 9 maps simplified per
+  polygon (0.0005°, median area change 0.005%; full-resolution areas kept), `load.sql` (DuckDB
+  views), `release_info.json`, `MANIFEST.csv`. Coverage simplification was measured and rejected
+  (the layers' shared borders are digitised independently; it distorted Tumakuru by 26%).
+- r03: read-only FastAPI service (`uvicorn district_evolution.release.api:app`): `/districts`,
+  `/districts/{ck}`, `/timeline`, `/lineage`, `/geometry`, `/evidence`, `/crosswalk`, `/events`,
+  `/research`, `/meta`; every response carries `pipeline_version` and `config_sha256`. p95 32 ms.
+- r04: the District Ledger explorer at `/` for all 804 identities; every caption names its table row.
+- Dependencies: fastapi 0.141.1, uvicorn 0.54.0, httpx 0.28.1.
+
 ## 3.3.0
 
 Phase 2: an evidence layer. No key, lineage, area or product changes.

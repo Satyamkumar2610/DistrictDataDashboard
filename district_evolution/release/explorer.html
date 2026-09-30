@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>District Ledger</title>
+<style>
+:root { --bg:#f5f6f4; --panel:#fff; --ink:#15201c; --ink2:#4a5752; --muted:#77837e; --line:#d8dedb;
+        --accent:#0d6a59; --old:#b9c3be; --new:#2a78d6; --warn:#b97c00; --bad:#c73636; }
+@media (prefers-color-scheme: dark) { :root { --bg:#0f1412; --panel:#161c1a; --ink:#e7edea; --ink2:#b4bfba;
+        --muted:#88948f; --line:#2a3330; --accent:#45b89f; --old:#56605c; --new:#3987e5; --warn:#e0a526; --bad:#e66767; } }
+* { box-sizing: border-box }
+body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif }
+header { padding:18px 20px 8px; max-width:1200px; margin:0 auto }
+h1 { font-size:22px; margin:0 } .sub { color:var(--muted); font-size:13px }
+main { max-width:1200px; margin:0 auto; padding:8px 20px 40px; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.3fr); gap:16px }
+@media (max-width:860px) { main { grid-template-columns:1fr } }
+.panel { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:14px; min-width:0 }
+h2 { font-size:15px; margin:0 0 8px } h3 { font-size:13px; margin:14px 0 6px; color:var(--ink2) }
+input { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--ink); font:inherit }
+.results { max-height:260px; overflow:auto; margin-top:8px }
+.results button { display:block; width:100%; text-align:left; border:0; background:none; color:var(--ink); padding:6px 4px; cursor:pointer; border-bottom:1px solid var(--line); font:inherit }
+.results button:hover { background:var(--bg) }
+.muted { color:var(--muted) } .mono { font-family:ui-monospace, Menlo, monospace; font-size:12px }
+.cap { margin:4px 0; padding:6px 8px; border-left:3px solid var(--line); background:var(--bg); border-radius:0 4px 4px 0 }
+.cap .src { display:block; color:var(--muted); font-family:ui-monospace, Menlo, monospace; font-size:11px }
+.cap.formed { border-color:var(--new) } .cap.warn { border-color:var(--warn) } .cap.bad { border-color:var(--bad) }
+.maps { display:flex; flex-wrap:wrap; gap:4px; margin:6px 0 }
+.maps button { border:1px solid var(--line); background:var(--panel); color:var(--ink2); border-radius:999px; padding:3px 9px; cursor:pointer; font:inherit; font-size:12px }
+.maps button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#fff }
+svg { width:100%; height:auto; display:block } table { border-collapse:collapse; width:100%; font-size:12px }
+td, th { padding:4px 6px; border-bottom:1px solid var(--line); text-align:right } td:first-child, th:first-child { text-align:left }
+th { color:var(--muted); font-weight:500 }
+.legend { display:flex; gap:14px; font-size:12px; color:var(--ink2) } .legend i { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:5px; vertical-align:-1px }
+</style>
+</head>
+<body>
+<header>
+  <h1>District Ledger</h1>
+  <div class="sub" id="meta">Loading release…</div>
+</header>
+<main>
+  <section class="panel">
+    <h2>Find a district</h2>
+    <input id="q" placeholder="Any name it ever had, e.g. Kangra, Poona, Malabar" autocomplete="off">
+    <div class="results" id="results"></div>
+    <div id="summary"></div>
+  </section>
+  <section class="panel">
+    <h2 id="title">Pick a district</h2>
+    <div class="maps" id="maps"></div>
+    <div class="legend" id="legend" hidden><span><i style="background:var(--accent)"></i>this district on the chosen map</span><span><i style="background:var(--old)"></i>on the previous map</span></div>
+    <svg id="map" viewBox="0 0 600 420" role="img" aria-label="District outline"></svg>
+    <div id="story"></div>
+  </section>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const km2 = v => v == null ? "" : Math.round(v).toLocaleString("en-IN") + " km²";
+const get = async (path) => { const r = await fetch(path); if (!r.ok) throw new Error(path + " " + r.status); return (await r.json()).data; };
+const cap = (text, src, cls = "") => `<div class="cap ${cls}">${text}<span class="src">${esc(src)}</span></div>`;
+
+fetch("/meta").then(r => r.json()).then(j => {
+  $("#meta").textContent = `Release v${j.meta.pipeline_version} · config ${j.meta.config_sha256.slice(0, 12)} · ${j.data.row_counts.ck_registry} district identities, 9 maps (1951–2025). Every caption names the table row it comes from.`;
+});
+
+let timer;
+$("#q").addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(search, 200); });
+async function search() {
+  const q = $("#q").value.trim();
+  if (q.length < 2) { $("#results").innerHTML = ""; return; }
+  const list = await get(`/districts?q=${encodeURIComponent(q)}&limit=40`);
+  $("#results").innerHTML = list.map(d => `<button data-ck="${d.canonical_key}">${esc(d.latest_name)} <span class="muted">${esc(d.latest_state)} · ${d.established_year}–${d.closed_year ?? "today"} · ${d.canonical_key}</span></button>`).join("") || `<p class="muted">No district has had that name on any map.</p>`;
+}
+$("#results").addEventListener("click", e => { const b = e.target.closest("button"); if (b) show(b.dataset.ck); });
+
+let current = null;
+async function show(ck) {
+  const [d, tl, lin, ev] = await Promise.all([get(`/districts/${ck}`), get(`/districts/${ck}/timeline`),
+    get(`/districts/${ck}/lineage?max_depth=3`), get(`/districts/${ck}/evidence`)]);
+  current = { d, tl };
+  $("#title").textContent = `${d.latest_name} (${d.latest_state})`;
+  const names = [...new Set(d.observations.map(o => o.district_name))];
+  $("#summary").innerHTML = `<h3>Identity ${esc(d.canonical_key)}</h3>` +
+    cap(`On the maps ${d.established_year}–${d.closed_year ? d.observations.at(-1).year : "2025"}` +
+        (d.closed_year ? `, gone by the ${d.closed_year} map` : ", still active") +
+        `. Formed ${d.formed_after ? `after ${d.formed_after} and ` : ""}by ${d.formed_by}. Names used: ${names.map(esc).join(", ")}.`,
+        `ck_registry ${d.canonical_key}`) +
+    `<h3>Area on each map</h3><table><tr><th>map</th><th>depicts</th><th>name</th><th>area</th></tr>` +
+    tl.maps.map(m => `<tr><td>${m.year}</td><td>${m.depicted_year}</td><td>${esc(m.district_name)}</td><td>${km2(m.area_km2)}</td></tr>`).join("") + `</table>` +
+    evidenceHtml(ev);
+  $("#maps").innerHTML = d.observations.map((o, i) => `<button data-year="${o.year}" aria-pressed="${i === d.observations.length - 1}">${o.year}</button>`).join("");
+  $("#legend").hidden = false;
+  story(lin, tl);
+  draw(d.observations.at(-1).year);
+}
+$("#maps").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return;
+  document.querySelectorAll("#maps button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); draw(+b.dataset.year); });
+
+function story(lin, tl) {
+  const rel = r => ({ FORMED_FROM: "carved out of", SPLIT_FROM: "split from", MERGED_INTO: "merged from",
+                      RECONSTITUTED_FROM: "restored after a gap; earlier identity" })[r.relationship_type];
+  const up = lin.ancestors.filter(r => r.depth === 1).map(r => cap(
+      `${rel(r)} <b>${esc(r.from_name)}</b> between ${r.period_start} and ${r.period_end}: ${km2(r.transfer_km2)} (${(r.inflow_share * 100).toFixed(0)}% of this district)`,
+      `district_relationship ${r.rel_id}`, "formed"));
+  const down = lin.descendants.filter(r => r.depth === 1).map(r => cap(
+      `<b>${esc(r.to_name)}</b> ${r.relationship_type === "FORMED_FROM" ? "carved out" : r.relationship_type.toLowerCase().replace("_", " ")} between ${r.period_start} and ${r.period_end}: ${km2(r.transfer_km2)} (${(r.outflow_share * 100).toFixed(0)}% of this district)`,
+      `district_relationship ${r.rel_id}`, "formed"));
+  const moves = tl.transfers.map(t => cap(`${km2(t.transfer_km2)} moved from <b>${esc(t.from_name)}</b> to <b>${esc(t.to_name)}</b> between ${t.period_start} and ${t.period_end} (both continued)`,
+      `measured_area_transfer ${t.transfer_id}`));
+  $("#story").innerHTML = (up.length ? `<h3>Where its land came from</h3>${up.join("")}` : "") +
+    (down.length ? `<h3>Districts made from its land</h3>${down.join("")}` : "") +
+    (moves.length ? `<h3>Transfers with districts that continued</h3>${moves.join("")}` : "") ||
+    `<p class="muted">No lineage edges: this identity never gave or took a new district's land.</p>`;
+}
+
+function evidenceHtml(ev) {
+  const bad = ev.claims.filter(c => c.verdict === "CONFLICT");
+  const agree = ev.claims.filter(c => c.verdict === "AGREE" || c.verdict === "EXPLAINED").length;
+  let h = `<h3>External evidence</h3>` + cap(`${agree} of ${ev.claims.length} external claims agree with the maps or are explained.`, "claim_verdict");
+  h += bad.map(c => cap(`${c.claim_type}: source says ${esc(c.value)}, maps say ${esc(c.our_value)} (${esc(c.reason)})`, `claim_verdict ${c.claim_id} · ${c.citation}`, "bad")).join("");
+  h += ev.research_queue.map(q => cap(`Open question: ${esc(q.detail)}`, `research_queue ${q.queue_item_id} · ${q.status}`, "warn")).join("");
+  return h;
+}
+
+async function draw(year) {
+  const d = current.d, obs = d.observations, i = obs.findIndex(o => o.year === year);
+  const now = await get(`/districts/${d.canonical_key}/geometry?year=${year}`);
+  const prev = i > 0 ? await get(`/districts/${d.canonical_key}/geometry?year=${obs[i - 1].year}`) : null;
+  const rings = f => (f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates);
+  const all = [now, prev].filter(Boolean).flatMap(f => rings(f).flat(2));
+  const xs = all.map(p => p[0]), ys = all.map(p => p[1]);
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const k = Math.cos((y0 + y1) / 2 * Math.PI / 180), W = 600, H = 420, pad = 20;
+  const s = Math.min((W - 2 * pad) / ((x1 - x0) * k || 1), (H - 2 * pad) / ((y1 - y0) || 1));
+  const px = p => `${(pad + (p[0] - x0) * k * s).toFixed(1)},${(H - pad - (p[1] - y0) * s).toFixed(1)}`;
+  const path = f => rings(f).map(poly => poly.map(r => "M" + r.map(px).join("L") + "Z").join("")).join("");
+  $("#map").innerHTML = (prev ? `<path d="${path(prev)}" fill="var(--old)" fill-opacity=".45" stroke="var(--old)"/>` : "") +
+    `<path d="${path(now)}" fill="var(--accent)" fill-opacity=".35" stroke="var(--accent)" stroke-width="1.5" fill-rule="evenodd"/>` +
+    `<text x="${pad}" y="16" fill="var(--ink2)" font-size="12">${year}: ${esc(now.properties.district_name)} · ${km2(now.properties.area_km2)}` +
+    (prev ? ` · previous map ${obs[i - 1].year}: ${km2(prev.properties.area_km2)}` : "") + `</text>`;
+}
+</script>
+</body>
+</html>

@@ -40,6 +40,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/
 bash scripts/run_all.sh                   # full build + validation gate (~3.5 min)
 .venv/bin/python -m pytest tests          # unit tests, golden history, regression baselines (needs a built warehouse)
 source .venv/bin/activate && dvc repro    # same DAG; reruns only what changed; hashes in dvc.lock
+.venv/bin/uvicorn district_evolution.release.api:app   # read-only API + explorer at http://127.0.0.1:8000
 ```
 
 `s12_validate` exits non-zero if any ERROR check fails. The report is
@@ -69,6 +70,8 @@ are evidence and never drive geometry.
 | e01 evidence claims | Every statement of every evidence source (now: the frozen Wikidata snapshot) as a cited claim: NAME, AREA, INCEPTION, PARENT |
 | e02 claim linkage | Locate each claim's subject by its coordinate on the map of its date; the name only qualifies the link |
 | e03 claim verdicts | AGREE / EXPLAINED / CONFLICT / NOT_CHECKABLE with a reason, using the rules the audit uses; PARENT by the footprint rule |
+| r02 data dictionary | `docs/data_dictionary.md`, generated from the contracts; every column's meaning lives in `contracts/descriptions.py` |
+| r01 release | `data/release/`: tables, simplified geometry per map, `load.sql` (DuckDB views), `release_info.json`, `MANIFEST.csv`; byte-reproducible |
 | e04 research queue | Every open question in one table; closed only by a curated row in `data/reference/research_findings.csv` |
 | s11 warehouse | `data/gold/district_evolution.duckdb`: enforced DDL, SQL invariants, independent ST_Area_Spheroid check |
 | s12 validate | pandera contracts, collect all checks, output hash manifest, report, gate |

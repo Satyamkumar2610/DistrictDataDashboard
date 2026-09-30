@@ -163,6 +163,7 @@ SCHEMAS: dict[str, DataFrameSchema] = {
         "n_predecessors": Column(int, Check.ge(0)),
         "n_successors": Column(int, Check.ge(0)),
         "n_csv_rows": Column(int, Check.ge(1)),
+        "sources_cited": Column(str),
     }),
     "event_participant": DataFrameSchema({
         "participant_id": Column(str, SHA, unique=True),
@@ -232,6 +233,8 @@ SCHEMAS: dict[str, DataFrameSchema] = {
         "primary_source_ck": Column(str, CK, nullable=True),
         "primary_share_of_target": Column(float, SHARE, nullable=True),
         "primary_source_area_km2": Column(float, nullable=True),
+        "primary_source_name": Column(str, nullable=True),
+        "target_name": Column(str), "target_state": Column(str),
     }, unique=["target_ck", "year"]),
 }
 
@@ -292,6 +295,18 @@ SCHEMAS.update({
         "finding_id": Column(str, nullable=True),
     }),
 })
+SCHEMAS["release_geometry"] = DataFrameSchema({
+    "geom_obs_id": Column(str, SHA, unique=True), "canonical_key": Column(str, CK), "year": _year(),
+    "district_name": Column(str), "state": Column(str), "area_km2": Column(float, Check.gt(0)),
+})
+
+# every column's meaning lives in contracts/descriptions.py; the data dictionary (r02) is generated from it
+from district_evolution.contracts.descriptions import DESCRIPTIONS  # noqa: E402
+
+for _table, _cols in DESCRIPTIONS.items():
+    _known = {c: {"description": d} for c, d in _cols.items() if c in SCHEMAS[_table].columns}
+    SCHEMAS[_table] = SCHEMAS[_table].update_columns(_known)
+
 
 def validate(name: str, df: pd.DataFrame) -> pd.DataFrame:
     """Validate lazily so the error lists every failing check, not just the first."""

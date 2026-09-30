@@ -1,4 +1,4 @@
-# Validation report — pipeline v3.3.0
+# Validation report — pipeline v3.4.0
 
 **Gate: PASS** — 0 ERROR check(s) failing, 1 WARNING check(s) with findings.
 

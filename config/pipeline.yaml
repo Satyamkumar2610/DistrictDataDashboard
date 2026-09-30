@@ -1,7 +1,7 @@
 # Pipeline v3 configuration. Every threshold used by any stage lives here with
 # its rationale; code reads it via lib.CFG. See docs/architecture/REVAMP_PLAN_V3.md.
 
-pipeline_version: "3.3.0"
+pipeline_version: "3.4.0"
 
 vintages:
   # (source, year) in chronological order. The last entry is the reference
@@ -109,6 +109,15 @@ evidence:
   # is agreement; up to area_minor is a minor difference (digitisation or an undated figure).
   area_agree: 0.02
   area_minor: 0.10
+
+release:
+  # Release geometry (r01) is simplified polygon by polygon, keeping each valid. 0.0005 degrees
+  # (~55 m) is far below the 1 km displacement rule and the accuracy of 1:1,000,000 source maps.
+  # Measured: median area change 0.005% (2025) / 0.002% (1951), p99 0.46%, max 6.8% on a 1 km2
+  # disputed fragment. Coverage simplification (shared borders kept identical) is not used: the
+  # layers' shared borders are digitised independently (183 polygons with mismatched edges in 2025)
+  # and it distorted them (Tumakuru -26%). Areas in the release are always the full-resolution ones.
+  simplify_deg: 0.0005
 
 determinism:
   # Declared outputs allowed to differ between two builds of the same inputs, each with its

@@ -12,6 +12,7 @@ __pycache__/
 *.parquet
 *.geoparquet
 *.gpkg
+data/release/
 
 # Hand-curated reference data and the one-off CK migration map are source, not output
 !data/reference/state_lineage.csv

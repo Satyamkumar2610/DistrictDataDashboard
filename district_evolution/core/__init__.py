@@ -14,6 +14,7 @@ from .config import (
     OUTPUT_DIR,
     PIPELINE_VERSION,
     PRODUCTS_DIR,
+    RELEASE_DIR,
     PROJECT_ROOT,
     REFERENCE_DIR,
     REFERENCE_YEAR,

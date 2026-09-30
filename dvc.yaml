@@ -312,3 +312,46 @@ stages:
       - outputs/audit/lineage_audit.csv: {cache: false}
       - outputs/audit/map_date_audit.csv: {cache: false}
       - outputs/audit/EXTERNAL_AUDIT_REPORT.md: {cache: false}
+
+  r02_data_dictionary:
+    cmd: python -m district_evolution.stages.r02_data_dictionary
+    deps:
+      - district_evolution/stages/r02_data_dictionary.py
+      - district_evolution/release/__init__.py
+      - district_evolution/contracts
+      - district_evolution/core
+      - config/pipeline.yaml
+    outs:
+      - docs/data_dictionary.md: {cache: false}
+      - docs/data_dictionary.json: {cache: false}
+
+  r01_release:
+    cmd: python -m district_evolution.stages.r01_release
+    deps:
+      - district_evolution/stages/r01_release.py
+      - district_evolution/release/__init__.py
+      - district_evolution/core
+      - district_evolution/contracts
+      - config/pipeline.yaml
+      - data/bronze/events/district_evolution_master.csv
+      - data/silver/geometry
+      - docs/data_dictionary.md
+      - data/gold/core/ck_registry.parquet
+      - data/gold/core/ck_observation.parquet
+      - data/gold/core/continuity_decision.parquet
+      - data/gold/events/district_relationship.parquet
+      - data/gold/spatial/measured_area_transfer.parquet
+      - data/products/district_area_ledger.parquet
+      - data/gold/events/boundary_event.parquet
+      - data/gold/events/event_participant.parquet
+      - data/gold/events/event_linkage.parquet
+      - data/gold/events/event_accounting.parquet
+      - data/products/district_area_admin.parquet
+      - data/products/crosswalk_to_reference.parquet
+      - data/products/district_reference_context.parquet
+      - data/gold/evidence/evidence_claim.parquet
+      - data/gold/evidence/claim_ck_link.parquet
+      - data/gold/evidence/claim_verdict.parquet
+      - data/gold/evidence/research_queue.parquet
+    outs:
+      - data/release: {cache: false}
