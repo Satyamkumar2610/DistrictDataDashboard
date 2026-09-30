@@ -3,6 +3,18 @@
 Versions follow semantic versioning of `pipeline_version` (config/pipeline.yaml).
 A MAJOR change can renumber canonical keys or change the meaning of a product.
 
+## Unreleased
+
+Phase 5 (open data lab), in progress. No pipeline output changes.
+
+### Added
+- `README.md`, `CONTRIBUTING.md` (adding a map source, evidence source, indicator or weight method
+  without touching `stages/` or `core/`; review rules), `tests/test_extensibility.py` (an indicator
+  added by config alone is linked and harmonized).
+- `docs/decisions/licensing.md`: the 1951–2021 maps are licensed to Stanford affiliates only and
+  may not be reproduced without permission; the public repository contains them. The owner must
+  decide before any data release; LICENSE files wait for that decision.
+
 ## 3.5.0
 
 Phase 4: the harmonization engine. No key, lineage, area, product or evidence changes.
