@@ -41,7 +41,8 @@ this kind should not need changes under `district_evolution/stages/` or `distric
 | A boundary map series | a `BoundarySource` in `district_evolution/sources/` | `sources.SOURCES` | `boundary_layer` (checked on load) |
 | Corroborating evidence | an `EvidenceSource` in `district_evolution/evidence/` | `evidence.EVIDENCE_SOURCES` | `evidence_claim` |
 | A district statistic from a file | nothing: a config entry | `config/indicators.yaml` | `stat_observation` |
-| A weight method (e.g. cropland) | a `WeightMethod` in `district_evolution/harmonize/weights.py` | `WEIGHT_METHODS` | `statistical_crosswalk` |
+| A cropland raster for the CROPLAND weights | nothing: a file and a config entry (`docs/operations/cropland_weights.md`) | `config/indicators.yaml` (`weights.cropland`) | `statistical_crosswalk`, `cropland_coverage` |
+| Another weight method | a `WeightMethod` in `district_evolution/harmonize/` | `harmonize.weight_methods()` | `statistical_crosswalk` |
 
 Every outside source also gets an evaluation page, `docs/sources/<source>.md` (template in
 `docs/sources/README.md`): licence, coverage, and which boundaries it reports on. Check the licence

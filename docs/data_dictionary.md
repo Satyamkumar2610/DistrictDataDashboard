@@ -298,6 +298,39 @@ Written by `h04_ratios`.
 | `coverage_score` | float64 | no |  | 0 to 1.001 | The lower of the numerator's and denominator's coverage (0-1) |
 | `boundary_uncertain` | bool | no |  |  | Either input is boundary_uncertain |
 
+## `harmonization_method_sensitivity`
+
+Written by `h05_validate`.
+
+| column | type | null | unit | allowed | meaning |
+|---|---|---|---|---|---|
+| `indicator` | str | no |  | 1 to None | Indicator code (restated with more than one weight method) |
+| `year` | int64 | no | year |  | Year of the reported values |
+| `target_ck` | str | no |  | matches ^IND-\d{6}$ | District on the reference (2025) map |
+| `method` | str | no |  | 1 to None | The weight method compared with AREA (e.g. CROPLAND) |
+| `baseline_method` | str | no |  |  | AREA |
+| `baseline_value` | float64 | yes |  |  | Harmonized value under AREA; empty if AREA restates nothing onto this district |
+| `value` | float64 | yes |  |  | Harmonized value under method; empty if method restates nothing onto this district |
+| `difference` | float64 | yes |  |  | value - baseline_value, in the indicator's unit |
+| `rel_difference` | float64 | yes |  |  | difference / baseline_value; empty when baseline_value is 0 or either value is empty |
+| `flagged` | bool | no |  |  | rel_difference beyond harmonize.sensitivity_flag_rel, a value from a zero baseline, or only one method restates a value |
+
+## `cropland_coverage`
+
+Written by `h02_statistical_crosswalk`.
+
+| column | type | null | unit | allowed | meaning |
+|---|---|---|---|---|---|
+| `year` | int64 | no | year | one of 1951, 1961, 1971, 1981, 1991, 2001, 2011, 2021, 2025 | Map of the source district |
+| `source_ck` | str | no |  | matches ^IND-\d{6}$ | District on that map |
+| `method` | str | no |  |  | CROPLAND |
+| `cropland_km2` | float64 | no | km² | >= 0 | Cropland inside the district according to the declared raster (km²; cells whose centre lies inside) |
+| `allocated_cropland_km2` | float64 | no | km² | >= 0 | Part of it inside the district's 2025 crosswalk targets: what its CROPLAND weights carry |
+| `unallocated_cropland_km2` | float64 | no | km² | >= 0 | Part of it in no 2025 district, or in a sliver overlap the crosswalk leaves out; never redistributed |
+| `nodata_km2` | float64 | no | km² | >= 0 | District area whose raster cells are nodata (counted as no cropland) |
+| `cell_km2` | float64 | no | km² | >= 0 | Area of the raster cells whose centre lies inside the district; short of the district's area where the raster does not cover it (0: outside the raster or smaller than a cell) |
+| `cells` | int64 | no |  | >= 0 | Raster cells whose centre lies inside the district |
+
 ## `release_geometry`
 
 Written by `r01_release (from s01 silver geometry)`.

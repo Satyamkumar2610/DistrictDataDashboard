@@ -341,6 +341,23 @@ SCHEMAS.update({
         "reported_total": Column(float), "expected_total": Column(float), "harmonized_total": Column(float),
         "conservation_error": Column(float, Check.ge(0)), "passes": Column(bool),
     }),
+    "cropland_coverage": DataFrameSchema({
+        "year": _year(), "source_ck": Column(str, CK), "method": Column(str, Check.eq("CROPLAND")),
+        "cropland_km2": _km2(), "allocated_cropland_km2": _km2(), "unallocated_cropland_km2": _km2(),
+        "nodata_km2": _km2(), "cell_km2": _km2(), "cells": Column(int, Check.ge(0)),
+    }, unique=["year", "source_ck", "method"],
+        checks=[Check(lambda d: (d.allocated_cropland_km2 <= d.cropland_km2 * (1 + EPS) + EPS),
+                      error="weights carry no more cropland than the district holds"),
+                Check(lambda d: ((d.allocated_cropland_km2 + d.unallocated_cropland_km2 - d.cropland_km2).abs()
+                                 <= d.cropland_km2 * EPS + EPS), error="allocated + unallocated = cropland")]),
+    "harmonization_method_sensitivity": DataFrameSchema({
+        "indicator": Column(str, TEXT), "year": Column(int), "target_ck": Column(str, CK),
+        "method": Column(str, TEXT), "baseline_method": Column(str, Check.eq("AREA")),
+        "baseline_value": Column(float, nullable=True), "value": Column(float, nullable=True),
+        "difference": Column(float, nullable=True), "rel_difference": Column(float, nullable=True),
+        "flagged": Column(bool),
+    }, unique=["indicator", "year", "target_ck", "method"],
+        checks=[Check(lambda d: d.method != d.baseline_method, error="a method is compared with another one")]),
 })
 
 SCHEMAS["release_geometry"] = DataFrameSchema({

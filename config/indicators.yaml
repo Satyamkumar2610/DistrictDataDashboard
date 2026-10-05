@@ -23,3 +23,17 @@ ratios: []
 #   unit: t/ha
 #   numerator: rice_production_t
 #   denominator: rice_area_ha
+
+# Weight methods beyond AREA. CROPLAND shares a district's total by where its cropland lies, from a
+# cropland raster summed over each map overlaid on the 2025 map (harmonize/cropland.py; stage h02).
+# Evaluate the raster in docs/sources/<source>.md first and place it under data/bronze/cropland/.
+# docs/operations/cropland_weights.md has the format, units and checks.
+weights:
+  cropland: null
+  # cropland:
+  #   path: data/bronze/cropland/<file>.tif
+  #   source: "<publisher, product, reference year, resolution>"
+  #   value: fraction        # fraction: share of each cell that is cropland (0-1 after scale)
+  #                          # area_km2 / area_ha: cropland area inside each cell (after scale)
+  #   scale: 1.0             # multiplies stored values, e.g. 0.01 for a percent raster
+  #   band: 1

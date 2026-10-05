@@ -33,10 +33,10 @@
 | V23            | WARNING    |              0 | curated finding refers to a research question that no longer exists                            |                                                                                                |
 | V24            | ERROR      |              0 | harmonized totals not conserved (outputs/harmonize/h05_report.md)                              |                                                                                                |
 
-V11 data contracts (pandera): 35 / 35 tables pass.
+V11 data contracts (pandera): 37 / 37 tables pass.
 
 V5 determinism: `outputs/pipeline/s12_output_manifest.csv` holds the sha256 of each of the
-47 data outputs declared in `dvc.yaml` (silver, gold, products). Two runs on the same inputs
+49 data outputs declared in `dvc.yaml` (silver, gold, products). Two runs on the same inputs
 must produce identical manifests (checked in CI).
 
 ## Key figures

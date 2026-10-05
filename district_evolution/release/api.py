@@ -5,6 +5,8 @@
 JSON under /api is {"meta": {pipeline_version, config_sha256, ...}, "data": ...}; vector tiles are
 under /api/tiles; the web app (web/dist, built with npm) is served at every other path. The API only
 reads the release; the batch pipeline is the only writer. OpenAPI: /docs and /openapi.json.
+/api/health is the liveness and readiness probe. Responses are gzip-compressed when large; request
+bodies above harmonize.max_request_bytes are refused with 413 before they are parsed.
 """
 
 from __future__ import annotations
@@ -20,9 +22,12 @@ import duckdb
 import pandas as pd
 from fastapi import APIRouter, FastAPI, HTTPException, Query, Response
 from fastapi import Path as PathParam
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from starlette.datastructures import MutableHeaders
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from district_evolution import core
 from district_evolution.harmonize import restate
@@ -37,6 +42,9 @@ YEARS = [v["year"] for v in INFO["vintages"]]
 CK = r"^IND-\d{6}$"
 MATERIAL_KM2 = core.CFG["lineage"]["material_km2"]
 MAX_HARMONIZE_ROWS = core.CFG["harmonize"]["max_request_rows"]
+MAX_REQUEST_BYTES = core.CFG["harmonize"]["max_request_bytes"]
+SECURITY_HEADERS = {"x-content-type-options": "nosniff", "referrer-policy": "same-origin",
+                    "x-frame-options": "SAMEORIGIN"}
 
 _db = duckdb.connect()
 _db.execute("INSTALL spatial; LOAD spatial;")
@@ -100,6 +108,13 @@ def release_file(name: str) -> Path:
 
 
 api = APIRouter(prefix="/api")
+
+
+@api.get("/health")
+def health():
+    """Liveness and readiness: the release is loaded and answers a query. Cheap enough to poll."""
+    rows("SELECT 1 AS ok")
+    return {"status": "ok", "pipeline_version": META["pipeline_version"], "config_sha256": META["config_sha256"]}
 
 
 @api.get("/meta")
@@ -294,7 +309,8 @@ def district_research(ck: str = PathParam(pattern=CK)):
 
 @api.get("/districts/{ck}/harmonized")
 def harmonized(ck: str = PathParam(pattern=CK), indicator: str | None = None):
-    """Statistics restated on this 2025 district, with method, stated assumption and coverage."""
+    """Statistics restated on this 2025 district, with method, stated assumption and coverage, and how
+    much each value moves under another weight method (empty until a second method exists)."""
     registry_row(ck)
     where, params = ["target_ck = ?"], [ck]
     if indicator:
@@ -303,7 +319,9 @@ def harmonized(ck: str = PathParam(pattern=CK), indicator: str | None = None):
     return ok({"totals": rows(f"SELECT * FROM stat_harmonized_value WHERE {' AND '.join(where)} "
                               "ORDER BY indicator, method, year", params),
                "ratios": rows(f"SELECT * FROM stat_ratio_value WHERE {' AND '.join(where)} "
-                              "ORDER BY indicator, method, year", params)})
+                              "ORDER BY indicator, method, year", params),
+               "sensitivity": rows(f"SELECT * FROM harmonization_method_sensitivity WHERE {' AND '.join(where)} "
+                                   "ORDER BY indicator, method, year", params)})
 
 
 @api.get("/crosswalk")
@@ -441,10 +459,68 @@ def dictionary():
     return ok(json.loads(release_file("data_dictionary.json").read_text(encoding="utf-8")))
 
 
+class Hardening:
+    """Refuse request bodies over MAX_REQUEST_BYTES with 413 before the app parses them: by declared length
+    up front, or, for a streamed body, as soon as the count passes the limit (the app is then told the
+    client disconnected and its own response is dropped). Add security headers to every response."""
+
+    def __init__(self, app: ASGIApp, max_body: int):
+        self.app, self.max_body = app, max_body
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        declared = dict(scope["headers"]).get(b"content-length", b"")
+        if declared.isdigit() and int(declared) > self.max_body:
+            await self.reject(send)
+            return
+        received = 0
+        started = rejected = False
+
+        async def counted() -> Message:
+            nonlocal received, rejected
+            message = await receive()
+            if message["type"] == "http.request" and not rejected:
+                received += len(message.get("body", b""))
+                if received > self.max_body:
+                    rejected = True
+                    if not started:
+                        await self.reject(send)
+                    return {"type": "http.disconnect"}
+            return message
+
+        async def with_headers(message: Message) -> None:
+            nonlocal started
+            if rejected:  # the 413 is already sent
+                return
+            if message["type"] == "http.response.start":
+                started = True
+                headers = MutableHeaders(scope=message)
+                for k, v in SECURITY_HEADERS.items():
+                    headers.setdefault(k, v)
+            await send(message)
+
+        try:
+            await self.app(scope, counted, with_headers)
+        except Exception:
+            if not rejected:
+                raise
+
+    async def reject(self, send: Send) -> None:
+        body = json.dumps({"detail": f"request body over {self.max_body} bytes"}).encode()
+        await send({"type": "http.response.start", "status": 413,
+                    "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(body)).encode()),
+                                *((k.encode(), v.encode()) for k, v in SECURITY_HEADERS.items())]})
+        await send({"type": "http.response.body", "body": body})
+
+
 app = FastAPI(title="District Evolution", version=INFO["pipeline_version"],
               description="India's district identities, lineage, area crosswalks and harmonized statistics, "
                           "1951-2025. Read-only.")
 app.include_router(api)
+app.add_middleware(GZipMiddleware, minimum_size=1024)
+app.add_middleware(Hardening, max_body=MAX_REQUEST_BYTES)
 
 if (WEB / "index.html").exists():
     app.mount("/assets", StaticFiles(directory=WEB / "assets"), name="assets")

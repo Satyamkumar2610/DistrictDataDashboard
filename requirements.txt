@@ -13,6 +13,8 @@ networkx==3.7
 duckdb==1.5.5
 splink==4.0.17
 pandera==0.33.1
+# CROPLAND weights (WP4): reads the declared cropland raster; not needed to serve a release
+rasterio==1.5.2
 pytest==9.1.1
 dvc==3.67.1
 # WP3 data service (read-only API over the release; httpx for its tests)

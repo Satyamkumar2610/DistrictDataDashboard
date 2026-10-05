@@ -31,7 +31,7 @@ export default function District() {
   const lin = useQuery({ queryKey: ["lineage", ck], queryFn: () => get<{ ancestors: Edge[]; descendants: Edge[] }>(`/districts/${ck}/lineage?max_depth=4`) });
   const research = useQuery({ queryKey: ["research", ck], queryFn: () => get<QueueItem[]>(`/districts/${ck}/research`) });
   const events = useQuery({ queryKey: ["events", ck], queryFn: () => get<EventRow[]>(`/events?ck=${ck}`) });
-  const harm = useQuery({ queryKey: ["harmonized", ck], queryFn: () => get<{ totals: Record<string, unknown>[] }>(`/districts/${ck}/harmonized`) });
+  const harm = useQuery({ queryKey: ["harmonized", ck], queryFn: () => get<{ totals: Record<string, unknown>[]; sensitivity: Record<string, unknown>[] }>(`/districts/${ck}/harmonized`) });
   const fam = useQuery({ queryKey: ["genealogy", ck], queryFn: () => get<Genealogy>(`/districts/${ck}/genealogy`) });
 
   const d = reg.data;
@@ -209,6 +209,18 @@ export default function District() {
               <tr key={i}><td>{String(h.indicator)}</td><td className="num">{String(h.year)}</td><td>{String(h.method)}</td>
                 <td className="r num">{fmt(h.value as number, 1)}</td><td className="r num">{pct(h.coverage_score as number)}</td><td className="num">{String(h.n_sources)}</td></tr>))}</tbody></table></div>
           <span className="src">stat_harmonized_value</span></section>)}
+
+      {d.is_active && (harm.data?.sensitivity?.length ?? 0) > 0 && (
+        <section className="panel"><h2>How much the weight method matters here</h2>
+          <p className="sub">The same statistic restated with another weight method, against area weights. Flagged rows depend on where within each earlier district the quantity lay; neither method is chosen for you.</p>
+          <div className="scroll"><table className="data"><thead><tr><th>indicator</th><th>year</th><th>method</th><th className="r">AREA</th><th className="r">value</th><th className="r">difference</th><th>flag</th></tr></thead>
+            <tbody>{harm.data!.sensitivity.map((s, i) => (
+              <tr key={i}><td>{String(s.indicator)}</td><td className="num">{String(s.year)}</td><td>{String(s.method)}</td>
+                <td className="r num">{s.baseline_value == null ? "–" : fmt(s.baseline_value as number, 1)}</td>
+                <td className="r num">{s.value == null ? "–" : fmt(s.value as number, 1)}</td>
+                <td className="r num">{s.rel_difference == null ? "–" : pct(s.rel_difference as number, 1)}</td>
+                <td>{s.flagged ? "flagged" : ""}</td></tr>))}</tbody></table></div>
+          <span className="src">harmonization_method_sensitivity</span></section>)}
     </main>
   );
 }

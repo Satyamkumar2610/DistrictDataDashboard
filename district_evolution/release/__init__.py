@@ -29,6 +29,8 @@ TABLES = {
     "stat_observation": G / "harmonize/stat_observation.parquet",
     "stat_harmonized_value": G / "harmonize/stat_harmonized_value.parquet",
     "stat_ratio_value": G / "harmonize/stat_ratio_value.parquet",
+    "harmonization_method_sensitivity": G / "harmonize/harmonization_method_sensitivity.parquet",
+    "cropland_coverage": G / "harmonize/cropland_coverage.parquet",
 }
 
 # The Wikidata comparison (e01-e03: evidence_claim, claim_ck_link, claim_verdict) is an internal

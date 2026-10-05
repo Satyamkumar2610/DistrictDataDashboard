@@ -51,6 +51,8 @@ CONTRACTS = {
     "stat_harmonized_value": G / "harmonize/stat_harmonized_value.parquet",
     "stat_ratio_value": G / "harmonize/stat_ratio_value.parquet",
     "harmonization_check": G / "harmonize/harmonization_check.parquet",
+    "cropland_coverage": G / "harmonize/cropland_coverage.parquet",
+    "harmonization_method_sensitivity": G / "harmonize/harmonization_method_sensitivity.parquet",
 }
 
 

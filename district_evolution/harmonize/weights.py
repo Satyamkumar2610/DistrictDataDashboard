@@ -1,4 +1,8 @@
-"""Weight methods: how a district's reported total is shared among 2025 districts (WeightMethod)."""
+"""Weight methods: how a district's reported total is shared among 2025 districts (WeightMethod).
+
+AREA is always available; CROPLAND (harmonize/cropland.py) when a cropland raster is declared in
+config/indicators.yaml. harmonize.weight_methods() returns the methods a build has.
+"""
 
 from __future__ import annotations
 
@@ -25,4 +29,4 @@ class AreaWeight:
                              "weight": x.share_of_source, "area_km2": x.area_km2})
 
 
-WEIGHT_METHODS = {m.name: m for m in (AreaWeight(),)}
+WEIGHT_METHODS = {m.name: m for m in (AreaWeight(),)}  # the methods that need no outside input

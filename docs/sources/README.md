@@ -17,4 +17,8 @@ fill every field from the source's own documentation, and cite where each answer
 - Decision: ingest / do not ingest, and why:
 ```
 
+For a cropland raster (`docs/operations/cropland_weights.md`) also record: what "cropland" means in it
+(net sown area, cropland extent, irrigated area), its reference year(s), resolution and CRS, the
+published accuracy, and whether values are a share of each cell or an area (`value`, `scale`).
+
 No source is evaluated yet: the owner will supply the files (decision of 2026-09-29).

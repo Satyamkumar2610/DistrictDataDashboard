@@ -165,3 +165,55 @@ def test_release_provenance_is_content_addressed(release):
     assert "source_commit" not in prov and len(prov["code_sha256"]) == 64
     from district_evolution.core.provenance import code_sha256
     assert prov["code_sha256"] == code_sha256()
+
+
+def test_health_probe_is_cheap_and_versioned(api):
+    r = api.get("/api/health")
+    assert r.status_code == 200 and r.json()["status"] == "ok"
+    assert r.json()["pipeline_version"] == core.PIPELINE_VERSION
+
+
+def test_responses_carry_security_headers_and_large_ones_are_compressed(api):
+    r = api.get("/api/download/crosswalk_to_reference.csv", headers={"Accept-Encoding": "gzip"})
+    assert r.headers["content-encoding"] == "gzip"
+    for h in (r, api.get("/api/districts/IND-999999")):
+        assert h.headers["x-content-type-options"] == "nosniff" and h.headers["x-frame-options"] == "SAMEORIGIN"
+
+
+def test_oversized_request_bodies_are_refused_before_parsing(api):
+    from district_evolution.release.api import MAX_REQUEST_BYTES
+    big = b'{"rows": [' + b" " * (MAX_REQUEST_BYTES + 1) + b"]}"
+    r = api.post("/api/harmonize", content=big, headers={"content-type": "application/json"})
+    assert r.status_code == 413 and r.headers["x-content-type-options"] == "nosniff"
+
+    def chunks():  # a streamed body with no declared length is counted as it arrives
+        yield b'{"rows": ['
+        for _ in range(MAX_REQUEST_BYTES // 1_000_000 + 2):
+            yield b" " * 1_000_000
+    assert api.post("/api/harmonize", content=chunks(), headers={"content-type": "application/json"}).status_code == 413
+
+
+def test_harmonized_values_come_with_their_method_sensitivity(api):
+    d = api.get("/api/districts/IND-000202/harmonized").json()["data"]
+    assert set(d) == {"totals", "ratios", "sensitivity"}
+    assert {t["method"] for t in d["totals"]} == {"AREA"}
+    released = pd.read_parquet(core.RELEASE_DIR / "tables" / "harmonization_method_sensitivity.parquet")
+    assert len(d["sensitivity"]) == int((released.target_ck == "IND-000202").sum())
+
+
+def test_the_platform_imports_no_pipeline_only_library(release):
+    """The container installs requirements-platform.txt only, so the API must not import anything else
+    from requirements.txt (geopandas, shapely, rasterio, splink, pandera, dvc, ...)."""
+    import os
+    import subprocess
+    import sys
+
+    def names(f):
+        return {ln.split("==")[0].strip().lower() for ln in (core.PROJECT_ROOT / f).read_text().splitlines()
+                if "==" in ln and not ln.startswith("#")}
+    pipeline_only = names("requirements.txt") - names("requirements-platform.txt") - {"pytest", "httpx"}
+    code = "import sys, district_evolution.release.api; print(' '.join(sys.modules))"
+    env = {**os.environ, "DISTRICT_RELEASE_DIR": str(release), "PYTHONPATH": str(core.PROJECT_ROOT)}
+    loaded = set(subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True, env=env)
+                 .stdout.split())
+    assert pipeline_only and not pipeline_only & loaded

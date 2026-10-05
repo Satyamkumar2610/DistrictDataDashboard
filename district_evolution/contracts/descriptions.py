@@ -236,7 +236,7 @@ DESCRIPTIONS: dict[str, dict[str, str]] = {
         "year": "Map of the source district",
         "source_ck": "District on that map",
         "target_ck": "District on the reference (2025) map",
-        "method": "Weight method (AREA; CROPLAND once a cropland raster is supplied)",
+        "method": "Weight method: AREA, or CROPLAND when a cropland raster is declared (config/indicators.yaml)",
         "assumption": "What the weight assumes about how the quantity is spread, in words",
         "weight": "Share of the source district's quantity assigned to the target (0-1; sums to at most 1 per source)",
         "area_km2": "Area of the source district inside the target (km²)",
@@ -273,6 +273,32 @@ DESCRIPTIONS: dict[str, dict[str, str]] = {
         "harmonized_total": "Sum of harmonized values over all targets",
         "conservation_error": "Absolute difference between harmonized_total and expected_total",
         "passes": "conservation_error within harmonize.conservation_rel_tol of expected_total",
+    },
+    "cropland_coverage": {
+        "year": "Map of the source district",
+        "source_ck": "District on that map",
+        "method": "CROPLAND",
+        "cropland_km2": "Cropland inside the district according to the declared raster (km²; cells whose centre lies inside)",
+        "allocated_cropland_km2": "Part of it inside the district's 2025 crosswalk targets: what its CROPLAND weights carry",
+        "unallocated_cropland_km2": ("Part of it in no 2025 district, or in a sliver overlap the crosswalk leaves out; "
+                                     "never redistributed"),
+        "nodata_km2": "District area whose raster cells are nodata (counted as no cropland)",
+        "cell_km2": ("Area of the raster cells whose centre lies inside the district; short of the district's area "
+                     "where the raster does not cover it (0: outside the raster or smaller than a cell)"),
+        "cells": "Raster cells whose centre lies inside the district",
+    },
+    "harmonization_method_sensitivity": {
+        "indicator": "Indicator code (restated with more than one weight method)",
+        "year": "Year of the reported values",
+        "target_ck": "District on the reference (2025) map",
+        "method": "The weight method compared with AREA (e.g. CROPLAND)",
+        "baseline_method": "AREA",
+        "baseline_value": "Harmonized value under AREA; empty if AREA restates nothing onto this district",
+        "value": "Harmonized value under method; empty if method restates nothing onto this district",
+        "difference": "value - baseline_value, in the indicator's unit",
+        "rel_difference": "difference / baseline_value; empty when baseline_value is 0 or either value is empty",
+        "flagged": ("rel_difference beyond harmonize.sensitivity_flag_rel, a value from a zero baseline, "
+                    "or only one method restates a value"),
     },
     "release_geometry": {
         "geom_obs_id": "Polygon identifier (joins ck_observation)",

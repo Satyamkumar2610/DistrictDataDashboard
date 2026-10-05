@@ -270,6 +270,7 @@ stages:
       - district_evolution/contracts
       - config/indicators.yaml
       - config/pipeline.yaml
+      - data/bronze/agri
       - data/reference
       - data/gold/core/ck_observation.parquet
       - data/gold/events/event_linkage.parquet
@@ -286,10 +287,16 @@ stages:
       - district_evolution/harmonize
       - district_evolution/core
       - district_evolution/contracts
+      - config/indicators.yaml
+      - config/pipeline.yaml
+      - data/bronze/cropland
+      - data/silver/geometry
+      - data/gold/core/ck_observation.parquet
       - data/gold/harmonize/stat_observation.parquet
       - data/products/crosswalk_to_reference.parquet
     outs:
       - data/gold/harmonize/statistical_crosswalk.parquet: {cache: false}
+      - data/gold/harmonize/cropland_coverage.parquet: {cache: false}
 
   h03_allocate:
     cmd: python -m district_evolution.stages.h03_allocate
@@ -323,15 +330,21 @@ stages:
     cmd: python -m district_evolution.stages.h05_validate
     deps:
       - district_evolution/stages/h05_validate.py
+      - district_evolution/harmonize
       - district_evolution/core
       - district_evolution/contracts
       - config/pipeline.yaml
+      - config/indicators.yaml
+      - data/gold/core/ck_registry.parquet
+      - data/gold/core/ck_observation.parquet
       - data/gold/harmonize/stat_observation.parquet
       - data/gold/harmonize/statistical_crosswalk.parquet
       - data/gold/harmonize/stat_harmonized_value.parquet
+      - data/gold/harmonize/cropland_coverage.parquet
       - data/products/district_reference_context.parquet
     outs:
       - data/gold/harmonize/harmonization_check.parquet: {cache: false}
+      - data/gold/harmonize/harmonization_method_sensitivity.parquet: {cache: false}
       - outputs/harmonize/h05_report.md: {cache: false}
 
   s11_warehouse:
@@ -462,5 +475,7 @@ stages:
       - data/gold/harmonize/stat_observation.parquet
       - data/gold/harmonize/stat_harmonized_value.parquet
       - data/gold/harmonize/stat_ratio_value.parquet
+      - data/gold/harmonize/harmonization_method_sensitivity.parquet
+      - data/gold/harmonize/cropland_coverage.parquet
     outs:
       - data/release: {cache: false}

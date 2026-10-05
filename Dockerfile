@@ -30,5 +30,5 @@ USER app
 RUN python -c "import duckdb; duckdb.connect().execute('INSTALL spatial')"
 ENV PYTHONPATH=/app DISTRICT_RELEASE_DIR=/release PYTHONUNBUFFERED=1
 EXPOSE 8000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=60s CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/meta')"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"
 CMD ["uvicorn", "district_evolution.release.api:app", "--host", "0.0.0.0", "--port", "8000"]

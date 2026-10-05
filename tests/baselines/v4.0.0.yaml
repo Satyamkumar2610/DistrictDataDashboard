@@ -6,6 +6,9 @@
 #  (3) s08 compares an event's state with the state holding the district's land today, and the match
 #      threshold moves to 0.52 (config linkage); 55 aliases added (scripts/curation/propose_aliases.py).
 #  (4) New product crosswalk_coverage (+1 contract: 34 -> 35).
+#  (5) CROPLAND weights (WP4): two harmonization tables, cropland_coverage and
+#      harmonization_method_sensitivity (+2 contracts: 35 -> 37), both 0 rows until a cropland raster is
+#      declared (config/indicators.yaml weights.cropland). No other count changes.
 #   ck_registry 804 -> 785 (-9 retired strips, -10 keys no longer minted by (2)); active 742 -> 733 (1),
 #     closed 62 -> 52 (2).
 #   ck_observation / district_area_admin / stat_observation 4614 -> 4605; transition_flow 51991 -> 51767;
@@ -47,7 +50,8 @@ row_counts: {ck_registry: 785, ck_observation: 4605, continuity_decision: 3872, 
   lineage_corroboration: 602, transition_flow: 51767, boundary_event: 609, event_summary: 609, event_linkage: 1777,
   crosswalk_to_reference: 23271, district_area_admin: 4605, district_reference_context: 6597, evidence_claim: 1771,
   claim_ck_link: 1771, claim_verdict: 1771, research_queue: 376, stat_observation: 4605, statistical_crosswalk: 23271,
-  stat_harmonized_value: 6597, stat_ratio_value: 0, harmonization_check: 9, crosswalk_coverage: 3872}
+  stat_harmonized_value: 6597, stat_ratio_value: 0, harmonization_check: 9, crosswalk_coverage: 3872,
+  cropland_coverage: 0, harmonization_method_sensitivity: 0}
 breakdowns:
 - table: ck_registry
   column: is_active
@@ -80,4 +84,4 @@ lineage_event_corroborated: 436
 gate:
   error_violations: 0
   warnings_with_findings: [V17]
-  contracts_passing: 35
+  contracts_passing: 37

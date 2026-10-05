@@ -63,7 +63,43 @@ explained in `tests/baselines/v4.0.0.yaml`.
   CI runs them; `requirements-dev.txt`, `.pre-commit-config.yaml`; tests for the CLI, the curated
   reference files and the identity rules.
 
+### Harmonization: cropland weights (WP4 completed)
+- `CROPLAND` weight method (`harmonize/cropland.py`): a cropland raster declared under `weights.cropland`
+  in `config/indicators.yaml` is summed over each map overlaid on the 2025 map; weight = cropland in
+  source ∩ target / cropland in source. Each cell belongs to the districts its centre lies in, so
+  cropland is partitioned like land; cropland outside the crosswalk stays in the denominator (weights sum
+  to at most 1, never normalised). Lon/lat cells take their area from `core.geodesic_area_km2`. The raster
+  is read in row blocks (bounded memory). Impossible values (fraction > 1, more cropland than the cell,
+  negative) and rotated or CRS-less rasters are refused. `rasterio` added (pipeline only, not the platform).
+- No raster is declared yet (the owner supplies it), so every output value is unchanged: AREA remains the
+  only method and the new tables are empty. `docs/operations/cropland_weights.md`.
+- New tables, contracts and gate checks: `cropland_coverage` (per source district: cropland, how much
+  the weights carry, nodata area) and `harmonization_method_sensitivity` (each 2025 district's value
+  under CROPLAND against AREA, flagged beyond `harmonize.sensitivity_flag_rel`, a provisional 0.25 to be
+  measured on the first raster). Both released; `/api/districts/{ck}/harmonized` returns the sensitivity
+  rows and the District page shows them. h05 checks conservation per method and reports the comparison.
+- An indicator can limit its methods (`methods:`); the mapped-area self-check is AREA only.
+- `config/indicators.yaml` entries are checked on load (all four columns mapped, unique codes, kind).
+- Tests on synthetic rasters (exact zonal sums, blocking, units, refusal, projected grids) and the WP4
+  case: with cropland everywhere but Lahaul & Spiti, AREA sends 46% of a 1951 Kangra total there and
+  CROPLAND none.
+
+### Platform hardening
+- `GET /api/health`: liveness and readiness (the container HEALTHCHECK and CI use it).
+- Responses over 1 KB are gzip-compressed; every response carries `X-Content-Type-Options`,
+  `X-Frame-Options` and `Referrer-Policy`.
+- Request bodies over `harmonize.max_request_bytes` (16 MB) are refused with 413 before parsing, by
+  declared length or by counting a streamed body.
+- A test checks that the API imports no library outside `requirements-platform.txt` (the container
+  installs only that); it caught the harmonize package importing geopandas through `core.interfaces`.
+- Measured over HTTP on a laptop (13 endpoints, 30 requests each, while a build ran): p50 2.7 ms,
+  p95 8.0 ms (target 200 ms).
+
 ### Fixed
+- h01 did not depend on the supplied statistics files: replacing a file under `data/bronze/agri/` would
+  not rerun harmonization under `dvc repro`. h01 now depends on `data/bronze/agri/` and h02 on
+  `data/bronze/cropland/`; `.gitignore` no longer hides supplied statistics CSVs; a test checks that every
+  declared input lives under a dependency.
 - V19 crashed when there was nothing to report (an empty list used as a row mask selects columns).
 - The harmonization engine crashed on a state with no districts on the map (same cause); now UNLINKED.
 - The audit counted one returning flow twice when two earlier flows preceded it.

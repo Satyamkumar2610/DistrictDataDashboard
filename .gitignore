@@ -25,3 +25,5 @@ logs/
 !data/reference/known_geometry_gaps.csv
 !outputs/research/*.csv
 !data/reference/research_findings.csv
+# Supplied district statistics are bronze inputs (config/indicators.yaml), not output
+!data/bronze/agri/*.csv

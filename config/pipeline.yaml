@@ -172,6 +172,15 @@ harmonize:
     max_candidates: 3
   # Rows per POST /api/harmonize request: every 2025 district for 60 years is ~45,000 rows.
   max_request_rows: 50000
+  # Request bodies above this are refused (413) before parsing: 50,000 rows of JSON with long names
+  # and states measure ~6 MB; 16 MB leaves room without letting one request exhaust memory.
+  max_request_bytes: 16000000
+  # h05 method sensitivity: a 2025 district's value under another weight method (CROPLAND) is flagged
+  # when it differs from AREA's by more than this share. Flagging only: no value is changed or chosen.
+  # NOT YET MEASURED: no cropland raster has been supplied. 0.25 is a starting point (a quarter of the
+  # value moving between districts is material for any district statistic); re-measure the
+  # distribution of rel_difference on the first raster and set it in the gap above the bulk.
+  sensitivity_flag_rel: 0.25
 
 audit:
   # a02 credibility audit: measures from the maps, the events compilation and the internal checks
