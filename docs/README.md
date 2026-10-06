@@ -7,6 +7,7 @@
 | Know how far to trust the results | `audit/credibility_report.md`; the numbers behind it are rebuilt each run in `../outputs/audit/CREDIBILITY_AUDIT.md` |
 | Restate your own district statistics on the 2025 districts | `operations/harmonize_your_data.md` |
 | Supply a cropland raster for cropland-weighted harmonization | `operations/cropland_weights.md` |
+| Change a colour, or keep the design system in sync | `operations/design_system.md` |
 | Run the platform (container or local) | `operations/deploy.md` |
 | Cut a release | `operations/release.md` (blocked on licensing: `decisions/licensing.md`) |
 | Understand where the data lives and why | `operations/data_storage.md` |

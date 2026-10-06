@@ -95,6 +95,22 @@ explained in `tests/baselines/v4.0.0.yaml`.
 - Measured over HTTP on a laptop (13 endpoints, 30 requests each, while a build ran): p50 2.7 ms,
   p95 8.0 ms (target 200 ms).
 
+### Web platform colours
+- Four light-theme tokens failed WCAG against the grounds the UI renders text on (`--bg`, `--surface`).
+  Hue and saturation held, lightness lowered: `warn` `#b97c00` -> `#986600` (3.53:1 -> 4.96:1 on
+  surface; chips and captions set *text* in it at 11-13px, not only borders), `good` `#0c8a0c` ->
+  `#0b820b` (4.12:1 -> 4.55:1 on bg), `muted` `#6d7a74` -> `#66726d` (4.09:1 -> 4.57:1 on bg), and
+  `in` `#1baf7a` -> `#1aa875` (2.82:1 -> 3.04:1, the 3:1 bar for a legend swatch and map fill).
+- `tests/test_theme_contrast.py` (49 checks) parses `web/src/theme.css` directly and holds two bars,
+  because the tokens do two jobs: 4.5:1 for anything the UI sets text in, 3:1 for a fill or swatch
+  that carries meaning. Two exemptions, each with its reason in the test: `neutral` is the absence of
+  a classification and is meant to recede; `gain`/`loss` sit at near-equal lightness **on purpose** --
+  a diverging scale, hue carrying direction and lightness magnitude. Simulated under deuteranopia,
+  protanopia and tritanopia (Vienot matrices) they stay 113-162 of 255 apart per channel, so the test
+  checks that separation instead of a lightness difference that would break the scale.
+- The design system (tokens, per-token usage, the measured ratios) is published from this same file,
+  so the two cannot drift: `docs/operations/design_system.md`.
+
 ### Fixed
 - h01 did not depend on the supplied statistics files: replacing a file under `data/bronze/agri/` would
   not rerun harmonization under `dvc repro`. h01 now depends on `data/bronze/agri/` and h02 on
