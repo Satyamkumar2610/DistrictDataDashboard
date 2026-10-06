@@ -11,9 +11,12 @@ bodies above harmonize.max_request_bytes are refused with 413 before they are pa
 
 from __future__ import annotations
 
+import base64
 import functools
 import json
 import os
+import secrets
+import sys
 import threading
 from pathlib import Path
 from typing import Literal
@@ -43,6 +46,14 @@ CK = r"^IND-\d{6}$"
 MATERIAL_KM2 = core.CFG["lineage"]["material_km2"]
 MAX_HARMONIZE_ROWS = core.CFG["harmonize"]["max_request_rows"]
 MAX_REQUEST_BYTES = core.CFG["harmonize"]["max_request_bytes"]
+# A hosted instance must be private: the release serves polygons derived from maps that may not be
+# redistributed (docs/decisions/licensing.md). Set DISTRICT_AUTH_PASSWORD and every request needs it.
+# Unset, the app runs open, which is right for localhost and wrong for anything with a public address.
+AUTH_USER = os.environ.get("DISTRICT_AUTH_USER", "district")
+AUTH_PASSWORD = os.environ.get("DISTRICT_AUTH_PASSWORD", "")
+# The platform's own health check runs before it can hold credentials, and says nothing a reader
+# could not get from the login prompt.
+OPEN_PATHS = ("/api/health",)
 SECURITY_HEADERS = {"x-content-type-options": "nosniff", "referrer-policy": "same-origin",
                     "x-frame-options": "SAMEORIGIN"}
 
@@ -515,12 +526,59 @@ class Hardening:
         await send({"type": "http.response.body", "body": body})
 
 
+class RequireAuth:
+    """HTTP Basic in front of everything, when a password is configured.
+
+    Outermost middleware, so it covers the web app, the vector tiles and the table downloads, not
+    just the JSON API: an unauthenticated reader must not be able to pull `/api/download/*.parquet`.
+    With no password set the app runs open and says so at startup — that is the localhost case.
+    """
+
+    def __init__(self, app: ASGIApp, user: str, password: str, open_paths: tuple[str, ...] = ()):
+        self.app, self.user, self.password, self.open_paths = app, user, password, open_paths
+
+    def allows(self, header: bytes) -> bool:
+        scheme, _, token = header.decode("latin-1").partition(" ")
+        if scheme.lower() != "basic":
+            return False
+        try:
+            user, _, password = base64.b64decode(token, validate=True).decode("utf-8").partition(":")
+        except (ValueError, UnicodeDecodeError):
+            return False
+        # Both compared, and always both, so the reply time says nothing about which half was wrong.
+        ok_user = secrets.compare_digest(user, self.user)
+        ok_password = secrets.compare_digest(password, self.password)
+        return ok_user and ok_password
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or not self.password or scope.get("path") in self.open_paths:
+            await self.app(scope, receive, send)
+            return
+        if self.allows(dict(scope["headers"]).get(b"authorization", b"")):
+            await self.app(scope, receive, send)
+            return
+        body = json.dumps({"detail": "this instance is private"}).encode()
+        await send({"type": "http.response.start", "status": 401,
+                    "headers": [(b"content-type", b"application/json"),
+                                (b"content-length", str(len(body)).encode()),
+                                (b"www-authenticate", b'Basic realm="District Evolution", charset="UTF-8"'),
+                                *((k.encode(), v.encode()) for k, v in SECURITY_HEADERS.items())]})
+        await send({"type": "http.response.body", "body": body})
+
+
 app = FastAPI(title="District Evolution", version=INFO["pipeline_version"],
               description="India's district identities, lineage, area crosswalks and harmonized statistics, "
                           "1951-2025. Read-only.")
 app.include_router(api)
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 app.add_middleware(Hardening, max_body=MAX_REQUEST_BYTES)
+# Added last, so it runs first: nothing is served, and no body is read, before the password is checked.
+app.add_middleware(RequireAuth, user=AUTH_USER, password=AUTH_PASSWORD, open_paths=OPEN_PATHS)
+
+if not AUTH_PASSWORD:
+    print("district-evolution: DISTRICT_AUTH_PASSWORD is not set — serving this release to anyone who "
+          "can reach this address. Fine on localhost; set it before hosting (docs/operations/hosting.md).",
+          file=sys.stderr)
 
 if (WEB / "index.html").exists():
     app.mount("/assets", StaticFiles(directory=WEB / "assets"), name="assets")

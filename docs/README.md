@@ -9,6 +9,7 @@
 | Supply a cropland raster for cropland-weighted harmonization | `operations/cropland_weights.md` |
 | Change a colour, or keep the design system in sync | `operations/design_system.md` |
 | Run the platform (container or local) | `operations/deploy.md` |
+| Host it somewhere, privately | `operations/hosting.md` |
 | Cut a release | `operations/release.md` (blocked on licensing: `decisions/licensing.md`) |
 | Understand where the data lives and why | `operations/data_storage.md` |
 | Add a map series, evidence source or statistic | `../CONTRIBUTING.md`, `sources/README.md` |

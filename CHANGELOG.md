@@ -95,6 +95,18 @@ explained in `tests/baselines/v4.0.0.yaml`.
 - Measured over HTTP on a laptop (13 endpoints, 30 requests each, while a build ran): p50 2.7 ms,
   p95 8.0 ms (target 200 ms).
 
+### Hosting
+- `DISTRICT_AUTH_PASSWORD` puts HTTP Basic in front of the whole app — the web pages, the vector
+  tiles, every JSON endpoint and `/api/download/*.parquet` — as the outermost middleware, so nothing
+  is served and no request body is read before the password is checked. Only `/api/health` stays
+  open, for a platform health check that holds no credentials. Unset, the app runs open and says so
+  at startup: right for localhost, wrong for an address.
+- `fly.toml` and `docs/operations/hosting.md`: a private instance on Fly (or Render, Railway, a VPS),
+  with the release on a mounted volume and never in the image, because the image can be pushed to a
+  registry and the 1951-2021 maps cannot (`docs/decisions/licensing.md`).
+- Six tests cover the lock: refused without the password, served with it, refused on a wrong user or
+  password, malformed credentials rejected without crashing, and the health path still open.
+
 ### Web platform colours
 - Four light-theme tokens failed WCAG against the grounds the UI renders text on (`--bg`, `--surface`).
   Hue and saturation held, lightness lowered: `warn` `#b97c00` -> `#986600` (3.53:1 -> 4.96:1 on

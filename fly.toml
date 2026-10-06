@@ -1,0 +1,41 @@
+# Fly.io deployment for the private platform. Runbook: docs/operations/hosting.md
+#
+# The release is NEVER in the image. It lives on the mounted volume and is uploaded once, by hand,
+# because the 1951-2021 maps may not be redistributed (docs/decisions/licensing.md): the image can
+# be pushed to a registry, the data cannot. Nothing here contains a secret; the password is set with
+# `fly secrets set DISTRICT_AUTH_PASSWORD=...` and the app refuses every request without it.
+
+app = "district-evolution"          # change to the name you create with `fly launch --no-deploy`
+primary_region = "bom"              # Mumbai: nearest region to the subject and to you
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  DISTRICT_RELEASE_DIR = "/release"
+
+# The release volume. Created once (`fly volumes create release --size 2`), then filled over SFTP.
+# 2 GB leaves room for a release that grows; the current one is 62 MB.
+[[mounts]]
+  source = "release"
+  destination = "/release"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  # 0 keeps a private instance at nearly no cost: it sleeps when unused and wakes on the next
+  # request. Waking costs ~15-30s, because DuckDB reads the geometry and builds the tile source at
+  # startup. Set this to 1 if you would rather pay for it to answer immediately.
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    path = "/api/health"            # the one unauthenticated path, for exactly this
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "60s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"                    # DuckDB holds the simplified geometry in memory; raise to 2gb on an OOM

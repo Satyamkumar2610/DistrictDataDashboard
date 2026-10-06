@@ -217,3 +217,64 @@ def test_the_platform_imports_no_pipeline_only_library(release):
     loaded = set(subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True, env=env)
                  .stdout.split())
     assert pipeline_only and not pipeline_only & loaded
+
+
+def _basic(user: str, password: str) -> dict[str, str]:
+    import base64
+    token = base64.b64encode(f"{user}:{password}".encode()).decode()
+    return {"Authorization": f"Basic {token}"}
+
+
+@pytest.fixture
+def private_client():
+    """The app wrapped in the same auth middleware a hosted instance runs, over a trivial inner app."""
+    from fastapi.testclient import TestClient
+    from starlette.applications import Starlette
+    from starlette.responses import PlainTextResponse
+    from starlette.routing import Route
+
+    from district_evolution.release.api import RequireAuth
+
+    async def ok(request):
+        return PlainTextResponse("served")
+
+    inner = Starlette(routes=[Route("/api/health", ok), Route("/api/download/x.parquet", ok),
+                              Route("/", ok)])
+    inner.add_middleware(RequireAuth, user="district", password="s3cret", open_paths=("/api/health",))
+    return TestClient(inner)
+
+
+def test_a_private_instance_refuses_everything_without_the_password(private_client):
+    for path in ("/", "/api/download/x.parquet"):
+        r = private_client.get(path)
+        assert r.status_code == 401, path
+        assert r.headers["www-authenticate"].startswith("Basic ")
+        assert "served" not in r.text
+
+
+def test_a_private_instance_serves_with_the_password(private_client):
+    for path in ("/", "/api/download/x.parquet"):
+        r = private_client.get(path, headers=_basic("district", "s3cret"))
+        assert r.status_code == 200 and r.text == "served", path
+
+
+def test_a_wrong_user_or_password_is_refused(private_client):
+    for user, password in (("district", "wrong"), ("someone", "s3cret"), ("", ""), ("district", "")):
+        assert private_client.get("/", headers=_basic(user, password)).status_code == 401
+
+
+def test_malformed_credentials_do_not_crash_the_middleware(private_client):
+    for header in ("Basic !!!notbase64", "Basic", "Bearer s3cret", "", "Basic " + "x" * 5000):
+        assert private_client.get("/", headers={"Authorization": header}).status_code == 401
+
+
+def test_the_health_probe_stays_open_so_the_platform_can_check_it(private_client):
+    r = private_client.get("/api/health")
+    assert r.status_code == 200 and r.text == "served"
+
+
+def test_without_a_password_the_app_is_open(api):
+    """The localhost case: no DISTRICT_AUTH_PASSWORD, so the app this suite built serves freely."""
+    from district_evolution.release.api import AUTH_PASSWORD
+    assert AUTH_PASSWORD == ""
+    assert api.get("/api/meta").status_code == 200

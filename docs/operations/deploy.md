@@ -39,6 +39,13 @@ against it (`PW_BASE_URL`).
 PYTHONPATH=. .venv/bin/uvicorn district_evolution.release.api:app --host 127.0.0.1 --port 8000
 ```
 
+## Hosting it on an address
+
+Everything above is for localhost or a machine you control directly. Putting the platform on a public
+address also publishes the release, whose polygons come from maps that may not be redistributed, so a
+hosted instance must be private and password-protected: `operations/hosting.md` has the runbook and
+the reasons, and `DISTRICT_AUTH_PASSWORD` is what turns the lock.
+
 ## Behind a proxy
 
 The app is one origin: the web app at `/`, JSON under `/api`, vector tiles under `/api/tiles`.
