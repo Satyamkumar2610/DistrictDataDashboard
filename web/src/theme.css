@@ -1,9 +1,12 @@
-/* Layout: a fixed top bar, pages in a 1280px column; the atlas and district map fill their panels. */
+/* Layout: a fixed top bar, pages in a 1280px column; the atlas and district map fill their panels.
+   Text colours (ink, ink-2, muted) and status colours used as text (good, warn, crit, loss) must reach
+   WCAG AA 4.5:1 on both --bg and --surface in BOTH themes; tests/test_theme_contrast.py enforces it.
+   The design system (tokens, usage per token, the measured ratios) is published from this file. */
 :root {
-  --bg: #f3f5f3; --surface: #ffffff; --sunk: #e8ecea; --ink: #13201b; --ink-2: #44524c; --muted: #6d7a74;
+  --bg: #f3f5f3; --surface: #ffffff; --sunk: #e8ecea; --ink: #13201b; --ink-2: #44524c; --muted: #66726d;
   --line: #d4dbd7; --line-strong: #b9c3be; --accent: #0d6a59; --accent-soft: #d7ebe5; --accent-ink: #ffffff;
-  --ochre: #9a5a0a; --new: #2a78d6; --out: #eb6834; --in: #1baf7a; --neutral: #c9d1cd;
-  --gain: #2a78d6; --loss: #d03b3b; --good: #0c8a0c; --warn: #b97c00; --crit: #c73636;
+  --ochre: #9a5a0a; --new: #2a78d6; --out: #eb6834; --in: #1aa875; --neutral: #c9d1cd;
+  --gain: #2a78d6; --loss: #d03b3b; --good: #0b820b; --warn: #986600; --crit: #c73636;
   --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
   --r: 6px;
