@@ -278,3 +278,9 @@ def test_without_a_password_the_app_is_open(api):
     from district_evolution.release.api import AUTH_PASSWORD
     assert AUTH_PASSWORD == ""
     assert api.get("/api/meta").status_code == 200
+
+
+def test_a_state_comes_with_the_box_its_districts_fill(api):
+    """Himachal Pradesh on the 2025 map lies between about 75.6-79.0 E and 30.4-33.3 N."""
+    x0, y0, x1, y1 = api.get("/api/states/Himachal Pradesh").json()["data"]["bbox"]
+    assert 75 < x0 < x1 < 79.5 and 30 < y0 < y1 < 33.5

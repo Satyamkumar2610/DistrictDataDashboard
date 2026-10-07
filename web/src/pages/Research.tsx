@@ -50,7 +50,7 @@ export default function Research() {
             placeholder="e.g. Andhra Pradesh, Firozabad" /></label>
           <span className="muted">{isLoading ? "Loading…" : `${fmt(rows.length)} shown`}</span>
         </div>
-        <div className="scroll" style={{ maxHeight: "65vh" }}><table className="data" data-testid="research-table">
+        <div className="scroll" tabIndex={0} style={{ maxHeight: "65vh" }}><table className="data" data-testid="research-table">
           <thead><tr><th>kind</th><th>district</th><th>state</th><th>what disagrees</th></tr></thead>
           <tbody>{rows.slice(0, 1000).map((r) => (
             <tr key={r.queue_item_id}><td className="small muted">{TOPIC[r.topic as keyof typeof TOPIC]?.label ?? r.topic}</td>

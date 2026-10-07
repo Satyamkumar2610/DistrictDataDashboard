@@ -68,7 +68,7 @@ export default function Data() {
         {grouped.map(({ g, rows }) => (
           <div key={g} className="table-group">
             <h3>{g}</h3>
-            <div className="scroll" style={{ maxHeight: "none" }}><table className="data"><thead><tr><th>table</th><th>what it holds</th><th className="r">rows</th><th>download</th></tr></thead>
+            <div className="scroll" tabIndex={0} style={{ maxHeight: "none" }}><table className="data"><thead><tr><th>table</th><th>what it holds</th><th className="r">rows</th><th>download</th></tr></thead>
               <tbody>{rows.map((t) => (
                 <tr key={t}><td className="mono">{t}</td><td>{TABLE_ABOUT[t]?.text ?? ""}</td><td className="r num">{fmt(counts[t])}</td>
                   <td className="nowrap"><a href={`/api/download/${t}.csv`}>CSV</a> · <a href={`/api/download/${t}.parquet`}>Parquet</a></td></tr>))}</tbody></table></div>
@@ -81,7 +81,7 @@ export default function Data() {
         <h2>Every check on this release</h2>
         <p className="sub">An <b>error</b> check stops a release when it finds anything. A <b>warning</b> with findings is a known issue,
           reported rather than hidden.</p>
-        <div className="scroll"><table className="data"><thead><tr><th>check</th><th>severity</th><th className="r">findings</th><th>what it guards against</th></tr></thead>
+        <div className="scroll" tabIndex={0} role="region" aria-label="Every check"><table className="data"><thead><tr><th>check</th><th>severity</th><th className="r">findings</th><th>what it guards against</th></tr></thead>
           <tbody>{summary.map((c, i) => (
             <tr key={`${c.check_id}-${i}`}><td className="mono">{c.check_id}</td>
               <td><span className={`chip ${c.severity === "ERROR" ? (c.n_violations ? "crit" : "good") : c.severity === "WARNING" && c.n_violations ? "warn" : ""}`}>{c.severity.toLowerCase()}</span></td>
@@ -95,7 +95,7 @@ export default function Data() {
           <label className="field">Table<select value={table} onChange={(e) => setTable(e.target.value)}>{tables.map((t) => <option key={t}>{t}</option>)}</select></label>
           {TABLE_ABOUT[table] && <p className="muted small" style={{ margin: 0 }}>{TABLE_ABOUT[table].text}</p>}
         </div>
-        <div className="scroll"><table className="data" data-testid="dictionary"><thead><tr><th>column</th><th>type</th><th>unit</th><th>meaning</th><th>allowed values</th></tr></thead>
+        <div className="scroll" tabIndex={0} role="region" aria-label="Column meanings"><table className="data" data-testid="dictionary"><thead><tr><th>column</th><th>type</th><th>unit</th><th>meaning</th><th>allowed values</th></tr></thead>
           <tbody>{dict?.columns.filter((c) => c.table === table).map((c) => (
             <tr key={c.column}><td className="mono">{c.column}</td><td className="mono">{c.dtype}{c.nullable ? "?" : ""}</td><td>{c.unit}</td><td>{c.meaning}</td><td className="muted">{c.allowed}</td></tr>))}</tbody></table></div>
         <span className="src">Source: generated from the table contracts (docs/data_dictionary.json)</span>

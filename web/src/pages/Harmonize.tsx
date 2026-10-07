@@ -35,6 +35,7 @@ export default function Harmonize() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showYear, setShowYear] = useState<number | null>(null);
+  const [over, setOver] = useState(false);
 
   const load = (name: string, text: string) => {
     const parsed = Papa.parse<Raw>(text, { header: true, skipEmptyLines: true });
@@ -102,12 +103,21 @@ export default function Harmonize() {
       <section className="panel stack">
         <h2>1. Your file</h2>
         <p className="sub">A CSV with one row per district (and year): a district name, a state, a year and a value.</p>
-        <div className="controls">
-          <label className="field">CSV file<input type="file" accept=".csv,text/csv" data-testid="harmonize-file"
-            onChange={async (e) => { const f = e.target.files?.[0]; if (f) load(f.name, await f.text()); }} /></label>
+        <label className={`dropzone${over ? " over" : ""}`}
+          onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
+          onDrop={async (e) => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files?.[0]; if (f) load(f.name, await f.text()); }}>
+          <input type="file" accept=".csv,text/csv" data-testid="harmonize-file" aria-label="CSV file"
+            onChange={async (e) => { const f = e.target.files?.[0]; if (f) load(f.name, await f.text()); }} />
+          <span className="dropzone-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 16V4M6 10l6-6 6 6M4 20h16" /></svg></span>
+          <b>{file ? file.name : "Drop a CSV here, or choose one"}</b>
+          <span className="muted small">{file ? `${fmt(file.rows.length)} rows · columns ${file.headers.join(", ")}` : "One row per district: a name, a state, a year and a value."}</span>
+        </label>
+        <div className="actions">
+          <span className="muted small">No file to hand?</span>
           <button type="button" className="btn" onClick={useExample}>Use an example</button>
         </div>
-        {file && <p className="muted">{file.name}: {fmt(file.rows.length)} rows, columns {file.headers.join(", ")}</p>}
       </section>
 
       {file && m && (
@@ -167,7 +177,7 @@ export default function Harmonize() {
             <section className="panel">
               <h2>{indicator} on the 2025 districts{showYear ? `, ${showYear}` : ""}</h2>
               <p className="sub">Darker is higher. Coverage: the share of the 2025 district's land that reporting districts covered.</p>
-              <div className="scroll"><table className="data" data-testid="harmonize-table"><thead><tr><th>2025 district</th><th>state</th>
+              <div className="scroll" tabIndex={0}><table className="data" data-testid="harmonize-table"><thead><tr><th>2025 district</th><th>state</th>
                 <th className="r">value</th><th className="r">sources</th><th className="r">coverage</th></tr></thead>
                 <tbody>{shown.map((h) => (
                   <tr key={h.target_ck}><td><Link to={`/district/${h.target_ck}`}>{h.target_name}</Link>{h.boundary_uncertain && <span className="chip" title="a boundary change touching a source district fell between its map and the year reported">boundary uncertain</span>}</td>
@@ -179,7 +189,7 @@ export default function Harmonize() {
             <section className="panel">
               <h2>Rows that were not used ({fmt(problems.length)})</h2>
               <p className="sub">Fix the name or state in your file and run again. Candidates are districts with a similar name on that map.</p>
-              <div className="scroll"><table className="data" data-testid="harmonize-problems"><thead><tr><th>row</th><th>name</th><th>state</th><th>year</th><th>why</th><th>candidates</th></tr></thead>
+              <div className="scroll" tabIndex={0}><table className="data" data-testid="harmonize-problems"><thead><tr><th>row</th><th>name</th><th>state</th><th>year</th><th>why</th><th>candidates</th></tr></thead>
                 <tbody>{problems.map((l) => (
                   <tr key={l.row}><td className="num">{l.row + 1}</td><td>{l.raw_name}</td><td>{l.state}</td><td className="num">{l.year}</td>
                     <td>{STATUS[l.link_status] ?? l.link_status}</td>

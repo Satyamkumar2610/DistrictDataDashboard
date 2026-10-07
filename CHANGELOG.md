@@ -95,6 +95,19 @@ explained in `tests/baselines/v4.0.0.yaml`.
 - Measured over HTTP on a laptop (13 endpoints, 30 requests each, while a build ran): p50 2.7 ms,
   p95 8.0 ms (target 200 ms).
 
+### Web platform: audit and overhaul
+- An audit of every route at desktop and phone width (screenshots, axe-core, text and target sizes, timings),
+  with the plan and the measured results in `docs/design/ui_overhaul.md`.
+- Stylesheet rebuilt on a type scale (15 px body, nothing under 12 px), the spacing scale, three surface levels
+  and 36 px controls (44 px on touch). Colour tokens unchanged; charts now colour by meaning.
+- Navigation grouped into Explore, Use the data and About; a phone menu with every section and a search.
+- District page: a sticky section bar; row hashes moved out of visible text into the source line's tooltip.
+- State page: the map fits the state (`/api/states/{state}` returns `bbox`).
+- Phone Atlas: colour controls fold away so the map keeps the screen.
+- Harmonize: a drop zone for the CSV. Loading: skeletons instead of "Loading…".
+- Accessibility: axe reports no serious or critical violation on any route (was 4 routes); every scroll region
+  is keyboard-reachable; text on the selection tint is contrast-tested.
+
 ### Hosting
 - `DISTRICT_AUTH_PASSWORD` puts HTTP Basic in front of the whole app — the web pages, the vector
   tiles, every JSON endpoint and `/api/download/*.parquet` — as the outermost middleware, so nothing

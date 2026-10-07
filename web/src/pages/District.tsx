@@ -4,7 +4,9 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import Chart, { axis } from "../components/Chart";
 import Chronology, { buildChronology, chronologyFacts } from "../components/Chronology";
 import Figure from "../components/Figure";
+import SectionNav from "../components/SectionNav";
 import MapView from "../components/MapView";
+import Skeleton, { PageSkeleton } from "../components/Skeleton";
 import Term from "../components/Term";
 import {
   bbox, fmt, get, km2, lastMap, mapSpan, pct, signed, YEARS,
@@ -119,12 +121,15 @@ export default function District() {
   }, [fam.data]);
 
   if (reg.isError) return <main className="page"><h1>No district identity {ck}</h1><p>Keys look like IND-000202. <Link to="/">Search by name instead</Link>.</p></main>;
-  if (!d) return <main className="page"><p className="muted">Loading…</p></main>;
+  if (!d) return <PageSkeleton />;
   const f = chronologyFacts(d);
   const children = new Set((lin.data?.descendants ?? []).filter((e) => e.depth === 1).map((e) => e.to_ck)).size;
   const parents = new Set((lin.data?.ancestors ?? []).filter((e) => e.depth === 1).map((e) => e.from_ck)).size;
   const stats = (harm.data?.totals ?? []).filter((h) => h.indicator !== SELF_CHECK);
   const sens = (harm.data?.sensitivity ?? []).filter((h) => h.indicator !== SELF_CHECK);
+  const sections = [{ id: "history", label: "History" }, { id: "area", label: "Area and lineage" },
+    ...(fam.data && fam.data.edges.length ? [{ id: "family", label: "Family tree" }] : []),
+    { id: "events", label: "Events and questions" }, ...(d.is_active ? [{ id: "statistics", label: "Statistics" }] : [])];
 
   return (
     <main className="page" data-testid="district-page">
@@ -152,11 +157,13 @@ export default function District() {
         <div><dt>Maps it is on</dt><dd>{d.n_observations} of {YEARS.length}</dd></div>
       </dl>
 
-      <section className="panel story">
+      <SectionNav sections={sections} />
+
+      <section className="panel story" id="history" data-section="">
         <div className="story-text">
           <h2>Its history, map by map</h2>
           <p className="sub">Each entry compares two consecutive maps. Pick one to see it on the map.</p>
-          {steps ? <Chronology steps={steps} current={shown} onPick={setYear} /> : <p className="muted">Loading…</p>}
+          {steps ? <Chronology steps={steps} current={shown} onPick={setYear} /> : <Skeleton h={56} n={5} gap={16} />}
           <span className="src">Source: district_area_admin, area_ledger, district_relationship, measured_area_transfer, boundary_event</span>
         </div>
         <div className="story-map">
@@ -180,14 +187,14 @@ export default function District() {
                 {p.properties.direction === "out"
                   ? <>{km2(p.properties.transfer_km2)} {KIND[p.properties.kind]} to <Link to={`/district/${p.properties.to_ck}`}>{p.properties.to_name}</Link></>
                   : <>{km2(p.properties.transfer_km2)} {KIND[p.properties.kind]} from <Link to={`/district/${p.properties.from_ck}`}>{p.properties.from_name}</Link></>}
-                <span className="src">{p.properties.source_table} {p.properties.row_id}</span>
+                <span className="src" title={`row ${p.properties.row_id}`}>Source: {p.properties.source_table}</span>
               </div>))}
           </div>
         </div>
       </section>
 
       <div className="grid2">
-        <Figure title={f.first.year === f.last.year ? "Area on its only map" : `Area: ${km2(f.first.area_km2)} → ${km2(f.last.area_km2)}`}
+        <Figure id="area" title={f.first.year === f.last.year ? "Area on its only map" : `Area: ${km2(f.first.area_km2)} → ${km2(f.last.area_km2)}`}
           subtitle="Its area on each map it appears on, in km² measured on the earth's curved surface."
           howTo={<>A drop means land left the district; a rise means it received land. Small wiggles without a drop or rise in the history
             above are differences in how two maps draw the same border (<Term k="displacement">boundary displacement</Term>).</>}
@@ -207,7 +214,7 @@ export default function District() {
       </div>
 
       {tree && (
-        <Figure title="Family tree"
+        <Figure id="family" title="Family tree"
           subtitle="Every ancestor and descendant, each placed under the map on which it first appears. Click a district to open it; drag or scroll to move."
           howTo={<>Arrows run from the older district to the newer one. Colour shows the kind of change: blue <Term k="carved">carved out</Term>,
             orange <Term k="split">split</Term>, ochre <Term k="restored">restored</Term>, red <Term k="merged">merged</Term>. Thicker lines
@@ -218,12 +225,12 @@ export default function District() {
         </Figure>)}
 
       <div className="grid2">
-        <Figure title="What the events list records"
+        <Figure id="events" title="What the events list records"
           subtitle={<>Dated changes from the <Term k="event">events list</Term>, linked to this district by name and only within land that
             actually moved. They confirm the maps; they never change them.</>}
           source="boundary_event, event_linkage, event_accounting">
           {events.data?.length ? (
-            <div className="scroll"><table className="data"><thead><tr><th>year</th><th>change</th><th>recorded under</th><th>area</th></tr></thead>
+            <div className="scroll" tabIndex={0}><table className="data"><thead><tr><th>year</th><th>change</th><th>recorded under</th><th>area</th></tr></thead>
               <tbody>{events.data.map((e) => {
                 const m = MEASUREMENT[e.measurement_status as keyof typeof MEASUREMENT];
                 return (
@@ -238,7 +245,7 @@ export default function District() {
           {research.data?.length ? <div className="stack">
             {research.data.map((q) => <div key={q.queue_item_id} className="caption warn">
               <b>{TOPIC[q.topic as keyof typeof TOPIC]?.label ?? q.topic}.</b> {q.detail}
-              <span className="src">research_queue {q.queue_item_id.slice(0, 12)} · {q.status.toLowerCase()}</span></div>)}
+              <span className="src" title={`queue item ${q.queue_item_id}`}>Source: research_queue · {q.status.toLowerCase()}</span></div>)}
           </div> : <p className="empty">None: the maps and the events list agree on this district.</p>}
         </Figure>
       </div>
@@ -246,7 +253,7 @@ export default function District() {
       {tl.data && tl.data.transfers.length > 0 && (
         <details className="panel more">
           <summary>All {tl.data.transfers.length} transfers with districts that carried on, as a table</summary>
-          <div className="scroll"><table className="data"><thead><tr><th>between maps</th><th>from</th><th>to</th><th className="r">km²</th><th className="r">share of giver</th></tr></thead>
+          <div className="scroll" tabIndex={0}><table className="data"><thead><tr><th>between maps</th><th>from</th><th>to</th><th className="r">km²</th><th className="r">share of giver</th></tr></thead>
             <tbody>{tl.data.transfers.map((t) => (
               <tr key={t.transfer_id}><td className="num">{t.year_a}–{t.year_b}</td>
                 <td><Link to={`/district/${t.from_ck}`}>{t.from_name}</Link></td><td><Link to={`/district/${t.to_ck}`}>{t.to_name}</Link></td>
@@ -255,18 +262,18 @@ export default function District() {
         </details>)}
 
       {d.is_active && (
-        <Figure title="Statistics restated on this district"
+        <Figure id="statistics" title="Statistics restated on this district"
           subtitle={stats.length ? <>Values reported on earlier maps, shared onto today's district by area. <Term k="coverage">Coverage</Term> is the share of
             its land that reported.</> : null}
           source="stat_harmonized_value">
           {stats.length ? (
-            <div className="scroll"><table className="data"><thead><tr><th>indicator</th><th>year</th><th>method</th><th className="r">value</th><th className="r">coverage</th><th>sources</th></tr></thead>
+            <div className="scroll" tabIndex={0}><table className="data"><thead><tr><th>indicator</th><th>year</th><th>method</th><th className="r">value</th><th className="r">coverage</th><th>sources</th></tr></thead>
               <tbody>{stats.map((h, i) => (
                 <tr key={i}><td>{String(h.indicator)}</td><td className="num">{String(h.year)}</td><td>{String(h.method)}</td>
                   <td className="r num">{fmt(h.value as number, 1)}</td><td className="r num">{pct(h.coverage_score as number)}</td><td className="num">{String(h.n_sources)}</td></tr>))}</tbody></table></div>
           ) : <p className="empty">No statistics are loaded into this release yet. You can restate your own on the <Link to="/harmonize">Harmonize</Link> page.</p>}
           {sens.length > 0 && (
-            <div className="scroll"><table className="data"><thead><tr><th>indicator</th><th>year</th><th>method</th><th className="r">by area</th><th className="r">by method</th><th className="r">difference</th><th>flag</th></tr></thead>
+            <div className="scroll" tabIndex={0}><table className="data"><thead><tr><th>indicator</th><th>year</th><th>method</th><th className="r">by area</th><th className="r">by method</th><th className="r">difference</th><th>flag</th></tr></thead>
               <tbody>{sens.map((s, i) => (
                 <tr key={i}><td>{String(s.indicator)}</td><td className="num">{String(s.year)}</td><td>{String(s.method)}</td>
                   <td className="r num">{s.baseline_value == null ? "–" : fmt(s.baseline_value as number, 1)}</td>

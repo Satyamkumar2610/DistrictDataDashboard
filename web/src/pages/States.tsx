@@ -3,16 +3,20 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import Chart, { axis } from "../components/Chart";
 import MapView from "../components/MapView";
+import { PageSkeleton } from "../components/Skeleton";
 import { fmt, get, km2, signed, YEARS, type Edge } from "../api";
 import Term from "../components/Term";
 
 type StateRow = { state: string; identities: number; active: number; districts_by_map: Record<string, number> };
 type StateDetail = {
   state: string;
+  bbox: [number, number, number, number] | null;
   maps: { year: number; districts: number; km2: number }[];
   identities: { canonical_key: string; latest_name: string; established_year: number; closed_year: number | null; is_active: boolean; origin_kind: string }[];
   changes: Omit<Edge, "depth">[];
 };
+
+const ACCENT = ["--accent"];
 
 const KIND: Record<string, string> = {
   FORMED_FROM: "carved out of", SPLIT_FROM: "split from", MERGED_INTO: "merged from", RECONSTITUTED_FROM: "restored from",
@@ -48,7 +52,7 @@ function StateList() {
         </div>
       </div>
       <section className="panel">
-        <div className="scroll" style={{ maxHeight: "none" }}><table className="data" data-testid="states-table">
+        <div className="scroll" tabIndex={0} style={{ maxHeight: "none" }}><table className="data" data-testid="states-table">
           <thead><tr><th>state</th>{YEARS.map((y) => <th key={y} className="r">{y}</th>)}<th className="r">since 1951</th><th className="r">identities</th></tr></thead>
           <tbody>{rows.map((s) => (
             <tr key={s.state} style={{ cursor: "pointer" }} onClick={() => nav(`/states/${encodeURIComponent(s.state)}`)}>
@@ -71,10 +75,11 @@ function StateView({ name }: { name: string }) {
     grid: { left: 40, right: 16, top: 16, bottom: 28 }, tooltip: { trigger: "axis" as const },
     xAxis: { type: "category" as const, data: data.maps.map((m) => String(m.year)), ...axis() },
     yAxis: { type: "value" as const, minInterval: 1, ...axis() },
-    series: [{ name: "districts", type: "bar" as const, data: data.maps.map((m) => m.districts), itemStyle: { borderRadius: [3, 3, 0, 0] } }],
+    series: [{ name: "districts", type: "bar" as const, data: data.maps.map((m) => m.districts),
+      itemStyle: { borderRadius: [3, 3, 0, 0] } }],
   }, [data]);
   if (isError) return <main className="page"><h1>No state called {name}</h1><Link to="/states">All states</Link></main>;
-  if (!data) return <main className="page"><p className="muted">Loading…</p></main>;
+  if (!data) return <PageSkeleton />;
   const byWindow = data.changes.reduce<Record<string, typeof data.changes>>((acc, e) => {
     const k = `${e.year_a}→${e.year_b}`; (acc[k] ??= []).push(e); return acc; }, {});
   const first = data.maps[0], last = data.maps.at(-1)!;
@@ -88,9 +93,9 @@ function StateView({ name }: { name: string }) {
           {" "}from a new district to a district whose land it took. Shaded on the map: its districts today.</p>
       </div>
       <div className="grid2">
-        <div className="dmap"><MapView year={2025} mode="highlight" highlight={highlight} onSelect={(k) => nav(`/district/${k}`)} testId="state-map" /></div>
-        <section className="panel"><h2>Districts on each map</h2>{chart && <Chart option={chart} height={300} />}
-          <span className="src">ck_observation</span></section>
+        <div className="dmap"><MapView year={2025} mode="highlight" highlight={highlight} fitTo={data.bbox} onSelect={(k) => nav(`/district/${k}`)} testId="state-map" /></div>
+        <section className="panel"><h2>Districts on each map</h2>{chart && <Chart option={chart} height={300} palette={ACCENT} />}
+          <span className="src">Source: ck_observation</span></section>
       </div>
       <section className="panel">
         <h2>How its districts were formed</h2>
@@ -103,18 +108,18 @@ function StateView({ name }: { name: string }) {
               <div key={e.rel_id} className="caption out">
                 <Link to={`/district/${e.to_ck}`}>{label(e.to_name, e.to_ck, e.from_name)}</Link> {KIND[e.relationship_type]}{" "}
                 <Link to={`/district/${e.from_ck}`}>{label(e.from_name, e.from_ck, e.to_name)}</Link>: {km2(e.transfer_km2)}
-                <span className="src">district_relationship {e.rel_id}</span>
+                <span className="src" title={`row ${e.rel_id}`}>Source: district_relationship</span>
               </div>))}
           </div>))}</div>
       </section>
       <section className="panel">
         <h2>All identities</h2>
-        <div className="scroll" style={{ maxHeight: "none" }}><table className="data"><thead><tr><th>district</th><th>on the maps</th><th>origin</th></tr></thead>
+        <div className="scroll" tabIndex={0} style={{ maxHeight: "none" }}><table className="data"><thead><tr><th>district</th><th>on the maps</th><th>origin</th></tr></thead>
           <tbody>{data.identities.map((i) => (
             <tr key={i.canonical_key}><td><Link to={`/district/${i.canonical_key}`}>{i.latest_name}</Link> <span className="muted mono">{i.canonical_key}</span></td>
               <td className="num">{i.established_year}–{i.closed_year ? `closed by ${i.closed_year}` : "today"}</td>
               <td>{i.origin_kind === "ANCHOR" ? "on the 1951 map" : "formed later"}</td></tr>))}</tbody></table></div>
-        <span className="src">ck_registry · {fmt(data.identities.filter((i) => i.is_active).length)} active</span>
+        <span className="src">Source: ck_registry · {fmt(data.identities.filter((i) => i.is_active).length)} active</span>
       </section>
     </main>
   );

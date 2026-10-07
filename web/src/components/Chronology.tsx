@@ -102,7 +102,7 @@ export default function Chronology({ steps, current, onPick }: { steps: Step[]; 
       {steps.map((s) => (
         <li key={s.title} className={`${s.changed ? "changed" : ""} ${s.year === current ? "current" : ""}`}>
           <button type="button" className="chrono-year" onClick={() => onPick(s.year)} aria-pressed={s.year === current}
-            aria-label={`Show the ${s.year} map`}>{s.title}</button>
+            title={`Show the ${s.year} map`}>{s.title}</button>
           <div className="chrono-body">{s.lines.map((l, i) => <p key={i}>{l}</p>)}</div>
         </li>))}
     </ol>

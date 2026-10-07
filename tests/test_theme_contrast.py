@@ -142,3 +142,21 @@ def test_the_diverging_map_scale_survives_colour_blindness(tokens, theme, kind):
     assert apart >= MIN_DICHROMAT_SEPARATION, (
         f"--gain/--loss in {theme} under {kind}: {gain} vs {loss}, {apart} apart "
         f"(< {MIN_DICHROMAT_SEPARATION}); the atlas change scale would read as one colour")
+
+
+# Selected states (the active nav link, a pressed filter card) tint their ground with --accent-soft and set their
+# text in ink or ink-2. --muted is NOT allowed there: it measured 4.03:1 in the 4.0.0 UI audit, so the stylesheet
+# switches muted text to ink-2 inside a selected card.
+SELECTED_TEXT = ["ink", "ink-2"]
+
+
+@pytest.mark.parametrize("theme", THEMES)
+@pytest.mark.parametrize("token", SELECTED_TEXT)
+def test_text_on_a_selected_tint_reaches_aa(tokens, theme, token):
+    ratio = contrast(tokens[theme][token], tokens[theme]["accent-soft"])
+    assert ratio >= AA_TEXT, f"--{token} on --accent-soft, {theme}: {ratio:.2f}:1"
+
+
+def test_muted_text_is_lifted_inside_a_selected_card():
+    css = THEME_CSS.read_text(encoding="utf-8")
+    assert '.topic-card[aria-pressed="true"] .muted { color: var(--ink-2) }' in css

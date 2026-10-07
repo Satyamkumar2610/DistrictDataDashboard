@@ -29,6 +29,7 @@ export default function Atlas() {
   const setMode = (m: ColorMode) => update({ mode: m });
   const setCk = (k: string | null) => update({ ck: k });
   const [playing, setPlaying] = useState(false);
+  const [folded, setFolded] = useState(true); // phone only: the colour controls fold away so the map gets the screen
   useEffect(() => {
     if (!playing) return;
     const t = setInterval(() => {
@@ -81,7 +82,10 @@ export default function Atlas() {
             {year} is the first map, so there is no earlier map to compare with: every district is grey.
             {" "}<button type="button" className="linkbtn" onClick={() => setYear(YEARS[1])}>Show {YEARS[1]} instead</button>
           </div>)}
-        <div className="overlay">
+        <div className={`overlay${folded ? " folded" : ""}`}>
+          <button type="button" className="btn overlay-toggle" aria-expanded={!folded} onClick={() => setFolded(!folded)}>
+            {folded ? "Colours and compare" : "Hide options"}
+          </button>
           <div className="legend">
             <div className="seg" role="group" aria-label="Colour districts by">
               {MODES.map((m) => <button key={m.id} type="button" aria-pressed={mode === m.id} onClick={() => setMode(m.id)}>{m.label}</button>)}

@@ -4,11 +4,17 @@ import { Link, useNavigate } from "react-router-dom";
 import Chart, { axis } from "../components/Chart";
 import DistrictSearch from "../components/DistrictSearch";
 import Figure from "../components/Figure";
+import Skeleton from "../components/Skeleton";
 import Term from "../components/Term";
 import { fmt, get, YEARS, type Overview as OverviewData } from "../api";
 import { RELATION, TOPIC } from "../glossary";
 
 // Worked examples, each chosen for what it shows; keys verified against the release (e2e/overview.spec.ts).
+const MAP_PALETTE = ["--accent", "--new"];
+const EVENT_PALETTE = ["--good", "--warn", "--neutral"];
+const LINEAGE_ORDER = ["FORMED_FROM", "SPLIT_FROM", "MERGED_INTO", "RECONSTITUTED_FROM"];
+const LINEAGE_TOKEN: Record<string, string> = { FORMED_FROM: "--new", SPLIT_FROM: "--out", MERGED_INTO: "--crit", RECONSTITUTED_FROM: "--ochre" };
+
 const EXAMPLES = [
   { ck: "IND-000202", name: "Kangra", why: "kept its identity through four carve-outs" },
   { ck: "IND-000148", name: "Malabar", why: "split into Kerala's districts" },
@@ -59,7 +65,7 @@ export default function Overview() {
   const lineageChart = useMemo(() => {
     if (!data) return null;
     const windows = YEARS.slice(1);
-    const types = [...new Set(data.lineage.map((l) => l.relationship_type))];
+    const types = LINEAGE_ORDER.filter((t) => data.lineage.some((l) => l.relationship_type === t));
     return {
       grid: { left: 64, right: 12, top: 12, bottom: 84 },
       tooltip: { trigger: "axis" as const, valueFormatter: (v: unknown) => `${fmt(v as number)} km²` },
@@ -76,6 +82,8 @@ export default function Overview() {
       ],
     };
   }, [data]);
+
+  const landPalette = useMemo(() => [...LINEAGE_ORDER.filter((t) => data?.lineage.some((l) => l.relationship_type === t)).map((t) => LINEAGE_TOKEN[t]), "--muted"], [data]);
 
   const eventsChart = useMemo(() => {
     if (!data) return null;
@@ -119,12 +127,13 @@ export default function Overview() {
       </section>
 
       <section className="questions" aria-label="What this answers">
-        <div><h3>Identity</h3><p>Is this the same district as one on an earlier map, even under another name?</p></div>
-        <div><h3>Origin</h3><p>Which earlier districts did its land come from?</p></div>
-        <div><h3>Fate</h3><p>Where did its land go when it shrank or ended?</p></div>
-        <div><h3>Quantity</h3><p>How many km² moved, and between which two maps?</p></div>
+        <div><h2>Identity</h2><p>Is this the same district as one on an earlier map, even under another name?</p></div>
+        <div><h2>Origin</h2><p>Which earlier districts did its land come from?</p></div>
+        <div><h2>Fate</h2><p>Where did its land go when it shrank or ended?</p></div>
+        <div><h2>Quantity</h2><p>How many km² moved, and between which two maps?</p></div>
       </section>
 
+      {!data && <Skeleton h={96} />}
       {data && facts && (
         <div className="tiles">
           <div className="tile"><div className="v num">{fmt(data.identities.total)}</div>
@@ -145,7 +154,7 @@ export default function Overview() {
           howTo={<>Blue bars count the districts on each <Term k="map">map</Term>. Orange bars count the districts appearing for the first time
             on that map. The 2025 map has fewer than 2021: it does not yet show some new districts (see <Term k="reference">the 2025 map</Term>).</>}
           source="ck_observation, ck_registry">
-          {mapsChart && <Chart option={mapsChart} testId="chart-maps" onClick={(i) => nav(`/atlas?year=${data!.maps[i].year}&mode=new`)} />}
+          {mapsChart && <Chart option={mapsChart} palette={MAP_PALETTE} testId="chart-maps" onClick={(i) => nav(`/atlas?year=${data!.maps[i].year}&mode=new`)} />}
         </Figure>
         <Figure
           title={facts ? `The most land changed districts between ${facts.busiestFrom} and ${facts.busiest.y}` : "Land that changed districts"}
@@ -155,7 +164,7 @@ export default function Overview() {
             <Term k="transfer">transfers</Term>. Thin strips where two maps merely draw a border differently are excluded
             (<Term k="displacement">boundary displacement</Term>).</>}
           source="district_relationship, measured_area_transfer">
-          {lineageChart && <Chart option={lineageChart} height={300} />}
+          {lineageChart ? <Chart option={lineageChart} height={300} palette={landPalette} /> : <Skeleton h={300} />}
         </Figure>
         <Figure
           title={facts ? `${Math.round((facts.evMeasured / facts.evTotal) * 100)}% of recorded events have an exact area` : "Administrative events per decade"}
@@ -164,7 +173,7 @@ export default function Overview() {
             two events share that span, only their combined area is known, so each is <Term k="bounded">bounded</Term>.
             An event is <Term k="notMeasurable">not measurable</Term> when its parent is not on the maps.</>}
           source="boundary_event, event_accounting">
-          {eventsChart && <Chart option={eventsChart} />}
+          {eventsChart ? <Chart option={eventsChart} palette={EVENT_PALETTE} /> : <Skeleton h={280} />}
         </Figure>
         <Figure
           title="Where the sources disagree"

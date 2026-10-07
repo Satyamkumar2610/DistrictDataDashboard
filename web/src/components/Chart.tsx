@@ -11,8 +11,8 @@ echarts.use([BarChart, GraphChart, LineChart, SankeyChart, GridComponent, Legend
 const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
 /** Theme-aware ECharts. Pass an option; text, axes and grid take the page's colour tokens. */
-export default function Chart({ option, height = 280, testId, onClick, onItemClick }:
-  { option: EChartsOption; height?: number; testId?: string; onClick?: (dataIndex: number) => void;
+export default function Chart({ option, height = 280, testId, onClick, onItemClick, palette }:
+  { option: EChartsOption; height?: number; testId?: string; onClick?: (dataIndex: number) => void; palette?: string[];
     onItemClick?: (item: { dataType?: string; data?: { id?: string } }) => void }) {
   const box = useRef<HTMLDivElement>(null);
   const chart = useRef<echarts.ECharts | null>(null);
@@ -41,14 +41,15 @@ export default function Chart({ option, height = 280, testId, onClick, onItemCli
     const apply = () => chart.current?.setOption({
       backgroundColor: "transparent",
       textStyle: { color: css("--ink-2"), fontFamily: css("--sans") },
-      color: [css("--new"), css("--out"), css("--in"), css("--ochre"), css("--muted")],
+      // series colours follow meaning; a chart names its tokens, re-read on every theme change
+      color: (palette ?? ["--new", "--out", "--in", "--ochre", "--muted"]).map(css),
       tooltip: { backgroundColor: css("--ink"), borderWidth: 0, textStyle: { color: css("--bg") } },
       ...option,
     }, true);
     apply();
     window.addEventListener("themechange", apply);
     return () => window.removeEventListener("themechange", apply);
-  }, [option]);
+  }, [option, palette]);
 
   return <div ref={box} className="chart" style={{ height, cursor: onClick ? "pointer" : undefined }} data-testid={testId} />;
 }

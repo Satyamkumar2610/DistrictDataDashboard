@@ -394,8 +394,13 @@ def state(state: str):
     if not key:
         raise HTTPException(404, f"no state {state}")
     k = key[0]["state_key"]
+    box = rows("""SELECT ST_XMin(e) AS x0, ST_YMin(e) AS y0, ST_XMax(e) AS x1, ST_YMax(e) AS y1 FROM (
+                    SELECT ST_Extent_Agg(g.geometry) AS e FROM district_geometry g JOIN ck_home h USING (canonical_key)
+                    WHERE g.year = ? AND h.state_key = ?)""", [YEARS[-1], k])[0]
     return ok({
         "state": key[0]["state"],
+        # the state's districts on the reference map, so a viewer can frame the state rather than all of India
+        "bbox": None if box["x0"] is None else [box["x0"], box["y0"], box["x1"], box["y1"]],
         "maps": rows("""SELECT o.year, count(*) AS districts, round(sum(o.area_km2)) AS km2 FROM ck_observation o
                           JOIN ck_home h USING (canonical_key) WHERE h.state_key = ? GROUP BY 1 ORDER BY 1""", [k]),
         "identities": rows("""SELECT r.canonical_key, r.latest_name, r.established_year, r.closed_year, r.is_active, r.origin_kind

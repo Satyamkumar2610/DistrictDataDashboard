@@ -79,7 +79,7 @@ export default function Crosswalk() {
                 : <>Today's {pick.latest_name} receives each listed share of its source districts' totals. Add those parts to restate a
                   {" "}{year} total on today's district.</>}</p>
             </details>
-            <div className="scroll"><table className="data"><thead><tr><th>district</th><th>state</th><th className="r">km²</th><th className="r">{dir === "forward" ? `share of the ${year} district` : "share of today's district"}</th></tr></thead>
+            <div className="scroll" tabIndex={0}><table className="data"><thead><tr><th>district</th><th>state</th><th className="r">km²</th><th className="r">{dir === "forward" ? `share of the ${year} district` : "share of today's district"}</th></tr></thead>
               <tbody>{shown.map((r) => { const o = other(r); return (
                 <tr key={o.ck}><td><Link to={`/district/${o.ck}`}>{o.name}</Link></td><td>{o.state}</td>
                   <td className="r num">{fmt(r.area_km2, 1)}</td><td className="r num">{pct(o.share, 1)}</td></tr>); })}</tbody></table></div>
