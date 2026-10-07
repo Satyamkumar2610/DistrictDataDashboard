@@ -10,7 +10,7 @@ export default function Research() {
   const [params, setParams] = useSearchParams();
   const topic = params.get("topic") ?? "";
   const filter = params.get("q") ?? "";
-  const set = (k: string, v: string) => setParams((p) => { const n = new URLSearchParams(p); if (v) n.set(k, v); else n.delete(k); return n; }, { replace: true });
+  const set = (k: string, v: string) => setParams((p) => { const n = new URLSearchParams(p); if (v) n.set(k, v); else n.delete(k); return n; }, { replace: true, viewTransition: true });
   const { data = [], isLoading } = useQuery({
     queryKey: ["research", topic], queryFn: () => get<QueueItem[]>(`/research?limit=5000${topic ? `&topic=${topic}` : ""}`),
   });
@@ -54,7 +54,7 @@ export default function Research() {
           <thead><tr><th>kind</th><th>district</th><th>state</th><th>what disagrees</th></tr></thead>
           <tbody>{rows.slice(0, 1000).map((r) => (
             <tr key={r.queue_item_id}><td className="small muted">{TOPIC[r.topic as keyof typeof TOPIC]?.label ?? r.topic}</td>
-              <td>{r.ref?.startsWith("IND-") ? <Link to={`/district/${r.ref}`}>{r.subject}</Link> : r.subject}</td><td>{r.state}</td>
+              <td>{r.ref?.startsWith("IND-") ? <Link viewTransition to={`/district/${r.ref}`}>{r.subject}</Link> : r.subject}</td><td>{r.state}</td>
               <td>{r.detail}</td></tr>))}</tbody>
         </table></div>
         {rows.length > 1000 && <p className="muted small">Showing the first 1,000; narrow the filter to see the rest.</p>}

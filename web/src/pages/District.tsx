@@ -8,6 +8,7 @@ import SectionNav from "../components/SectionNav";
 import MapView from "../components/MapView";
 import Skeleton, { PageSkeleton } from "../components/Skeleton";
 import Term from "../components/Term";
+import { useSlide } from "../motion";
 import {
   bbox, fmt, get, km2, lastMap, mapSpan, pct, signed, YEARS,
   type Changes, type Edge, type EventRow, type QueueItem, type Registry, type Timeline,
@@ -48,6 +49,7 @@ export default function District() {
   const [year, setYear] = useState<number | null>(null);
   useEffect(() => { setYear(null); }, [ck]);
   const shown = year ?? opening ?? 2025;
+  const yearsRef = useSlide<HTMLDivElement>(`${shown}-${choices.length}`);
   const changes = useQuery({
     queryKey: ["changes", ck, shown], enabled: !!d && shown !== YEARS[0],
     queryFn: () => get<Changes>(`/districts/${ck}/changes?year_b=${shown}`),
@@ -120,7 +122,7 @@ export default function District() {
     };
   }, [fam.data]);
 
-  if (reg.isError) return <main className="page"><h1>No district identity {ck}</h1><p>Keys look like IND-000202. <Link to="/">Search by name instead</Link>.</p></main>;
+  if (reg.isError) return <main className="page"><h1>No district identity {ck}</h1><p>Keys look like IND-000202. <Link viewTransition to="/">Search by name instead</Link>.</p></main>;
   if (!d) return <PageSkeleton />;
   const f = chronologyFacts(d);
   const children = new Set((lin.data?.descendants ?? []).filter((e) => e.depth === 1).map((e) => e.to_ck)).size;
@@ -134,7 +136,7 @@ export default function District() {
   return (
     <main className="page" data-testid="district-page">
       <div className="page-head">
-        <p className="eyebrow"><Link to={`/states/${encodeURIComponent(d.latest_state)}`}>{d.latest_state}</Link> · <Term k="key">key</Term> <span className="mono">{d.canonical_key}</span></p>
+        <p className="eyebrow"><Link viewTransition to={`/states/${encodeURIComponent(d.latest_state)}`}>{d.latest_state}</Link> · <Term k="key">key</Term> <span className="mono">{d.canonical_key}</span></p>
         <h1>{d.latest_name}, {d.latest_state}</h1>
         <div className="chips">
           <span className={`chip ${d.is_active ? "good" : ""}`}>{d.is_active ? "a district today" : `no longer a district from the ${d.closed_year} map`}</span>
@@ -168,12 +170,12 @@ export default function District() {
         </div>
         <div className="story-map">
           <div className="controls">
-            <div className="years" role="group" aria-label="Map">
+            <div className="years" ref={yearsRef} role="group" aria-label="Map">
               {choices.map((y) => <button key={y} type="button" aria-pressed={y === shown} onClick={() => setYear(y)}>{y}</button>)}
             </div>
           </div>
           <div className="dmap"><MapView year={shown} selected={maps.includes(shown) ? d.canonical_key : null} parcels={changes.data?.features ?? []}
-            fitTo={fit} onSelect={(k) => k !== d.canonical_key && nav(`/district/${k}`)} testId="district-map" /></div>
+            fitTo={fit} onSelect={(k) => k !== d.canonical_key && nav(`/district/${k}`, { viewTransition: true })} testId="district-map" /></div>
           <div className="legend inline">
             <span><i style={{ border: "2px solid var(--ink)", background: "transparent" }} />{d.latest_name} on the {onMap} map</span>
             <span><i style={{ background: "var(--out)" }} />land it gave</span>
@@ -185,8 +187,8 @@ export default function District() {
             {changes.data?.features.map((p) => (
               <div key={p.properties.row_id} className={`caption ${p.properties.direction}`}>
                 {p.properties.direction === "out"
-                  ? <>{km2(p.properties.transfer_km2)} {KIND[p.properties.kind]} to <Link to={`/district/${p.properties.to_ck}`}>{p.properties.to_name}</Link></>
-                  : <>{km2(p.properties.transfer_km2)} {KIND[p.properties.kind]} from <Link to={`/district/${p.properties.from_ck}`}>{p.properties.from_name}</Link></>}
+                  ? <>{km2(p.properties.transfer_km2)} {KIND[p.properties.kind]} to <Link viewTransition to={`/district/${p.properties.to_ck}`}>{p.properties.to_name}</Link></>
+                  : <>{km2(p.properties.transfer_km2)} {KIND[p.properties.kind]} from <Link viewTransition to={`/district/${p.properties.from_ck}`}>{p.properties.from_name}</Link></>}
                 <span className="src" title={`row ${p.properties.row_id}`}>Source: {p.properties.source_table}</span>
               </div>))}
           </div>
@@ -221,7 +223,7 @@ export default function District() {
             carried more land.</>}
           source="district_relationship, ck_registry">
           <Chart option={tree} height={Math.max(240, 46 * Math.max(...Object.values(fam.data!.nodes.reduce<Record<number, number>>((a, n) => ({ ...a, [n.established_year]: (a[n.established_year] ?? 0) + 1 }), {}))) + 110)}
-            testId="genealogy" onItemClick={(it) => it.dataType === "node" && it.data?.id?.startsWith("IND-") && it.data.id !== ck && nav(`/district/${it.data.id}`)} />
+            testId="genealogy" onItemClick={(it) => it.dataType === "node" && it.data?.id?.startsWith("IND-") && it.data.id !== ck && nav(`/district/${it.data.id}`, { viewTransition: true })} />
         </Figure>)}
 
       <div className="grid2">
@@ -256,7 +258,7 @@ export default function District() {
           <div className="scroll" tabIndex={0}><table className="data"><thead><tr><th>between maps</th><th>from</th><th>to</th><th className="r">km²</th><th className="r">share of giver</th></tr></thead>
             <tbody>{tl.data.transfers.map((t) => (
               <tr key={t.transfer_id}><td className="num">{t.year_a}–{t.year_b}</td>
-                <td><Link to={`/district/${t.from_ck}`}>{t.from_name}</Link></td><td><Link to={`/district/${t.to_ck}`}>{t.to_name}</Link></td>
+                <td><Link viewTransition to={`/district/${t.from_ck}`}>{t.from_name}</Link></td><td><Link viewTransition to={`/district/${t.to_ck}`}>{t.to_name}</Link></td>
                 <td className="r num">{fmt(t.transfer_km2)}</td><td className="r num">{pct(t.outflow_share, 1)}</td></tr>))}</tbody></table></div>
           <span className="src">Source: measured_area_transfer</span>
         </details>)}
@@ -271,7 +273,7 @@ export default function District() {
               <tbody>{stats.map((h, i) => (
                 <tr key={i}><td>{String(h.indicator)}</td><td className="num">{String(h.year)}</td><td>{String(h.method)}</td>
                   <td className="r num">{fmt(h.value as number, 1)}</td><td className="r num">{pct(h.coverage_score as number)}</td><td className="num">{String(h.n_sources)}</td></tr>))}</tbody></table></div>
-          ) : <p className="empty">No statistics are loaded into this release yet. You can restate your own on the <Link to="/harmonize">Harmonize</Link> page.</p>}
+          ) : <p className="empty">No statistics are loaded into this release yet. You can restate your own on the <Link viewTransition to="/harmonize">Harmonize</Link> page.</p>}
           {sens.length > 0 && (
             <div className="scroll" tabIndex={0}><table className="data"><thead><tr><th>indicator</th><th>year</th><th>method</th><th className="r">by area</th><th className="r">by method</th><th className="r">difference</th><th>flag</th></tr></thead>
               <tbody>{sens.map((s, i) => (
@@ -283,7 +285,7 @@ export default function District() {
         </Figure>)}
 
       <p className="muted small">Kinds of change: {Object.values(RELATION).map((r, i) => <span key={r.term}>{i ? ", " : ""}<Term k={r.term}>{r.noun}</Term></span>)}.
-        {" "}<Link to="/about">How this is worked out →</Link></p>
+        {" "}<Link viewTransition to="/about">How this is worked out →</Link></p>
     </main>
   );
 }

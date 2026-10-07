@@ -228,14 +228,52 @@ table.data td.r, table.data th.r { text-align: right }
   .map3d-controls { position: static; padding: 0 10px 10px; flex-wrap: nowrap } .map3d-controls .years { flex-wrap: nowrap; overflow-x: auto }
 }
 
-/* depth and motion, site-wide: cards sit on a soft layered shadow, lift a little under the pointer, and pages settle in.
-   Transform only (no fade), so nothing is ever drawn at reduced contrast; reduced motion turns all of it off (base). */
-.panel, .tile, .task, .example, .topic-card, .hero-search { transition: transform .22s var(--ease), box-shadow .22s var(--ease), border-color .15s }
-.task:hover, .example:hover, .topic-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift), var(--rim) }
+/* ---- motion (motion.ts): only in answer to an action, showing what changed; reduced motion turns it all off ----
+   Page changes, filters and the theme switch run as View Transitions, which animate snapshots: the live page is never
+   drawn half-faded, so contrast checks always see final colours. */
 .hero-search { background: color-mix(in srgb, var(--surface) 90%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: var(--shadow-pop), var(--rim) }
-.page > * { animation: settle .5s var(--ease) both }
-.page > :nth-child(2) { animation-delay: .04s } .page > :nth-child(3) { animation-delay: .08s } .page > :nth-child(n+4) { animation-delay: .12s }
-@keyframes settle { from { transform: translateY(10px) } }
+.task, .example, .topic-card, .btn, .iconbtn, .seg button, .nav a { transition: border-color .15s, background-color .15s, color .15s, box-shadow .2s var(--ease) }
+.task:hover, .example:hover { box-shadow: var(--shadow-lift), var(--rim) }
+.btn:active, .iconbtn:active, .seg button:active, .years button:active { transform: scale(.97) }
+
+/* page to page: the header holds still; the old page steps back, the new one arrives */
+.topbar { view-transition-name: topbar }
+::view-transition-old(root) { animation: vt-out .16s var(--ease) both }
+::view-transition-new(root) { animation: vt-in .32s var(--ease) both }
+@keyframes vt-out { to { opacity: 0; transform: scale(.992) } }
+@keyframes vt-in { from { opacity: 0; transform: translateY(8px) } }
+/* theme switch: the new theme spreads from the toggle (motion.ts animates the clip), header included */
+.theme-switch .topbar { view-transition-name: none }
+.theme-switch::view-transition-old(root), .theme-switch::view-transition-new(root) { animation: none; mix-blend-mode: normal }
+
+/* a year bar's highlight glides to the chosen year */
+.years { position: relative; isolation: isolate }
+.years[data-slide]::before { content: ""; position: absolute; z-index: -1; left: 0; top: 0; width: var(--slide-w); height: var(--slide-h);
+  transform: translate(var(--slide-x), var(--slide-y)); background: var(--accent); border-radius: var(--r) }
+.years[data-slide="on"]::before { transition: transform .34s var(--ease), width .34s var(--ease), height .34s var(--ease) }
+.years[data-slide] button[aria-pressed="true"]:not([data-noslide]) { background: transparent }
+.years button { transition: color .2s, background-color .15s }
+
+/* things that open: menus, suggestions and definitions grow from where they were asked for */
+.menu, .search ul, .term-tip { transition: opacity .16s var(--ease), transform .2s var(--ease) }
+@starting-style {
+  .menu { opacity: 0; transform: translateY(-8px) }
+  .search ul, .term-tip { opacity: 0; transform: translateY(-4px) }
+}
+@supports (interpolate-size: allow-keywords) {
+  :root { interpolate-size: allow-keywords }
+  details::details-content { block-size: 0; overflow-y: clip; transition: block-size .3s var(--ease), content-visibility .3s allow-discrete }
+  details[open]::details-content { block-size: auto }
+}
+/* a newly selected district's panel slides in, so the eye goes to what changed */
+.enter { animation: enter .3s var(--ease) both }
+@keyframes enter { from { transform: translateX(12px) } }
+.dropzone { transition: border-color .15s, background-color .15s, transform .2s var(--ease) }
+.dropzone.over { transform: scale(1.01) }
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important }
+}
 
 /* district */
 .facts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1px; margin: 0; background: var(--line); border: 1px solid var(--line);

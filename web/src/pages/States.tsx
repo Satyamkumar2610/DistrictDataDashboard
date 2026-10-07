@@ -55,8 +55,8 @@ function StateList() {
         <div className="scroll" tabIndex={0} style={{ maxHeight: "none" }}><table className="data" data-testid="states-table">
           <thead><tr><th>state</th>{YEARS.map((y) => <th key={y} className="r">{y}</th>)}<th className="r">since 1951</th><th className="r">identities</th></tr></thead>
           <tbody>{rows.map((s) => (
-            <tr key={s.state} style={{ cursor: "pointer" }} onClick={() => nav(`/states/${encodeURIComponent(s.state)}`)}>
-              <td><Link to={`/states/${encodeURIComponent(s.state)}`}>{s.state}</Link></td>
+            <tr key={s.state} style={{ cursor: "pointer" }} onClick={() => nav(`/states/${encodeURIComponent(s.state)}`, { viewTransition: true })}>
+              <td><Link viewTransition to={`/states/${encodeURIComponent(s.state)}`}>{s.state}</Link></td>
               {YEARS.map((y) => <td key={y} className="r num">{s.districts_by_map[String(y)] ?? "–"}</td>)}
               <td className="r num strong">{signed((s.districts_by_map["2025"] ?? 0) - (s.districts_by_map["1951"] ?? 0))}</td>
               <td className="r num">{s.identities}</td></tr>))}</tbody>
@@ -78,7 +78,7 @@ function StateView({ name }: { name: string }) {
     series: [{ name: "districts", type: "bar" as const, data: data.maps.map((m) => m.districts),
       itemStyle: { borderRadius: [3, 3, 0, 0] } }],
   }, [data]);
-  if (isError) return <main className="page"><h1>No state called {name}</h1><Link to="/states">All states</Link></main>;
+  if (isError) return <main className="page"><h1>No state called {name}</h1><Link viewTransition to="/states">All states</Link></main>;
   if (!data) return <PageSkeleton />;
   const byWindow = data.changes.reduce<Record<string, typeof data.changes>>((acc, e) => {
     const k = `${e.year_a}→${e.year_b}`; (acc[k] ??= []).push(e); return acc; }, {});
@@ -86,14 +86,14 @@ function StateView({ name }: { name: string }) {
   return (
     <main className="page" data-testid="state-page">
       <div className="page-head">
-        <p className="eyebrow"><Link to="/states">States</Link></p>
+        <p className="eyebrow"><Link viewTransition to="/states">States</Link></p>
         <h1>{data.state}</h1>
         <p className="lede">{first.districts} district{first.districts === 1 ? "" : "s"} on the {first.year} map, {last.districts} on the {last.year} map.
           {" "}Its land has had {data.identities.length} district <Term k="identity">identities</Term> in all, with {data.changes.length} link{data.changes.length === 1 ? "" : "s"}
           {" "}from a new district to a district whose land it took. Shaded on the map: its districts today.</p>
       </div>
       <div className="grid2">
-        <div className="dmap"><MapView year={2025} mode="highlight" highlight={highlight} fitTo={data.bbox} onSelect={(k) => nav(`/district/${k}`)} testId="state-map" /></div>
+        <div className="dmap"><MapView year={2025} mode="highlight" highlight={highlight} fitTo={data.bbox} onSelect={(k) => nav(`/district/${k}`, { viewTransition: true })} testId="state-map" /></div>
         <section className="panel"><h2>Districts on each map</h2>{chart && <Chart option={chart} height={300} palette={ACCENT} />}
           <span className="src">Source: ck_observation</span></section>
       </div>
@@ -106,8 +106,8 @@ function StateView({ name }: { name: string }) {
             <h3>Between the {w.replace("→", " and ")} maps</h3>
             {edges.map((e) => (
               <div key={e.rel_id} className="caption out">
-                <Link to={`/district/${e.to_ck}`}>{label(e.to_name, e.to_ck, e.from_name)}</Link> {KIND[e.relationship_type]}{" "}
-                <Link to={`/district/${e.from_ck}`}>{label(e.from_name, e.from_ck, e.to_name)}</Link>: {km2(e.transfer_km2)}
+                <Link viewTransition to={`/district/${e.to_ck}`}>{label(e.to_name, e.to_ck, e.from_name)}</Link> {KIND[e.relationship_type]}{" "}
+                <Link viewTransition to={`/district/${e.from_ck}`}>{label(e.from_name, e.from_ck, e.to_name)}</Link>: {km2(e.transfer_km2)}
                 <span className="src" title={`row ${e.rel_id}`}>Source: district_relationship</span>
               </div>))}
           </div>))}</div>
@@ -116,7 +116,7 @@ function StateView({ name }: { name: string }) {
         <h2>All identities</h2>
         <div className="scroll" tabIndex={0} style={{ maxHeight: "none" }}><table className="data"><thead><tr><th>district</th><th>on the maps</th><th>origin</th></tr></thead>
           <tbody>{data.identities.map((i) => (
-            <tr key={i.canonical_key}><td><Link to={`/district/${i.canonical_key}`}>{i.latest_name}</Link> <span className="muted mono">{i.canonical_key}</span></td>
+            <tr key={i.canonical_key}><td><Link viewTransition to={`/district/${i.canonical_key}`}>{i.latest_name}</Link> <span className="muted mono">{i.canonical_key}</span></td>
               <td className="num">{i.established_year}–{i.closed_year ? `closed by ${i.closed_year}` : "today"}</td>
               <td>{i.origin_kind === "ANCHOR" ? "on the 1951 map" : "formed later"}</td></tr>))}</tbody></table></div>
         <span className="src">Source: ck_registry · {fmt(data.identities.filter((i) => i.is_active).length)} active</span>

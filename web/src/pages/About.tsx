@@ -91,7 +91,7 @@ export default function About() {
         </ul>
         {evTotal && evMeasured != null && <p className="callout"><b>{fmt(evMeasured)}</b> of {fmt(evTotal)} events are measured exactly.</p>}
         <p>Where the events list and the maps disagree, nothing is corrected automatically: the disagreement becomes an
-          {" "}<Link to="/research">open question</Link> for a person to settle with documents.</p>
+          {" "}<Link viewTransition to="/research">open question</Link> for a person to settle with documents.</p>
       </section>
 
       <section id="restate">
@@ -107,7 +107,7 @@ export default function About() {
           <li><b>Nothing is filled in.</b> If some districts did not report, the 2025 district's <Term k="coverage">coverage</Term> drops
             below 100%; no value is invented for the missing part.</li>
         </ul>
-        <p><Link to="/crosswalk">See the crosswalk</Link> or <Link to="/harmonize">restate your own file</Link>.</p>
+        <p><Link viewTransition to="/crosswalk">See the crosswalk</Link> or <Link viewTransition to="/harmonize">restate your own file</Link>.</p>
       </section>
 
       <section id="limits">
@@ -133,7 +133,7 @@ export default function About() {
           kilometre, the two independent area calculations agree, no district descends from itself, and restated statistics neither
           gain nor lose any quantity. A build that fails any error-level check is not released.</p>
         {v && <p className="callout">This release: <b>{fmt(v.checks.length)}</b> checks, <b>{failing.length === 0 ? "all" : fmt(errors.length - failing.length)}</b>
-          {" "}error-level checks passing. <Link to="/data">See every check →</Link></p>}
+          {" "}error-level checks passing. <Link viewTransition to="/data">See every check →</Link></p>}
       </section>
 
       <section id="glossary">

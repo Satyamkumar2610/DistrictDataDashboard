@@ -116,8 +116,11 @@ explained in `tests/baselines/v4.0.0.yaml`.
   Without WebGL the panel points to the Atlas.
 - `GET /api/shapes/{year}`: every district on a map as light GeoJSON (simplified 0.04°, 0.001° precision) for
   drawing, never for measurement; 55 KB (1951) to 95 KB (2025) gzipped; cached.
-- Depth and motion site-wide: glass panels over the map, layered shadows, cards that lift under the pointer, and
-  pages that settle in (transform only, so text never draws at reduced contrast).
+- Glass panels where controls sit over the map.
+- Motion that answers an action (`web/src/motion.ts`): page changes and filters as View Transitions (the app now uses a
+  data router so links can run them), a circular theme reveal from the toggle, a year highlight that glides, menus,
+  suggestions and definitions that grow in, sections that expand to height, a sliding Atlas selection panel. The
+  earlier slide-in on every section and lift on every card are removed. Reduced motion turns all of it off.
 
 ### Hosting
 - `DISTRICT_AUTH_PASSWORD` puts HTTP Basic in front of the whole app — the web pages, the vector

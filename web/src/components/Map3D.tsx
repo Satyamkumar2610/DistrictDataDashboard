@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as THREE from "three";
 import { fmt, get, km2, YEARS } from "../api";
+import { useSlide } from "../motion";
 
 /**
  * India's real districts in 3D, one map at a time. Every shape is a district polygon from the release
@@ -55,6 +56,7 @@ export default function Map3D() {
   const box = useRef<HTMLDivElement>(null);
   const [year, setYear] = useState(YEARS[0]);
   const [playing, setPlaying] = useState(() => !reduced());
+  const yearsRef = useSlide<HTMLDivElement>(year);
   const [tip, setTip] = useState<{ x: number; y: number; p: ShapeProps } | null>(null);
   const { data } = useQuery({ queryKey: ["shapes", year], queryFn: () => get<Shapes>(`/shapes/${year}`), staleTime: Infinity });
   // fetch the next map while this one is shown, so playing never waits
@@ -122,7 +124,7 @@ export default function Map3D() {
     };
     const leave = () => { setTip(null); if (hovered) (hovered.material as THREE.MeshStandardMaterial).emissive.setHex(0x000000); hovered = null; px = 0; };
     // picked again at the click point: a tap on a touch screen sends no hover first
-    const click = (e: MouseEvent) => { const hit = pick(e); if (hit) navRef.current(`/district/${(hit.userData as ShapeProps).canonical_key}`); };
+    const click = (e: MouseEvent) => { const hit = pick(e); if (hit) navRef.current(`/district/${(hit.userData as ShapeProps).canonical_key}`, { viewTransition: true }); };
     renderer.domElement.addEventListener("pointermove", move);
     renderer.domElement.addEventListener("pointerleave", leave);
     renderer.domElement.addEventListener("click", click);
@@ -206,7 +208,7 @@ export default function Map3D() {
       <div className="map3d-controls">
         <button type="button" className="iconbtn" onClick={() => setPlaying(!playing)} aria-pressed={playing}
           aria-label={playing ? "Pause the maps" : "Play through the maps"}>{playing ? "❚❚" : "▶"}</button>
-        <div className="years" role="group" aria-label="3D map year">
+        <div className="years" ref={yearsRef} role="group" aria-label="3D map year">
           {YEARS.map((y) => <button key={y} type="button" aria-pressed={y === year} onClick={() => { setPlaying(false); setYear(y); }}>{y}</button>)}
         </div>
       </div>

@@ -91,7 +91,7 @@ export default function Harmonize() {
         <h1>Harmonize your data</h1>
         <p className="lede">Have district figures from an old census, reported on districts that no longer exist? Upload them and get them
           restated on today's 2025 districts. Each name is matched to the district that carried it, in that state, on the map the figures
-          report on; totals are then shared among today's districts by area, using the <Link to="/crosswalk">crosswalk</Link>.</p>
+          report on; totals are then shared among today's districts by area, using the <Link viewTransition to="/crosswalk">crosswalk</Link>.</p>
         <ol className="steps-inline">
           <li><b>Upload</b> a CSV: one row per district, with a name, state, year and value.</li>
           <li><b>Check</b> which column is which, and whether the value is a total or a rate.</li>
@@ -180,7 +180,7 @@ export default function Harmonize() {
               <div className="scroll" tabIndex={0}><table className="data" data-testid="harmonize-table"><thead><tr><th>2025 district</th><th>state</th>
                 <th className="r">value</th><th className="r">sources</th><th className="r">coverage</th></tr></thead>
                 <tbody>{shown.map((h) => (
-                  <tr key={h.target_ck}><td><Link to={`/district/${h.target_ck}`}>{h.target_name}</Link>{h.boundary_uncertain && <span className="chip" title="a boundary change touching a source district fell between its map and the year reported">boundary uncertain</span>}</td>
+                  <tr key={h.target_ck}><td><Link viewTransition to={`/district/${h.target_ck}`}>{h.target_name}</Link>{h.boundary_uncertain && <span className="chip" title="a boundary change touching a source district fell between its map and the year reported">boundary uncertain</span>}</td>
                     <td>{h.target_state}</td><td className="r num">{fmt(h.value, 1)}</td><td className="r num">{h.n_sources}</td>
                     <td className="r num">{h.coverage_score > 0 && h.coverage_score < 0.005 ? "<1%" : pct(h.coverage_score, 0)}</td></tr>))}</tbody></table></div>
             </section>
@@ -193,7 +193,7 @@ export default function Harmonize() {
                 <tbody>{problems.map((l) => (
                   <tr key={l.row}><td className="num">{l.row + 1}</td><td>{l.raw_name}</td><td>{l.state}</td><td className="num">{l.year}</td>
                     <td>{STATUS[l.link_status] ?? l.link_status}</td>
-                    <td>{l.candidates.map((c) => <span key={c.canonical_key}><Link to={`/district/${c.canonical_key}`}>{c.district_name}</Link> <span className="muted">({c.state})</span>{" "}</span>)}</td></tr>))}</tbody></table></div>
+                    <td>{l.candidates.map((c) => <span key={c.canonical_key}><Link viewTransition to={`/district/${c.canonical_key}`}>{c.district_name}</Link> <span className="muted">({c.state})</span>{" "}</span>)}</td></tr>))}</tbody></table></div>
             </section>
           )}
         </>

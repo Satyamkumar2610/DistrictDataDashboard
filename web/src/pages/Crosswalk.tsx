@@ -81,10 +81,10 @@ export default function Crosswalk() {
             </details>
             <div className="scroll" tabIndex={0}><table className="data"><thead><tr><th>district</th><th>state</th><th className="r">km²</th><th className="r">{dir === "forward" ? `share of the ${year} district` : "share of today's district"}</th></tr></thead>
               <tbody>{shown.map((r) => { const o = other(r); return (
-                <tr key={o.ck}><td><Link to={`/district/${o.ck}`}>{o.name}</Link></td><td>{o.state}</td>
+                <tr key={o.ck}><td><Link viewTransition to={`/district/${o.ck}`}>{o.name}</Link></td><td>{o.state}</td>
                   <td className="r num">{fmt(r.area_km2, 1)}</td><td className="r num">{pct(o.share, 1)}</td></tr>); })}</tbody></table></div>
             <p className="actions"><a className="btn" download={`crosswalk_${year}_${pick.canonical_key}_${dir}.csv`} href={`data:text/csv;charset=utf-8,${encodeURIComponent(csv(data))}`}>Download these weights (CSV)</a>
-              <Link to={`/district/${pick.canonical_key}`}>Its history →</Link></p>
+              <Link viewTransition to={`/district/${pick.canonical_key}`}>Its history →</Link></p>
             <span className="src">Source: crosswalk_to_reference</span>
           </> : (
             <div className="stack">

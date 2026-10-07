@@ -5,6 +5,7 @@ import DistrictSearch from "../components/DistrictSearch";
 import MapView, { type ColorMode } from "../components/MapView";
 import Term from "../components/Term";
 import { bbox, fmt, get, km2, mapSpan, YEARS, type Overview, type Registry } from "../api";
+import { useSlide } from "../motion";
 
 const MODES: { id: ColorMode; label: string; explain: string }[] = [
   { id: "plain", label: "Boundaries", explain: "Every district on the chosen map, uncoloured." },
@@ -26,6 +27,7 @@ export default function Atlas() {
     return next;
   }, { replace: true });
   const setYear = (y: number) => update({ year: String(y) });
+  const yearsRef = useSlide<HTMLDivElement>(year), yearsBRef = useSlide<HTMLDivElement>(`${yearB}-${compare}`);
   const setMode = (m: ColorMode) => update({ mode: m });
   const setCk = (k: string | null) => update({ ck: k });
   const [playing, setPlaying] = useState(false);
@@ -68,7 +70,7 @@ export default function Atlas() {
           <div className="compare" data-testid="compare">
             <div className="pane">
               <MapView year={yearB} mode={mode} selected={ck} fitTo={fit} onSelect={setCk} syncGroup="atlas" testId="atlas-map-b" />
-              <div className="years pane-years" role="group" aria-label="Left map year">
+              <div className="years pane-years" ref={yearsBRef} role="group" aria-label="Left map year">
                 {YEARS.map((y) => <button key={y} type="button" aria-pressed={y === yearB} onClick={() => update({ year2: String(y) })}>{y}</button>)}
               </div>
             </div>
@@ -99,8 +101,8 @@ export default function Atlas() {
                 <span className="muted">· grey: within ±2%</span>
               </span>)}
           </div>
-          <div className="years" role="group" aria-label={compare ? "Right map year" : "Map year"}>
-            <button type="button" aria-pressed={playing} aria-label={playing ? "Stop" : "Play through the maps"}
+          <div className="years" ref={yearsRef} role="group" aria-label={compare ? "Right map year" : "Map year"}>
+            <button type="button" data-noslide aria-pressed={playing} aria-label={playing ? "Stop" : "Play through the maps"}
               onClick={() => { if (!playing && year === YEARS[YEARS.length - 1]) setYear(YEARS[0]); setPlaying(!playing); }}>{playing ? "❚❚" : "▶"}</button>
             {YEARS.map((y) => <button key={y} type="button" aria-pressed={y === year} onClick={() => { setPlaying(false); setYear(y); }}>{y}</button>)}
           </div>
@@ -115,7 +117,7 @@ export default function Atlas() {
           <DistrictSearch onPick={(r) => pickFromSearch(r.canonical_key)} />
         </div>
         {d ? (
-          <div className="stack" data-testid="atlas-selection">
+          <div className="stack enter" key={d.canonical_key} data-testid="atlas-selection">
             <h2>{d.latest_name}</h2>
             <div className="muted">{d.latest_state} · <span className="mono">{d.canonical_key}</span> · on the maps {mapSpan(d)}</div>
             {sel ? <p className="small">On the {year} map: <b>{sel.district_name}</b>, {sel.state}, {km2(sel.area_km2)}
@@ -126,7 +128,7 @@ export default function Atlas() {
                 <tr key={o.year} className={o.year === year ? "row-current" : undefined}>
                   <td><button type="button" className="iconbtn" onClick={() => setYear(o.year)}>{o.year}</button></td>
                   <td>{o.district_name}</td><td className="r num">{km2(o.area_km2)}</td></tr>))}</tbody></table>
-            <Link to={`/district/${d.canonical_key}`} className="btn primary">Read its full history →</Link>
+            <Link viewTransition to={`/district/${d.canonical_key}`} className="btn primary">Read its full history →</Link>
           </div>
         ) : (
           <div className="stack">

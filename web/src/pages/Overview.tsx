@@ -119,11 +119,11 @@ export default function Overview() {
             change: what it was, where its land came from, where its land went, and how many square kilometres moved.
           </p>
           <div className="hero-search">
-          <DistrictSearch onPick={(d) => nav(`/district/${d.canonical_key}`)} />
+          <DistrictSearch onPick={(d) => nav(`/district/${d.canonical_key}`, { viewTransition: true })} />
           <p className="muted small">Any name a district has ever had works, old spellings included. Try one of these:</p>
           <div className="examples">
             {EXAMPLES.map((e) => (
-              <Link key={e.ck} to={`/district/${e.ck}`} className="example">
+              <Link viewTransition key={e.ck} to={`/district/${e.ck}`} className="example">
                 <span className="example-name">{e.name}</span><span className="example-why">{e.why}</span>
               </Link>))}
           </div>
@@ -134,7 +134,7 @@ export default function Overview() {
             <Suspense fallback={<div className="map3d-stage skeleton" />}><Map3D /></Suspense>
           ) : (
             <div className="panel"><p className="muted">This browser cannot draw the 3D map (WebGL is off). The same maps are in
-              the <Link to="/atlas">atlas</Link>.</p></div>)}
+              the <Link viewTransition to="/atlas">atlas</Link>.</p></div>)}
         </div>
       </section>
 
@@ -166,7 +166,7 @@ export default function Overview() {
           howTo={<>Blue bars count the districts on each <Term k="map">map</Term>. Orange bars count the districts appearing for the first time
             on that map. The 2025 map has fewer than 2021: it does not yet show some new districts (see <Term k="reference">the 2025 map</Term>).</>}
           source="ck_observation, ck_registry">
-          {mapsChart && <Chart option={mapsChart} palette={MAP_PALETTE} testId="chart-maps" onClick={(i) => nav(`/atlas?year=${data!.maps[i].year}&mode=new`)} />}
+          {mapsChart && <Chart option={mapsChart} palette={MAP_PALETTE} testId="chart-maps" onClick={(i) => nav(`/atlas?year=${data!.maps[i].year}&mode=new`, { viewTransition: true })} />}
         </Figure>
         <Figure
           title={facts ? `The most land changed districts between ${facts.busiestFrom} and ${facts.busiest.y}` : "Land that changed districts"}
@@ -197,7 +197,7 @@ export default function Overview() {
               const t = TOPIC[r.topic as keyof typeof TOPIC];
               return (
                 <li key={r.topic}>
-                  <Link to={`/research?topic=${r.topic}`}><span>{t?.label ?? r.topic}</span><span className="num">{fmt(r.n)}</span></Link>
+                  <Link viewTransition to={`/research?topic=${r.topic}`}><span>{t?.label ?? r.topic}</span><span className="num">{fmt(r.n)}</span></Link>
                   {t && <p className="muted small">{t.text}</p>}
                 </li>);
             })}
@@ -209,7 +209,7 @@ export default function Overview() {
         <h2 className="section-title">Where to go next</h2>
         <div className="tasks">
           {TASKS.map((t) => (
-            <Link key={t.to} to={t.to} className="task"><h3>{t.title} →</h3><p>{t.text}</p></Link>))}
+            <Link viewTransition key={t.to} to={t.to} className="task"><h3>{t.title} →</h3><p>{t.text}</p></Link>))}
         </div>
       </section>
     </main>

@@ -138,6 +138,29 @@ The home page leads with a 3D map built from the release (`web/src/components/Ma
   WebGL the panel links to the Atlas.
 - **Weight.** three.js loads as a separate 143 KB (gzipped) chunk on the home page only.
 
-Site-wide: glass panels (translucent surface, blur) where controls sit over the map; a layered shadow and a 2 px
-lift for cards under the pointer; pages settle in by 10 px. Motion is transform only, so axe's contrast checks
-see final colours; axe still reports no serious or critical violation on any route.
+Glass panels (translucent surface, blur) where controls sit over the map.
+
+## Motion
+
+Reviewed against Anthropic's `frontend-design` guidance: motion that runs by itself on every section, and a lift on
+every card, are the generic default, and the first version of this round had both. They are removed. What stays
+answers something the visitor did and shows what changed (`web/src/motion.ts`, the "motion" block of `theme.css`):
+
+| Action | Motion |
+|---|---|
+| Follow any link or pick a district | the page changes as a View Transition: the header holds still, the old page steps back, the new one arrives |
+| Switch the theme | the new theme spreads in a circle from the toggle |
+| Pick a year on any year bar | the highlight glides to the chosen year (also while the Atlas or the 3D map plays) |
+| Filter the open questions | the list changes as a View Transition |
+| Open the menu, a suggestion list, a definition | it grows in from where it was asked for |
+| Open a "How to read this" or "more" section | it expands to its height instead of jumping |
+| Select a district in the Atlas | its panel slides in |
+| Press a button, drag a file over the drop zone | a small press and a small swell |
+
+The one moment that plays without being asked is the 3D map on the home page.
+
+Rules: View Transitions animate snapshots, so the live page is never drawn half-faded and contrast checks see final
+colours. No figure animates through values it never had (no count-ups). Reduced motion turns all of it off, View
+Transitions included. Browsers without View Transitions, `@starting-style` or `::details-content` get the same pages
+without the motion. Checked in Chrome by sampling each motion mid-flight (the year highlight moves 480 → 265 → 143 → 91 px
+over 0.35 s; a details section opens 32 → 101 → 124 px).

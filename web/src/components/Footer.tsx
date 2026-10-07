@@ -23,9 +23,9 @@ export default function Footer({ meta }: { meta?: Meta }) {
         <div>
           <h2>Learn more</h2>
           <ul>
-            <li><Link to="/about">How it works</Link></li>
-            <li><Link to="/research">Open questions</Link></li>
-            <li><Link to="/data">Data, checks and downloads</Link></li>
+            <li><Link viewTransition to="/about">How it works</Link></li>
+            <li><Link viewTransition to="/research">Open questions</Link></li>
+            <li><Link viewTransition to="/data">Data, checks and downloads</Link></li>
             <li><a href="/docs">API reference</a></li>
           </ul>
         </div>

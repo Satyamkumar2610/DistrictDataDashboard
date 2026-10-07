@@ -49,7 +49,7 @@ export default function Data() {
         <p className="eyebrow">Data</p>
         <h1>Data and quality</h1>
         <p className="lede">Download any table behind this site, see the checks every release must pass, and look up what each column
-          means. <Link to="/about">How the tables are built →</Link></p>
+          means. <Link viewTransition to="/about">How the tables are built →</Link></p>
       </div>
 
       {val && (

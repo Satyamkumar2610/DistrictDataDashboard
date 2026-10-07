@@ -10,7 +10,7 @@ const DRAWING_NOTE_SHARE = 0.01;
 
 type Step = { year: number; title: string; lines: ReactNode[]; changed: boolean };
 
-const link = (ck: string, name: string) => <Link to={`/district/${ck}`}>{name}</Link>;
+const link = (ck: string, name: string) => <Link viewTransition to={`/district/${ck}`}>{name}</Link>;
 
 /**
  * A district's history as one entry per map, built only from the release: the area ledger, its lineage
