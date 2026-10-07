@@ -1168,8 +1168,8 @@ stages:
       nfiles: 9
     - path: district_evolution
       hash: md5
-      md5: 2797133dabca8696335ddaa7c52c846e.dir
-      size: 326078
+      md5: d1628bb1ade3513aaf360628dcac41e4.dir
+      size: 329355
       nfiles: 61
     - path: docs/data_dictionary.json
       hash: md5
@@ -1190,7 +1190,7 @@ stages:
     outs:
     - path: data/release
       hash: md5
-      md5: 1657e786bb5deb735d196ca00c77fdef.dir
+      md5: a9deb41bd8e8453a06af682a12f720c7.dir
       size: 61595905
       nfiles: 36
   h01_stat_observation:
