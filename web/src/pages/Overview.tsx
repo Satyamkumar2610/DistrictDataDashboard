@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { lazy, Suspense, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Chart, { axis } from "../components/Chart";
 import DistrictSearch from "../components/DistrictSearch";
@@ -10,6 +10,11 @@ import { fmt, get, YEARS, type Overview as OverviewData } from "../api";
 import { RELATION, TOPIC } from "../glossary";
 
 // Worked examples, each chosen for what it shows; keys verified against the release (e2e/overview.spec.ts).
+const Map3D = lazy(() => import("../components/Map3D"));
+const HAS_WEBGL = (() => {
+  try { const c = document.createElement("canvas"); return !!(c.getContext("webgl2") || c.getContext("webgl")); } catch { return false; }
+})();
+
 const MAP_PALETTE = ["--accent", "--new"];
 const EVENT_PALETTE = ["--good", "--warn", "--neutral"];
 const LINEAGE_ORDER = ["FORMED_FROM", "SPLIT_FROM", "MERGED_INTO", "RECONSTITUTED_FROM"];
@@ -113,8 +118,7 @@ export default function Overview() {
             Districts were carved out, split, merged and renamed throughout. Here you can follow any district through every
             change: what it was, where its land came from, where its land went, and how many square kilometres moved.
           </p>
-        </div>
-        <div className="hero-search">
+          <div className="hero-search">
           <DistrictSearch onPick={(d) => nav(`/district/${d.canonical_key}`)} />
           <p className="muted small">Any name a district has ever had works, old spellings included. Try one of these:</p>
           <div className="examples">
@@ -123,6 +127,14 @@ export default function Overview() {
                 <span className="example-name">{e.name}</span><span className="example-why">{e.why}</span>
               </Link>))}
           </div>
+          </div>
+        </div>
+        <div className="hero-stage">
+          {HAS_WEBGL ? (
+            <Suspense fallback={<div className="map3d-stage skeleton" />}><Map3D /></Suspense>
+          ) : (
+            <div className="panel"><p className="muted">This browser cannot draw the 3D map (WebGL is off). The same maps are in
+              the <Link to="/atlas">atlas</Link>.</p></div>)}
         </div>
       </section>
 

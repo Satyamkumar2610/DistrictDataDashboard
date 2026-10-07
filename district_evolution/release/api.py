@@ -176,6 +176,31 @@ def _tile(year: int, z: int, x: int, y: int) -> bytes:
     return (b[0] if b else None) or b""
 
 
+# Shapes for the 3D overview: every district on one map, simplified to ~4 km and rounded to ~100 m (0.001 degrees),
+# which keeps a whole map near 100 KB gzipped. For drawing India at a glance only; every area figure stays the
+# full-resolution geodesic area from the release.
+SHAPE_SIMPLIFY_DEG, SHAPE_PRECISION_DEG = 0.04, 0.001
+
+
+@api.get("/shapes/{year}")
+def shapes(year: int):
+    """Every district on one map as a light GeoJSON FeatureCollection, with the facts the 3D view colours by."""
+    if year not in YEARS:
+        raise HTTPException(404, f"no map for {year}")
+    return Response(content=_shapes(year), media_type="application/json", headers={"Cache-Control": "public, max-age=86400"})
+
+
+@functools.lru_cache(maxsize=len(YEARS))
+def _shapes(year: int) -> bytes:
+    found = rows(f"""SELECT t.canonical_key, t.district_name, t.state, t.area_km2, t.is_new, t.area_change_pct,
+                            ST_AsGeoJSON(ST_ReducePrecision(ST_SimplifyPreserveTopology(g.geometry, {SHAPE_SIMPLIFY_DEG}),
+                                                            {SHAPE_PRECISION_DEG})) AS geom
+                     FROM tile_source t JOIN district_geometry g ON g.canonical_key = t.canonical_key AND g.year = t.year
+                     WHERE t.year = ? ORDER BY t.canonical_key""", [year])
+    features = [{"type": "Feature", "geometry": json.loads(r.pop("geom")), "properties": r} for r in found]
+    return json.dumps(ok({"year": year, "type": "FeatureCollection", "features": features}), separators=(",", ":")).encode()
+
+
 @api.get("/districts")
 def districts(q: str | None = Query(None, description="Part of a district name (any map)"),
               state: str | None = None, year: int | None = Query(None, description="Only identities on this map"),

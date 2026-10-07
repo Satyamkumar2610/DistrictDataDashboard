@@ -108,6 +108,17 @@ explained in `tests/baselines/v4.0.0.yaml`.
 - Accessibility: axe reports no serious or critical violation on any route (was 4 routes); every scroll region
   is keyboard-reachable; text on the selection tint is contrast-tested.
 
+### Web platform: 3D map and depth
+- The home page opens on a 3D map of India drawn from the release's own district polygons (three.js, bundled; no
+  external service). It plays through the nine maps; the districts that first appear on each map rise and are
+  coloured `--new`. Hover names a district and its area; a click opens its page. Counts in the caption and on the
+  map equal `/api/overview` for every map (`web/e2e/map3d.spec.ts`). Reduced motion: no autoplay, no camera drift.
+  Without WebGL the panel points to the Atlas.
+- `GET /api/shapes/{year}`: every district on a map as light GeoJSON (simplified 0.04°, 0.001° precision) for
+  drawing, never for measurement; 55 KB (1951) to 95 KB (2025) gzipped; cached.
+- Depth and motion site-wide: glass panels over the map, layered shadows, cards that lift under the pointer, and
+  pages that settle in (transform only, so text never draws at reduced contrast).
+
 ### Hosting
 - `DISTRICT_AUTH_PASSWORD` puts HTTP Basic in front of the whole app — the web pages, the vector
   tiles, every JSON endpoint and `/api/download/*.parquet` — as the outermost middleware, so nothing

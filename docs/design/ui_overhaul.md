@@ -120,3 +120,24 @@ phone menu and its search, phone Atlas map share, section bar, no row hashes in 
 
 A regression found while measuring, and fixed: the phone rule for the Atlas year bar (`nowrap`) also applied
 to the District page's year bar and made that page 161 px too wide; it is now scoped to the Atlas.
+
+## Second round: 3D and depth
+
+The home page leads with a 3D map built from the release (`web/src/components/Map3D.tsx`, data from
+`/api/shapes/{year}`). Rules it keeps, so the effect never outruns the data:
+
+- **One encoding.** Height and colour mean one thing: the district first appears on this map (`is_new`, the field
+  the Atlas uses). Every other district has the same height; their slight shade differences come from the key's
+  last digit and only separate neighbours.
+- **Same counts as the rest of the site.** The caption and the map's `data-count` / `data-new` equal
+  `/api/overview` on all nine maps; `web/e2e/map3d.spec.ts` checks it.
+- **Drawing geometry only.** Shapes are simplified to 0.04° for drawing; every area shown comes from the release
+  tables, never from these shapes.
+- **Accessible.** The canvas is hidden from assistive technology; the caption is a polite live region; play and
+  year controls are buttons with names. Reduced motion stops autoplay, drift and the rise animation. Without
+  WebGL the panel links to the Atlas.
+- **Weight.** three.js loads as a separate 143 KB (gzipped) chunk on the home page only.
+
+Site-wide: glass panels (translucent surface, blur) where controls sit over the map; a layered shadow and a 2 px
+lift for cards under the pointer; pages settle in by 10 px. Motion is transform only, so axe's contrast checks
+see final colours; axe still reports no serious or critical violation on any route.

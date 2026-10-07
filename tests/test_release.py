@@ -284,3 +284,19 @@ def test_a_state_comes_with_the_box_its_districts_fill(api):
     """Himachal Pradesh on the 2025 map lies between about 75.6-79.0 E and 30.4-33.3 N."""
     x0, y0, x1, y1 = api.get("/api/states/Himachal Pradesh").json()["data"]["bbox"]
     assert 75 < x0 < x1 < 79.5 and 30 < y0 < y1 < 33.5
+
+
+def test_shapes_give_every_district_on_a_map_in_light_geometry(api):
+    """The 3D overview draws one map at a time: every district on it, with the facts it colours by."""
+    import pandas as pd
+    for year in (1951, 2025):
+        r = api.get(f"/api/shapes/{year}")
+        assert r.status_code == 200
+        fc = r.json()["data"]
+        counts = pd.read_parquet(RELEASE / "tables" / "ck_observation.parquet").query("year == @year").shape[0]
+        assert fc["year"] == year and len(fc["features"]) == counts
+        f = fc["features"][0]
+        assert f["geometry"]["type"] in {"Polygon", "MultiPolygon"} and f["geometry"]["coordinates"]
+        assert {"canonical_key", "district_name", "state", "area_km2", "is_new", "area_change_pct"} <= set(f["properties"])
+    assert sum(f["properties"]["is_new"] for f in api.get("/api/shapes/1951").json()["data"]["features"]) == 0
+    assert api.get("/api/shapes/1999").status_code == 404
