@@ -2,11 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import Chart, { axis } from "../components/Chart";
+import Chronology, { buildChronology, chronologyFacts } from "../components/Chronology";
+import Figure from "../components/Figure";
 import MapView from "../components/MapView";
+import Term from "../components/Term";
 import {
-  bbox, fmt, get, km2, pct, YEARS,
+  bbox, fmt, get, km2, lastMap, mapSpan, pct, signed, YEARS,
   type Changes, type Edge, type EventRow, type QueueItem, type Registry, type Timeline,
 } from "../api";
+import { MEASUREMENT, RELATION, TOPIC } from "../glossary";
 
 type Genealogy = {
   focus: string;
@@ -15,13 +19,11 @@ type Genealogy = {
 };
 const EDGE_COLOR: Record<string, string> = { FORMED_FROM: "--new", SPLIT_FROM: "--out", MERGED_INTO: "--crit", RECONSTITUTED_FROM: "--ochre" };
 const cssVar = (n: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-
-const STATUS: Record<string, string> = {
-  MEASURED: "measured", UNIDENTIFIED_MULTI_EVENT_WINDOW: "bound only (shared window)", NOT_MEASURABLE: "not measurable",
-};
 const KIND: Record<string, string> = {
   FORMED_FROM: "carved out", SPLIT_FROM: "split", MERGED_INTO: "merged", RECONSTITUTED_FROM: "restored after a gap", TRANSFER: "transferred",
 };
+// harmonize h05's self-check restates each map's own areas; it proves the engine, it is not a statistic to read
+const SELF_CHECK = "mapped_area_km2";
 
 export default function District() {
   const { ck = "" } = useParams();
@@ -36,11 +38,14 @@ export default function District() {
 
   const d = reg.data;
   const maps = d?.observations.map((o) => o.year) ?? [];
-  const after = d?.closed_year ?? null;
-  const choices = after ? [...maps, after] : maps;
+  const choices = d?.closed_year ? [...maps, d.closed_year] : maps;
+  const steps = useMemo(() => (d && tl.data && lin.data && events.data ? buildChronology(d, tl.data, lin.data, events.data) : null),
+    [d, tl.data, lin.data, events.data]);
+  // open on the first map where something happened to it, not on a final map where nothing did
+  const opening = useMemo(() => steps?.find((s) => s.changed && s.year !== YEARS[0])?.year ?? choices[choices.length - 1], [steps]); // eslint-disable-line react-hooks/exhaustive-deps
   const [year, setYear] = useState<number | null>(null);
   useEffect(() => { setYear(null); }, [ck]);
-  const shown = year ?? (choices.length > 1 ? choices[choices.length - 1] : choices[0] ?? 2025);
+  const shown = year ?? opening ?? 2025;
   const changes = useQuery({
     queryKey: ["changes", ck, shown], enabled: !!d && shown !== YEARS[0],
     queryFn: () => get<Changes>(`/districts/${ck}/changes?year_b=${shown}`),
@@ -75,11 +80,11 @@ export default function District() {
     return {
       tooltip: { trigger: "item" as const, formatter: (params: unknown) => {
         const p = params as { data: { value?: number; rel?: Edge } };
-        return p.data.rel ? `${KIND[p.data.rel.relationship_type]} ${p.data.rel.period_start}–${p.data.rel.period_end}: ${fmt(p.data.value)} km²` : "";
+        return p.data.rel ? `${KIND[p.data.rel.relationship_type]} between the ${p.data.rel.year_a} and ${p.data.rel.year_b} maps: ${fmt(p.data.value)} km²` : "";
       } },
-      series: [{ type: "sankey" as const, left: 8, right: 160, top: 8, bottom: 8, nodeGap: 10, emphasis: { focus: "adjacency" as const },
+      series: [{ type: "sankey" as const, left: 8, right: 170, top: 8, bottom: 8, nodeGap: 10, emphasis: { focus: "adjacency" as const },
         data: [...names].map((n) => ({ name: n })), links, lineStyle: { color: "gradient" as const, opacity: 0.45 },
-        label: { color: getComputedStyle(document.documentElement).getPropertyValue("--ink").trim() } }],
+        label: { color: cssVar("--ink") } }],
     };
   }, [lin.data, d]);
 
@@ -95,7 +100,6 @@ export default function District() {
         symbolSize: focus ? 16 : 10, itemStyle: { color: cssVar(focus ? "--accent" : n.is_active ? "--ink-2" : "--muted") },
         label: { show: true, position: "right" as const, color: cssVar(focus ? "--ink" : "--ink-2"), fontWeight: focus ? ("bold" as const) : ("normal" as const) } };
     });
-    // one column per map; a label row names the map year above each used column
     const header = [...new Set(g.nodes.map((n) => col(n.established_year)))].map((c) => ({
       id: `map-${YEARS[c]}`, name: String(YEARS[c]), x: c * 170, y: 0, symbolSize: 0, tooltip: { show: false },
       label: { show: true, position: "inside" as const, color: cssVar("--muted"), fontFamily: "IBM Plex Mono" } }));
@@ -114,113 +118,165 @@ export default function District() {
     };
   }, [fam.data]);
 
-  if (reg.isError) return <main className="page"><h1>No district identity {ck}</h1><Link to="/">Back</Link></main>;
+  if (reg.isError) return <main className="page"><h1>No district identity {ck}</h1><p>Keys look like IND-000202. <Link to="/">Search by name instead</Link>.</p></main>;
   if (!d) return <main className="page"><p className="muted">Loading…</p></main>;
-  const names = [...new Set(d.observations.map((o) => o.district_name))];
+  const f = chronologyFacts(d);
+  const children = new Set((lin.data?.descendants ?? []).filter((e) => e.depth === 1).map((e) => e.to_ck)).size;
+  const parents = new Set((lin.data?.ancestors ?? []).filter((e) => e.depth === 1).map((e) => e.from_ck)).size;
+  const stats = (harm.data?.totals ?? []).filter((h) => h.indicator !== SELF_CHECK);
+  const sens = (harm.data?.sensitivity ?? []).filter((h) => h.indicator !== SELF_CHECK);
 
   return (
     <main className="page" data-testid="district-page">
       <div className="page-head">
-        <div className="muted mono">{d.canonical_key}</div>
+        <p className="eyebrow"><Link to={`/states/${encodeURIComponent(d.latest_state)}`}>{d.latest_state}</Link> · <Term k="key">key</Term> <span className="mono">{d.canonical_key}</span></p>
         <h1>{d.latest_name}, {d.latest_state}</h1>
+        <div className="chips">
+          <span className={`chip ${d.is_active ? "good" : ""}`}>{d.is_active ? "a district today" : `no longer a district from the ${d.closed_year} map`}</span>
+          <span className="chip">{d.origin_kind === "ANCHOR" ? "on the first (1951) map" : `new on the ${d.established_year} map`}</span>
+        </div>
         <p className="lede">
-          On the maps from {maps[0]} to {maps[maps.length - 1]}{d.closed_year ? `; gone by the ${d.closed_year} map` : ", still active"}.
-          {" "}{d.origin_kind === "ANCHOR" ? "Already on the first (1951) map." : `Formed ${d.formed_after ? `after ${d.formed_after} and ` : ""}by ${d.formed_by}.`}
-          {names.length > 1 && ` Names on the maps: ${names.join(", ")}.`}
+          On the maps {mapSpan(d) === `${f.first.year} map only` ? `of ${f.first.year} only` : `from ${f.first.year} to ${lastMap(d)}`}.
+          {f.first.year !== f.last.year && <> Its area went from {km2(f.first.area_km2)} to {km2(f.last.area_km2)} ({signed(f.change * 100, 0)}%).</>}
+          {parents > 0 && <> It was formed from {parents === 1 ? "one district" : `${parents} districts`}.</>}
+          {children > 0 && <> {children === 1 ? "One new district was" : `${children} new districts were`} made from its land.</>}
+          {f.names.length > 1 && <> Known on the maps as {f.names.join(", ")}.</>}
         </p>
       </div>
 
-      <section className="panel">
-        <h2>Its land, map by map</h2>
-        <p className="sub">Pick a map: the district is outlined; land it gave away since the previous map is orange, land it received is green.
-          Only moves the pipeline measured as real are drawn; km² come from the measured tables.</p>
-        <div className="controls" style={{ marginBottom: 10 }}>
-          <div className="years" role="group" aria-label="Map">
-            {choices.map((y) => <button key={y} type="button" aria-pressed={y === shown} onClick={() => setYear(y)}>{y}</button>)}
-          </div>
+      <dl className="facts">
+        <div><dt>First map</dt><dd>{f.first.year}, {f.first.state}</dd></div>
+        <div><dt>Last map</dt><dd>{lastMap(d)}{d.closed_year ? "" : " (still a district)"}</dd></div>
+        <div><dt>Area, first map</dt><dd className="num">{km2(f.first.area_km2)}</dd></div>
+        <div><dt>Area, last map</dt><dd className="num">{km2(f.last.area_km2)}</dd></div>
+        <div><dt>Maps it is on</dt><dd>{d.n_observations} of {YEARS.length}</dd></div>
+      </dl>
+
+      <section className="panel story">
+        <div className="story-text">
+          <h2>Its history, map by map</h2>
+          <p className="sub">Each entry compares two consecutive maps. Pick one to see it on the map.</p>
+          {steps ? <Chronology steps={steps} current={shown} onPick={setYear} /> : <p className="muted">Loading…</p>}
+          <span className="src">Source: district_area_admin, area_ledger, district_relationship, measured_area_transfer, boundary_event</span>
         </div>
-        <div className="grid2">
+        <div className="story-map">
+          <div className="controls">
+            <div className="years" role="group" aria-label="Map">
+              {choices.map((y) => <button key={y} type="button" aria-pressed={y === shown} onClick={() => setYear(y)}>{y}</button>)}
+            </div>
+          </div>
           <div className="dmap"><MapView year={shown} selected={maps.includes(shown) ? d.canonical_key : null} parcels={changes.data?.features ?? []}
             fitTo={fit} onSelect={(k) => k !== d.canonical_key && nav(`/district/${k}`)} testId="district-map" /></div>
+          <div className="legend inline">
+            <span><i style={{ border: "2px solid var(--ink)", background: "transparent" }} />{d.latest_name} on the {onMap} map</span>
+            <span><i style={{ background: "var(--out)" }} />land it gave</span>
+            <span><i style={{ background: "var(--in)" }} />land it received</span>
+          </div>
           <div className="stack" data-testid="changes">
-            <h3>{shown === YEARS[0] ? "The first map" : `Between the ${changes.data?.year_a ?? "previous"} and ${shown} maps`}</h3>
+            <h3>{shown === YEARS[0] ? "The first map: nothing earlier to compare" : `Between the ${changes.data?.year_a ?? "previous"} and ${shown} maps`}</h3>
             {changes.data && changes.data.features.length === 0 && <p className="empty">No land changed hands with other districts in this window.</p>}
-            {changes.data?.features.map((f) => (
-              <div key={f.properties.row_id} className={`caption ${f.properties.direction}`}>
-                {f.properties.direction === "out"
-                  ? <>{km2(f.properties.transfer_km2)} {KIND[f.properties.kind]} to <Link to={`/district/${f.properties.to_ck}`}>{f.properties.to_name}</Link></>
-                  : <>{km2(f.properties.transfer_km2)} {KIND[f.properties.kind]} from <Link to={`/district/${f.properties.from_ck}`}>{f.properties.from_name}</Link></>}
-                <span className="src">{f.properties.source_table} {f.properties.row_id}</span>
+            {changes.data?.features.map((p) => (
+              <div key={p.properties.row_id} className={`caption ${p.properties.direction}`}>
+                {p.properties.direction === "out"
+                  ? <>{km2(p.properties.transfer_km2)} {KIND[p.properties.kind]} to <Link to={`/district/${p.properties.to_ck}`}>{p.properties.to_name}</Link></>
+                  : <>{km2(p.properties.transfer_km2)} {KIND[p.properties.kind]} from <Link to={`/district/${p.properties.from_ck}`}>{p.properties.from_name}</Link></>}
+                <span className="src">{p.properties.source_table} {p.properties.row_id}</span>
               </div>))}
           </div>
         </div>
       </section>
 
       <div className="grid2">
-        <section className="panel"><h2>Area on each map</h2><p className="sub">As administered at each date (geodesic km²).</p>
-          {areaChart && <Chart option={areaChart} testId="area-chart" />}<span className="src">district_area_admin</span></section>
-        <section className="panel"><h2>Lineage</h2><p className="sub">Districts it came from and districts made from its land, weighted by km².</p>
+        <Figure title={f.first.year === f.last.year ? "Area on its only map" : `Area: ${km2(f.first.area_km2)} → ${km2(f.last.area_km2)}`}
+          subtitle="Its area on each map it appears on, in km² measured on the earth's curved surface."
+          howTo={<>A drop means land left the district; a rise means it received land. Small wiggles without a drop or rise in the history
+            above are differences in how two maps draw the same border (<Term k="displacement">boundary displacement</Term>).</>}
+          source="district_area_admin">
+          {d.observations.length > 1 ? (areaChart && <Chart option={areaChart} testId="area-chart" />)
+            : <p className="answer">{km2(f.first.area_km2)} on the {f.first.year} map, the only map it is on.</p>}
+        </Figure>
+        <Figure title="Districts it came from and gave rise to"
+          subtitle="Width shows the km² that moved. Districts on the left gave it land; districts on the right were made from its land."
+          howTo={<>Only links to <i>new</i> districts appear here: <Term k="carved">carved out</Term>, <Term k="split">split</Term>,{" "}
+            <Term k="merged">merged</Term> or <Term k="restored">restored</Term>. Land swapped with districts that already existed is
+            a <Term k="transfer">transfer</Term>, listed in the history above.</>}
+          source="district_relationship">
           {sankey ? <Chart option={sankey} height={Math.max(220, 26 * ((lin.data?.ancestors.length ?? 0) + (lin.data?.descendants.length ?? 0)))} testId="sankey" />
-            : <p className="empty">No lineage edges: it never gave or took a new district's land.</p>}
-          <span className="src">district_relationship</span></section>
+            : <p className="empty">No new district was made from its land, and it was not made from another district's land.</p>}
+        </Figure>
       </div>
 
       {tree && (
-        <section className="panel"><h2>Family tree</h2>
-          <p className="sub">Every ancestor and descendant, placed at the map on which each first appears. Blue: carved out; orange: split;
-            ochre: restored after a gap; red: merged. Line width grows with the land that moved. Click a district to open it; drag or scroll to move.</p>
+        <Figure title="Family tree"
+          subtitle="Every ancestor and descendant, each placed under the map on which it first appears. Click a district to open it; drag or scroll to move."
+          howTo={<>Arrows run from the older district to the newer one. Colour shows the kind of change: blue <Term k="carved">carved out</Term>,
+            orange <Term k="split">split</Term>, ochre <Term k="restored">restored</Term>, red <Term k="merged">merged</Term>. Thicker lines
+            carried more land.</>}
+          source="district_relationship, ck_registry">
           <Chart option={tree} height={Math.max(240, 46 * Math.max(...Object.values(fam.data!.nodes.reduce<Record<number, number>>((a, n) => ({ ...a, [n.established_year]: (a[n.established_year] ?? 0) + 1 }), {}))) + 110)}
             testId="genealogy" onItemClick={(it) => it.dataType === "node" && it.data?.id?.startsWith("IND-") && it.data.id !== ck && nav(`/district/${it.data.id}`)} />
-          <span className="src">district_relationship, ck_registry</span></section>)}
+        </Figure>)}
 
       <div className="grid2">
-        <section className="panel"><h2>Administrative events</h2><p className="sub">From the events compilation, linked to this identity by name within land that moved.</p>
+        <Figure title="What the events list records"
+          subtitle={<>Dated changes from the <Term k="event">events list</Term>, linked to this district by name and only within land that
+            actually moved. They confirm the maps; they never change them.</>}
+          source="boundary_event, event_linkage, event_accounting">
           {events.data?.length ? (
-            <div className="scroll"><table className="data"><thead><tr><th>year</th><th>event</th><th>recorded under</th><th>area</th></tr></thead>
-              <tbody>{events.data.map((e) => (
-                <tr key={e.event_id}><td className="num">{e.effective_year}</td><td>{e.event_type.toLowerCase().replace("_", " ")}</td>
-                  <td>{e.parent_district_raw}</td>
-                  <td><span className={`chip ${e.measurement_status === "MEASURED" ? "good" : "warn"}`}>{STATUS[e.measurement_status]}</span></td></tr>))}
-              </tbody></table></div>) : <p className="empty">No events linked.</p>}
-          <span className="src">boundary_event, event_linkage, event_accounting</span></section>
-        <section className="panel"><h2>Open questions</h2>
-          <p className="sub">Where the maps and the events compilation disagree about this district. Nothing is auto-corrected.</p>
+            <div className="scroll"><table className="data"><thead><tr><th>year</th><th>change</th><th>recorded under</th><th>area</th></tr></thead>
+              <tbody>{events.data.map((e) => {
+                const m = MEASUREMENT[e.measurement_status as keyof typeof MEASUREMENT];
+                return (
+                  <tr key={e.event_id}><td className="num">{e.effective_year}</td><td>{e.event_type.toLowerCase().replace("_", " ")}</td>
+                    <td>{e.parent_district_raw}</td>
+                    <td><span className={`chip ${m?.tone ?? ""}`}>{m ? <Term k={m.term}>{m.label.toLowerCase()}</Term> : e.measurement_status}</span></td></tr>);
+              })}</tbody></table></div>) : <p className="empty">The events list records no change linked to this district.</p>}
+        </Figure>
+        <Figure title="Open questions"
+          subtitle={<>Where the maps and the events list disagree about this district. Each stays open until documents settle it.</>}
+          source="research_queue">
           {research.data?.length ? <div className="stack">
-            {research.data.map((q) => <div key={q.queue_item_id} className="caption warn">{q.detail}
-              <span className="src">research_queue {q.queue_item_id.slice(0, 12)} · {q.status}</span></div>)}
-          </div> : <p className="empty">No open questions.</p>}
-          <span className="src">research_queue</span></section>
+            {research.data.map((q) => <div key={q.queue_item_id} className="caption warn">
+              <b>{TOPIC[q.topic as keyof typeof TOPIC]?.label ?? q.topic}.</b> {q.detail}
+              <span className="src">research_queue {q.queue_item_id.slice(0, 12)} · {q.status.toLowerCase()}</span></div>)}
+          </div> : <p className="empty">None: the maps and the events list agree on this district.</p>}
+        </Figure>
       </div>
 
       {tl.data && tl.data.transfers.length > 0 && (
-        <section className="panel"><h2>Transfers with districts that continued</h2>
-          <div className="scroll"><table className="data"><thead><tr><th>window</th><th>from</th><th>to</th><th className="r">km²</th><th className="r">share of giver</th></tr></thead>
+        <details className="panel more">
+          <summary>All {tl.data.transfers.length} transfers with districts that carried on, as a table</summary>
+          <div className="scroll"><table className="data"><thead><tr><th>between maps</th><th>from</th><th>to</th><th className="r">km²</th><th className="r">share of giver</th></tr></thead>
             <tbody>{tl.data.transfers.map((t) => (
-              <tr key={t.transfer_id}><td className="num">{t.period_start}–{t.period_end}</td>
+              <tr key={t.transfer_id}><td className="num">{t.year_a}–{t.year_b}</td>
                 <td><Link to={`/district/${t.from_ck}`}>{t.from_name}</Link></td><td><Link to={`/district/${t.to_ck}`}>{t.to_name}</Link></td>
                 <td className="r num">{fmt(t.transfer_km2)}</td><td className="r num">{pct(t.outflow_share, 1)}</td></tr>))}</tbody></table></div>
-          <span className="src">measured_area_transfer</span></section>)}
+          <span className="src">Source: measured_area_transfer</span>
+        </details>)}
 
-      {d.is_active && (harm.data?.totals.length ?? 0) > 0 && (
-        <section className="panel"><h2>Statistics restated on this 2025 district</h2>
-          <p className="sub">Each value is the sum over earlier districts of their reported value × weight; coverage is the share of this district's land that reported.</p>
-          <div className="scroll"><table className="data"><thead><tr><th>indicator</th><th>year</th><th>method</th><th className="r">value</th><th className="r">coverage</th><th>sources</th></tr></thead>
-            <tbody>{harm.data!.totals.map((h, i) => (
-              <tr key={i}><td>{String(h.indicator)}</td><td className="num">{String(h.year)}</td><td>{String(h.method)}</td>
-                <td className="r num">{fmt(h.value as number, 1)}</td><td className="r num">{pct(h.coverage_score as number)}</td><td className="num">{String(h.n_sources)}</td></tr>))}</tbody></table></div>
-          <span className="src">stat_harmonized_value</span></section>)}
+      {d.is_active && (
+        <Figure title="Statistics restated on this district"
+          subtitle={stats.length ? <>Values reported on earlier maps, shared onto today's district by area. <Term k="coverage">Coverage</Term> is the share of
+            its land that reported.</> : null}
+          source="stat_harmonized_value">
+          {stats.length ? (
+            <div className="scroll"><table className="data"><thead><tr><th>indicator</th><th>year</th><th>method</th><th className="r">value</th><th className="r">coverage</th><th>sources</th></tr></thead>
+              <tbody>{stats.map((h, i) => (
+                <tr key={i}><td>{String(h.indicator)}</td><td className="num">{String(h.year)}</td><td>{String(h.method)}</td>
+                  <td className="r num">{fmt(h.value as number, 1)}</td><td className="r num">{pct(h.coverage_score as number)}</td><td className="num">{String(h.n_sources)}</td></tr>))}</tbody></table></div>
+          ) : <p className="empty">No statistics are loaded into this release yet. You can restate your own on the <Link to="/harmonize">Harmonize</Link> page.</p>}
+          {sens.length > 0 && (
+            <div className="scroll"><table className="data"><thead><tr><th>indicator</th><th>year</th><th>method</th><th className="r">by area</th><th className="r">by method</th><th className="r">difference</th><th>flag</th></tr></thead>
+              <tbody>{sens.map((s, i) => (
+                <tr key={i}><td>{String(s.indicator)}</td><td className="num">{String(s.year)}</td><td>{String(s.method)}</td>
+                  <td className="r num">{s.baseline_value == null ? "–" : fmt(s.baseline_value as number, 1)}</td>
+                  <td className="r num">{s.value == null ? "–" : fmt(s.value as number, 1)}</td>
+                  <td className="r num">{s.rel_difference == null ? "–" : pct(s.rel_difference as number, 1)}</td>
+                  <td>{s.flagged ? "depends on method" : ""}</td></tr>))}</tbody></table></div>)}
+        </Figure>)}
 
-      {d.is_active && (harm.data?.sensitivity?.length ?? 0) > 0 && (
-        <section className="panel"><h2>How much the weight method matters here</h2>
-          <p className="sub">The same statistic restated with another weight method, against area weights. Flagged rows depend on where within each earlier district the quantity lay; neither method is chosen for you.</p>
-          <div className="scroll"><table className="data"><thead><tr><th>indicator</th><th>year</th><th>method</th><th className="r">AREA</th><th className="r">value</th><th className="r">difference</th><th>flag</th></tr></thead>
-            <tbody>{harm.data!.sensitivity.map((s, i) => (
-              <tr key={i}><td>{String(s.indicator)}</td><td className="num">{String(s.year)}</td><td>{String(s.method)}</td>
-                <td className="r num">{s.baseline_value == null ? "–" : fmt(s.baseline_value as number, 1)}</td>
-                <td className="r num">{s.value == null ? "–" : fmt(s.value as number, 1)}</td>
-                <td className="r num">{s.rel_difference == null ? "–" : pct(s.rel_difference as number, 1)}</td>
-                <td>{s.flagged ? "flagged" : ""}</td></tr>))}</tbody></table></div>
-          <span className="src">harmonization_method_sensitivity</span></section>)}
+      <p className="muted small">Kinds of change: {Object.values(RELATION).map((r, i) => <span key={r.term}>{i ? ", " : ""}<Term k={r.term}>{r.noun}</Term></span>)}.
+        {" "}<Link to="/about">How this is worked out →</Link></p>
     </main>
   );
 }

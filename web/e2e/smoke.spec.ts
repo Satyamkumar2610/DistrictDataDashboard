@@ -50,7 +50,7 @@ test("research queue and data pages load", async ({ page }) => {
   await expect(page.getByTestId("dictionary")).toContainText("canonical_key");
   await expect(page.getByTestId("release")).toContainText("ck_registry");
   await expect(page.getByTestId("release")).toContainText("4,605");
-  await expect(page.getByText(/release v\d/)).toBeVisible();
+  await expect(page.locator("header .version")).toHaveText(/^v\d+\.\d+\.\d+$/);
   await page.screenshot({ path: `${shots}/data.png`, fullPage: true });
 });
 
@@ -68,6 +68,7 @@ test("clicking a map year on the overview opens the atlas there", async ({ page 
   await page.goto("/");
   const chart = page.getByTestId("chart-maps");
   await expect(chart.locator("svg")).toBeVisible();
+  await chart.scrollIntoViewIfNeeded();
   const box = (await chart.boundingBox())!;
   await page.mouse.click(box.x + box.width * 0.93, box.y + box.height * 0.5);
   await expect(page).toHaveURL(/\/atlas\?year=2025/);

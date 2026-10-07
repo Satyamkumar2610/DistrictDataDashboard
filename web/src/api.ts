@@ -101,3 +101,23 @@ export function bbox(geom: GeoJSON.Geometry): [number, number, number, number] {
   if ("coordinates" in geom) walk(geom.coordinates);
   return [x0, y0, x1, y1];
 }
+
+/** The last map an identity appears on: the map before closed_year (the first map without it). */
+export function lastMap(d: { closed_year: number | null }): number {
+  if (d.closed_year == null) return YEARS[YEARS.length - 1];
+  const i = YEARS.indexOf(d.closed_year);
+  return i > 0 ? YEARS[i - 1] : d.closed_year;
+}
+
+/** "1951–today", "1951–1981", or "1951 map only": the maps an identity is actually on. */
+export function mapSpan(d: { established_year: number; closed_year: number | null }): string {
+  if (d.closed_year == null) return `${d.established_year}–today`;
+  const last = lastMap(d);
+  return last === d.established_year ? `${last} map only` : `${d.established_year}–${last}`;
+}
+
+export const signed = (n: number, digits = 0) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${fmt(Math.abs(n), digits)}`;
+
+/** A share that never rounds a real, small amount to "0%": 46%, 4.5%, 0.3%, <0.1%. */
+export const share = (n: number | null | undefined) =>
+  n == null ? "–" : n > 0 && n < 0.001 ? "<0.1%" : n < 0.1 ? `${(n * 100).toFixed(1)}%` : `${Math.round(n * 100)}%`;

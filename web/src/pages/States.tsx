@@ -3,7 +3,8 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import Chart, { axis } from "../components/Chart";
 import MapView from "../components/MapView";
-import { fmt, get, km2, YEARS, type Edge } from "../api";
+import { fmt, get, km2, signed, YEARS, type Edge } from "../api";
+import Term from "../components/Term";
 
 type StateRow = { state: string; identities: number; active: number; districts_by_map: Record<string, number> };
 type StateDetail = {
@@ -36,9 +37,11 @@ function StateList() {
   return (
     <main className="page">
       <div className="page-head">
+        <p className="eyebrow">States and union territories</p>
         <h1>States</h1>
-        <p className="lede">Each district identity belongs to the state that holds most of its land today, so a district that was in Punjab or
-          Madras on an early map is counted under its present state. Counts are districts on each map.</p>
+        <p className="lede">How many districts each state had on each map. States themselves were reorganised many times, so every
+          district is counted under the state that holds most of its land today: a district that was in Punjab or Madras on an early
+          map appears under its present state. Click a state for its full history.</p>
         <div className="seg" role="group" aria-label="Sort states">
           {([["growth", "Most new districts"], ["active", "Most districts today"], ["state", "A–Z"]] as const).map(([k, label]) =>
             <button key={k} type="button" aria-pressed={sort === k} onClick={() => setSort(k)}>{label}</button>)}
@@ -46,14 +49,15 @@ function StateList() {
       </div>
       <section className="panel">
         <div className="scroll" style={{ maxHeight: "none" }}><table className="data" data-testid="states-table">
-          <thead><tr><th>state</th>{YEARS.map((y) => <th key={y} className="r">{y}</th>)}<th className="r">identities</th></tr></thead>
+          <thead><tr><th>state</th>{YEARS.map((y) => <th key={y} className="r">{y}</th>)}<th className="r">since 1951</th><th className="r">identities</th></tr></thead>
           <tbody>{rows.map((s) => (
             <tr key={s.state} style={{ cursor: "pointer" }} onClick={() => nav(`/states/${encodeURIComponent(s.state)}`)}>
               <td><Link to={`/states/${encodeURIComponent(s.state)}`}>{s.state}</Link></td>
               {YEARS.map((y) => <td key={y} className="r num">{s.districts_by_map[String(y)] ?? "–"}</td>)}
+              <td className="r num strong">{signed((s.districts_by_map["2025"] ?? 0) - (s.districts_by_map["1951"] ?? 0))}</td>
               <td className="r num">{s.identities}</td></tr>))}</tbody>
         </table></div>
-        <span className="src">ck_observation, ck_registry, crosswalk_to_reference (state of today's land)</span>
+        <span className="src">Source: ck_observation, ck_registry, crosswalk_to_reference (state of today's land). "Identities" counts every district the state's land has ever had, including ones that ended.</span>
       </section>
     </main>
   );
@@ -77,10 +81,11 @@ function StateView({ name }: { name: string }) {
   return (
     <main className="page" data-testid="state-page">
       <div className="page-head">
-        <div className="muted"><Link to="/states">States</Link></div>
+        <p className="eyebrow"><Link to="/states">States</Link></p>
         <h1>{data.state}</h1>
-        <p className="lede">{first.districts} district{first.districts === 1 ? "" : "s"} on the {first.year} map, {last.districts} on the {last.year} map;
-          {" "}{data.identities.length} identities in all, {data.changes.length} lineage edges.</p>
+        <p className="lede">{first.districts} district{first.districts === 1 ? "" : "s"} on the {first.year} map, {last.districts} on the {last.year} map.
+          {" "}Its land has had {data.identities.length} district <Term k="identity">identities</Term> in all, with {data.changes.length} link{data.changes.length === 1 ? "" : "s"}
+          {" "}from a new district to a district whose land it took. Shaded on the map: its districts today.</p>
       </div>
       <div className="grid2">
         <div className="dmap"><MapView year={2025} mode="highlight" highlight={highlight} onSelect={(k) => nav(`/district/${k}`)} testId="state-map" /></div>
@@ -89,7 +94,7 @@ function StateView({ name }: { name: string }) {
       </div>
       <section className="panel">
         <h2>How its districts were formed</h2>
-        <p className="sub">Every lineage edge into a district now in {data.state}, window by window. km² is the land that moved.</p>
+        <p className="sub">Each time a new district was made from another's land, grouped by the two maps between which it happened. km² is the land that moved.</p>
         {Object.keys(byWindow).length === 0 && <p className="empty">No district here was formed from another's land.</p>}
         <div className="stack">{Object.entries(byWindow).map(([w, edges]) => (
           <div key={w} className="stack">

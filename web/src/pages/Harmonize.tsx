@@ -86,10 +86,17 @@ export default function Harmonize() {
   return (
     <main className="page">
       <div className="page-head">
+        <p className="eyebrow">Restating statistics</p>
         <h1>Harmonize your data</h1>
-        <p className="lede">Restate district statistics reported on any census-era map onto the 2025 districts. Each reported name is matched to
-          the district identity that carried it, in the same state, on the map the figures report on; totals are then shared among 2025
-          districts by area. Your file is processed in memory and is not stored.</p>
+        <p className="lede">Have district figures from an old census, reported on districts that no longer exist? Upload them and get them
+          restated on today's 2025 districts. Each name is matched to the district that carried it, in that state, on the map the figures
+          report on; totals are then shared among today's districts by area, using the <Link to="/crosswalk">crosswalk</Link>.</p>
+        <ol className="steps-inline">
+          <li><b>Upload</b> a CSV: one row per district, with a name, state, year and value.</li>
+          <li><b>Check</b> which column is which, and whether the value is a total or a rate.</li>
+          <li><b>Get</b> the restated values, every unmatched row with suggestions, and both as downloads.</li>
+        </ol>
+        <p className="muted small">Your file is processed in memory and never stored. Nothing is guessed: rows that cannot be matched are listed, not dropped silently.</p>
       </div>
 
       <section className="panel stack">
