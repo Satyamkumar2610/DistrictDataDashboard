@@ -3,16 +3,31 @@
 export type Meta = { pipeline_version: string; config_sha256: string; events_csv_sha256: string; reference_year: number };
 type Envelope<T> = { meta: Meta; data: T };
 
+/** A failed API call. status 0 means the server could not be reached at all. */
+export class ApiError extends Error {
+  constructor(public status: number, message: string) { super(message); this.name = "ApiError"; }
+  /** Not the request's fault: the service is down, unreachable or failing. Worth a retry. */
+  get transient() { return this.status === 0 || this.status >= 500; }
+}
+
+async function fetchApi(path: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(`/api${path}`, init);
+  } catch {
+    throw new ApiError(0, `could not reach the data service (${path})`);
+  }
+}
+
 export async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`/api${path}`);
-  if (!res.ok) throw new Error(`${res.status} ${path}: ${(await res.text()).slice(0, 200)}`);
+  const res = await fetchApi(path);
+  if (!res.ok) throw new ApiError(res.status, `${res.status} ${path}: ${(await res.text()).slice(0, 200)}`);
   return ((await res.json()) as Envelope<T>).data;
 }
 
 export type HarmonizeRow = { name: string; state: string; year: number; value: string };
 export type HarmonizeResult = {
   indicator: string; method: string; assumption: string;
-  summary: { rows: number; linked: number; ambiguous: number; unlinked: number; before_first_map: number; no_value: number; value_linked: number; value_allocated: number };
+  summary: { rows: number; linked: number; ambiguous: number; duplicate: number; unlinked: number; before_first_map: number; no_value: number; value_linked: number; value_allocated: number };
   links: { row: number; raw_name: string; state: string; year: number; map_year: number | null; value: number | null; link_status: string;
     canonical_key: string | null; matched_name: string | null; boundary_uncertain: boolean;
     candidates: { canonical_key: string; district_name: string; state: string }[] }[];
@@ -21,16 +36,17 @@ export type HarmonizeResult = {
 };
 
 export async function harmonize(body: { rows: HarmonizeRow[]; kind: string; indicator: string; map_year: number | null }): Promise<HarmonizeResult> {
-  const res = await fetch("/api/harmonize", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const res = await fetchApi("/harmonize", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   if (!res.ok) {
     const detail = await res.json().catch(() => null);
-    throw new Error(typeof detail?.detail === "string" ? detail.detail : `${res.status}: the server could not harmonize this file`);
+    throw new ApiError(res.status, typeof detail?.detail === "string" ? detail.detail : `${res.status}: the server could not harmonize this file`);
   }
   return ((await res.json()) as Envelope<HarmonizeResult>).data;
 }
 
 export async function getMeta(): Promise<Meta> {
-  const res = await fetch("/api/meta");
+  const res = await fetchApi("/meta");
+  if (!res.ok) throw new ApiError(res.status, `${res.status} /meta`);
   return ((await res.json()) as Envelope<unknown>).meta;
 }
 
@@ -54,6 +70,7 @@ export type Edge = {
 export type Transfer = {
   transfer_id: string; from_ck: string; to_ck: string; year_a: number; year_b: number; period_start: number;
   period_end: number; transfer_km2: number; outflow_share: number; inflow_share: number; from_name: string; to_name: string;
+  reversal_km2?: number; is_reversed?: boolean;
 };
 export type Timeline = {
   maps: { year: number; depicted_year: number; district_name: string; state: string; area_km2: number }[];

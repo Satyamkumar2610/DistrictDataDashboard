@@ -5,6 +5,7 @@ from __future__ import annotations
 import functools
 import re
 import unicodedata
+from collections.abc import Callable
 
 import pandas as pd
 
@@ -183,3 +184,100 @@ def names_agree(a_norm: str, b_norm: str) -> tuple[bool, float]:
     if a_norm == b_norm or (a_norm, b_norm) in _alias_pairs():
         return True, sim
     return (sim >= CFG["identity"]["name_jw"] and not is_qualified_derivative(a_norm, b_norm)), sim
+
+
+# ---- linkage keys (s07 parsing, s08 record linkage; never identity) ---------------------------
+# Identity (s04) compares names with names_agree() and is untouched by anything below, so
+# changing a linkage key can never renumber a canonical key.
+
+# Hindi / Bengali / Kannada directional words and their English equivalents: "Paschim Medinipur"
+# and "Medinipur West" are one name, "Uttara Kannada" is "North Kanara".
+_QUALIFIER_EN = {
+    "purba": "east", "purbi": "east", "paschim": "west", "pashchim": "west", "pashchimi": "west",
+    "uttar": "north", "uttara": "north", "dakshin": "south", "dakshina": "south", "madhya": "central",
+}
+_EN_QUALIFIERS = frozenset(QUALIFIERS - set(_QUALIFIER_EN))
+_UNITS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9}
+_TEENS = {"ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15,
+          "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19}
+_TENS = {"twenty": 20, "thirty": 30, "forty": 40, "fifty": 50}
+
+
+def _numerals(tokens: list[str]) -> list[str]:
+    """Number words to digits: "twenty four parganas" -> "24 parganas"."""
+    out, i = [], 0
+    while i < len(tokens):
+        t = tokens[i]
+        if t in _TENS:
+            n = _TENS[t]
+            if i + 1 < len(tokens) and tokens[i + 1] in _UNITS:
+                n += _UNITS[tokens[i + 1]]
+                i += 1
+            out.append(str(n))
+        elif t in _TEENS:
+            out.append(str(_TEENS[t]))
+        else:
+            out.append(t)
+        i += 1
+    return out
+
+
+def linkage_key(name_norm: str, state_norm: str = "") -> tuple[str, str]:
+    """(stem, qualifiers) of a normalised name for record linkage.
+
+    The documentary alias is resolved first, number words become digits and directional words
+    become English. Qualifiers (north, west, urban, ...) are split off: they DISTINGUISH districts
+    (East Nimar is not West Nimar), so linkage requires them to be equal, while spelling
+    similarity is measured on the stem alone. Measuring it on the whole name let a shared
+    qualifier carry the score ("paschim medinipur" ~ "paschim bardhaman", Jaro-Winkler 0.85).
+    A name that is only qualifiers keeps them as its stem, and a stem that is only the state's
+    own name counts as empty ("East Sikkim" on a map is "East District" in the events, Sikkim).
+    """
+    if not name_norm:
+        return "", ""
+    tokens = _numerals([_QUALIFIER_EN.get(t, t) for t in alias_key(name_norm).split()])
+    quals = sorted({t for t in tokens if t in _EN_QUALIFIERS})
+    # word order is kept: Jaro-Winkler rewards a shared prefix, and sorting the words would break
+    # "Kameng Frontier Division" ~ "Kameng" (compare word-order-free with sorted(stem.split()))
+    stem = [t for t in tokens if t not in _EN_QUALIFIERS]
+    if quals and state_norm and " ".join(stem) == state_norm:
+        stem = []
+    return (" ".join(stem) or " ".join(quals)), " ".join(quals)
+
+
+_PARTS_OF_RE = re.compile(r"^\s*(?:the\s+)?parts?\s+of\s+", re.IGNORECASE)
+
+
+def split_name_alternatives(value: object) -> list[str]:
+    """'Bhimnagar/Sambhal' is ONE district under two names (Uttar Pradesh named Sambhal, Hapur and
+    Shamli Bhimnagar, Panchsheel Nagar and Prabuddhanagar in 2011 and reverted in 2012), not two
+    districts. Returns the alternatives, in the order written."""
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return []
+    return [p for p in (x.strip() for x in str(value).split("/")) if p]
+
+
+def parse_participants(value: object, is_known: Callable[[str], bool]) -> list[tuple[str, bool]]:
+    """Participants named in one events-CSV field, as (name, partial).
+
+    Commas always separate districts. "and" separates districts only when the whole name is not a
+    known district ("Dadra and Nagar Haveli", "United Khasi and Jaintia Hills" stay whole) and every
+    piece is ("Malabar and South Kanara", "Moradabad and Badaun"). "Parts of A and B" names A and B,
+    each contributing only part of its territory (partial=True). `is_known(name_norm)` says whether a
+    name is a district on some map or a documented alias.
+    """
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return []
+    out: list[tuple[str, bool]] = []
+    for chunk in (c.strip().rstrip(".").strip() for c in str(value).split(",")):
+        if not chunk:
+            continue
+        partial = bool(_PARTS_OF_RE.match(chunk))
+        chunk = _PARTS_OF_RE.sub("", chunk).strip()
+        pieces = [p.strip().rstrip(".").strip() for p in re.split(r"\s+(?:and|&)\s+", chunk, flags=re.IGNORECASE)]
+        pieces = [p for p in pieces if p]
+        whole_known = any(is_known(normalize_name(a)) for a in split_name_alternatives(chunk))
+        split = (len(pieces) > 1 and not whole_known
+                 and all(any(is_known(normalize_name(a)) for a in split_name_alternatives(p)) for p in pieces))
+        out.extend((p, partial) for p in (pieces if split else [chunk]))
+    return out

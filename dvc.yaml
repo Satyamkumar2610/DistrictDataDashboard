@@ -124,6 +124,8 @@ stages:
       - district_evolution/core
       - district_evolution/contracts
       - data/bronze/events/district_evolution_master.csv
+      - data/reference/name_aliases.csv
+      - data/gold/core/ck_observation.parquet
     outs:
       - data/gold/events/boundary_event.parquet: {cache: false}
       - data/gold/events/event_participant.parquet: {cache: false}
@@ -156,6 +158,7 @@ stages:
       - data/gold/events/boundary_event.parquet
       - data/gold/events/event_participant.parquet
       - data/gold/events/participant_ck_candidate.parquet
+      - outputs/events/s08_splink_model.json
       - data/gold/events/district_relationship.parquet
       - data/gold/core/ck_registry.parquet
       - data/gold/core/ck_observation.parquet
@@ -350,6 +353,7 @@ stages:
   s11_warehouse:
     cmd: python -m district_evolution.stages.s11_warehouse
     deps:
+      - data/reference/reviewed_exceptions.csv
       - district_evolution/stages/s11_warehouse.py
       - district_evolution/core
       - config/pipeline.yaml

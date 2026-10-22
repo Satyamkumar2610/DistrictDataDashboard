@@ -7,7 +7,11 @@ Rules (Architecture v0.3 §13, WP4):
 - a statistic's year maps to the latest map depicting no later than that year, unless the source
   declares the boundaries it reports on (map_year); if an event touching the district falls
   between the map and the year, the value is flagged boundary_uncertain;
-- nothing is imputed: districts that did not report lower the target's coverage_score.
+- nothing is imputed: districts that did not report lower the target's coverage_score;
+- nothing is counted twice: when two reported rows of one indicator and year resolve to the same
+  identity ("Alleppey" and "Alappuzha" in one table, or one district reported twice), every one of
+  them is DUPLICATE_IDENTITY and none is allocated, since summing them would double the total and
+  keeping either would be a guess.
 """
 
 from __future__ import annotations
@@ -82,6 +86,10 @@ def link(obs: pd.DataFrame, tables: Path | None = None) -> pd.DataFrame:
         status.append("LINKED" if len(ids) == 1 else ("AMBIGUOUS" if ids else "UNLINKED"))
     out["canonical_key"] = cks
     out["link_status"] = status
+    keys = [c for c in ("indicator", "year") if c in out] + ["canonical_key"]
+    dup = (out.link_status == "LINKED") & out[out.link_status == "LINKED"].duplicated(keys, keep=False).reindex(
+        out.index, fill_value=False)
+    out.loc[dup, "link_status"] = "DUPLICATE_IDENTITY"
     depicted = [core.depicted_year(s, int(m)) if pd.notna(m) else None for s, m in zip(out.state, out.map_year, strict=True)]
     out["boundary_uncertain"] = [bool(c) and any(d < e <= y for e in event_years.get(c, []))
                                  for c, d, y in zip(out.canonical_key, depicted, out.year, strict=True)]

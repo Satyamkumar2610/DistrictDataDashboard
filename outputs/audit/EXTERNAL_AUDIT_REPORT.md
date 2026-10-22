@@ -11,25 +11,25 @@ Current Wikidata district items with coordinates: 779.
 
 | verdict                    |   n |
 |:---------------------------|----:|
-| GEOMETRY_AND_NAME          | 633 |
-| GEOMETRY_ONLY_NAME_DIFFERS | 145 |
+| GEOMETRY_AND_NAME          | 636 |
+| GEOMETRY_ONLY_NAME_DIFFERS | 142 |
 | NO_POLYGON                 |   1 |
 
 Our 733 active districts matched to a Wikidata item by geometry and name:
-**633** (86.4%).
-Not matched: 100. Wikidata items whose point falls in one of our districts but whose
+**636** (86.8%).
+Not matched: 97. Wikidata items whose point falls in one of our districts but whose
 name differs are listed in `wikidata_match.csv`. They are mostly districts formed after the SOI
 2025 map, or outdated coordinates.
 
 ## 2. Area (our 2025 geodesic area vs Wikidata)
 
-Compared: 574 districts. Median absolute difference: 1.60%.
+Compared: 576 districts. Median absolute difference: 1.60%.
 
 | verdict                           |   n |
 |:----------------------------------|----:|
-| AGREE_WITHIN_2PCT                 | 305 |
+| AGREE_WITHIN_2PCT                 | 306 |
 | MINOR_2_TO_10PCT                  | 124 |
-| UNEXPLAINED_OVER_10PCT            |  52 |
+| UNEXPLAINED_OVER_10PCT            |  53 |
 | DISTRICT_REORGANISED_AFTER_2011   |  46 |
 | WIKIDATA_MATCHES_OUR_EARLIER_AREA |  41 |
 | WIKIDATA_MAGNITUDE_ERROR          |   6 |
@@ -45,13 +45,14 @@ How to read the verdicts:
   so an undated Wikidata figure may predate it.
 
 Share of compared districts that agree or whose difference is explained:
-**90.9%**.
+**90.8%**.
 
-Unexplained differences over 10% (52). These are leads to check against official figures:
+Unexplained differences over 10% (53). These are leads to check against official figures:
 
 | label                        | our_name       |   wd_area_km2 |   our_area_2025_km2 |   our_area_2011_km2 |   rel_diff_2025 |
 |:-----------------------------|:---------------|--------------:|--------------------:|--------------------:|----------------:|
 | Harda district               | Harda          |         26    |            3341.42  |            3316.49  |         127.516 |
+| Poonch district              | Punch          |       1674    |            4246.79  |            1795.84  |           1.537 |
 | Chennai district             | Chennai        |        174    |             334.375 |             177.646 |           0.922 |
 | Srinagar district            | Srinagar       |       1979    |             281.804 |             477.218 |          -0.858 |
 | Shravasti district           | Shrawasti      |       1126    |            1931.14  |            1953.7   |           0.715 |
@@ -80,7 +81,6 @@ Unexplained differences over 10% (52). These are leads to check against official
 | Udaipur district             | Udaipur        |      14621    |           11712.2   |           11682.8   |          -0.199 |
 | Kulgam district              | Kulgam         |       1067    |            1265.72  |            1165.83  |           0.186 |
 | Nuh district                 | Mewat          |       1860    |            1515.06  |            1531.02  |          -0.185 |
-| Rudraprayag district         | Rudraprayag    |       2439    |            1987.94  |            1985.48  |          -0.185 |
 
 ## 3. Formation year (Wikidata inception vs the map where our CK first appears)
 
@@ -108,14 +108,13 @@ coverage.
 For each new district we take its creation year from the events compilation. That source is
 independent of the maps. Where Wikidata also has an inception year, it is used to corroborate.
 Dates confirmed in `data/reference/vintage_depiction.csv` are applied first. Of 391 new
-districts with a recorded creation year, **7** still appear on a
+districts with a recorded creation year, **6** still appear on a
 map depicting a date before that year.
 
 | state             |   first_map |   new_on_map |   wikidata_confirms |   named_new_districts |
 |:------------------|------------:|-------------:|--------------------:|----------------------:|
 | Arunachal Pradesh |        1981 |            2 |                   0 |                     6 |
 | Arunachal Pradesh |        1961 |            1 |                   0 |                     1 |
-| Jammu And Kashmir |        1961 |            1 |                   0 |                     7 |
 | Manipur           |        1981 |            1 |                   0 |                     2 |
 | Punjab            |        1961 |            1 |                   0 |                     1 |
 | Tamil Nadu        |        2001 |            1 |                   0 |                     7 |

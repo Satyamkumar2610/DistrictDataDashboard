@@ -138,6 +138,7 @@ SCHEMAS: dict[str, DataFrameSchema] = {
         "period_start": Column(int), "period_end": Column(int),
         "transfer_km2": Column(float, Check.gt(0)),
         "outflow_share": Column(float, SHARE), "inflow_share": Column(float, SHARE),
+        "reversal_km2": Column(float, Check.ge(0)), "is_reversed": Column(bool),
     }, checks=[Check(lambda d: d.from_ck != d.to_ck, error="no self edges")]),
 
     # ---- s06 ledger --------------------------------------------------------
@@ -171,6 +172,8 @@ SCHEMAS: dict[str, DataFrameSchema] = {
         "role": Column(str, Check.isin(["PREDECESSOR", "SUCCESSOR"])),
         "district_name_raw": Column(str, Check.str_length(min_value=1)),
         "name_norm": Column(str, Check.str_length(min_value=1)),
+        "name_alternatives_norm": Column(str, Check.str_length(min_value=1)),
+        "partial": Column(bool),
         "event_state_norm": Column(str),
     }),
 
@@ -181,6 +184,8 @@ SCHEMAS: dict[str, DataFrameSchema] = {
         "record_name_norm": Column(str), "record_state_norm": Column(str),
         "match_probability": Column(float, Check.in_range(0, 1)),
         "match_weight": Column(float),
+        "name_evidence": Column(str, Check.isin(["EXACT", "ALIAS_OR_KEY", "SPELLING_0.95", "SPELLING_0.88",
+                                                 "SPELLING_0.80", "NONE"])),
     }, unique=["name_norm", "event_state_norm", "canonical_key", "year"]),
 
     # ---- s09 reconciliation ------------------------------------------------
@@ -313,7 +318,8 @@ SCHEMAS.update({
         "map_year": Column(float, Check.isin(YEARS), nullable=True),
         "value": Column(float, nullable=True), "unit": Column(str, TEXT), "source": Column(str, TEXT),
         "canonical_key": Column(str, CK, nullable=True),
-        "link_status": Column(str, Check.isin(["LINKED", "AMBIGUOUS", "UNLINKED", "BEFORE_FIRST_MAP"])),
+        "link_status": Column(str, Check.isin(["LINKED", "AMBIGUOUS", "DUPLICATE_IDENTITY", "UNLINKED",
+                                               "BEFORE_FIRST_MAP"])),
         "boundary_uncertain": Column(bool),
     }, checks=[Check(lambda d: (d.link_status == "LINKED") == d.canonical_key.notna(),
                      error="an observation has a key exactly when it is linked")]),

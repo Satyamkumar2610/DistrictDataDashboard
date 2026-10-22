@@ -1,5 +1,5 @@
 {
-  "pipeline_version": "4.0.0",
+  "pipeline_version": "4.1.0",
   "columns": [
     {
       "table": "ck_registry",
@@ -574,6 +574,28 @@
       "source_stage": "s05_lineage"
     },
     {
+      "table": "measured_area_transfer",
+      "column": "reversal_km2",
+      "dtype": "float64",
+      "nullable": false,
+      "unique": false,
+      "unit": "km²",
+      "allowed": ">= 0",
+      "meaning": "Material area moving back between the same two districts within two maps either side (km²)",
+      "source_stage": "s05_lineage"
+    },
+    {
+      "table": "measured_area_transfer",
+      "column": "is_reversed",
+      "dtype": "bool",
+      "nullable": false,
+      "unique": false,
+      "unit": "",
+      "allowed": "",
+      "meaning": "True when reversal_km2 is at least 80% of the transfer: the signature of two map editions disagreeing on a line, not of an administrative change (config lineage.reversal_*)",
+      "source_stage": "s05_lineage"
+    },
+    {
       "table": "area_ledger",
       "column": "canonical_key",
       "dtype": "str",
@@ -879,6 +901,28 @@
       "unit": "",
       "allowed": "1 to None",
       "meaning": "Matching key of that name (normalised)",
+      "source_stage": "s07_events_aggregate"
+    },
+    {
+      "table": "event_participant",
+      "column": "name_alternatives_norm",
+      "dtype": "str",
+      "nullable": false,
+      "unique": false,
+      "unit": "",
+      "allowed": "1 to None",
+      "meaning": "Every name the participant is written under, ';'-separated ('Bhimnagar/Sambhal' is one district under two names); s08/s09 match any of them",
+      "source_stage": "s07_events_aggregate"
+    },
+    {
+      "table": "event_participant",
+      "column": "partial",
+      "dtype": "bool",
+      "nullable": false,
+      "unique": false,
+      "unit": "",
+      "allowed": "",
+      "meaning": "True when the compilation says only part of this district's territory was involved ('Parts of Meerut and Bulandshahr')",
       "source_stage": "s07_events_aggregate"
     },
     {
@@ -1669,8 +1713,8 @@
       "nullable": false,
       "unique": false,
       "unit": "",
-      "allowed": "one of LINKED, AMBIGUOUS, UNLINKED, BEFORE_FIRST_MAP",
-      "meaning": "LINKED, AMBIGUOUS (several identities fit), UNLINKED, or BEFORE_FIRST_MAP",
+      "allowed": "one of LINKED, AMBIGUOUS, DUPLICATE_IDENTITY, UNLINKED, BEFORE_FIRST_MAP",
+      "meaning": "LINKED, AMBIGUOUS (several identities fit), DUPLICATE_IDENTITY (another row of the same indicator and year resolves to the same identity; neither is allocated), UNLINKED, or BEFORE_FIRST_MAP",
       "source_stage": "h01_stat_observation"
     },
     {

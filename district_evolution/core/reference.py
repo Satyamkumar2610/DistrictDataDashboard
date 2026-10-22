@@ -21,6 +21,17 @@ def state_lineage_graph() -> nx.DiGraph:
 
 
 @functools.lru_cache(maxsize=4096)
+def lineal_states(state_norm: str) -> frozenset[str]:
+    """A state, its ancestors and its descendants in the reorganisation graph: the states its
+    territory belonged to before or after (Uttarakhand <-> Uttar Pradesh, Chandigarh <-> Punjab).
+    Siblings (Kerala / Andhra Pradesh via Madras) are excluded: they share a parent, not land."""
+    g = state_lineage_graph()
+    if state_norm not in g:
+        return frozenset({state_norm})
+    return frozenset({state_norm} | nx.ancestors(g, state_norm) | nx.descendants(g, state_norm))
+
+
+@functools.lru_cache(maxsize=4096)
 def compatible_states(state_norm: str) -> frozenset[str]:
     """States a district recorded under `state_norm` may appear under at another
     date: itself, its ancestors and descendants in the reorganisation graph, and

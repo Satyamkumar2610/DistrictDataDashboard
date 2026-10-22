@@ -9,6 +9,7 @@ type Mapping = { name: string; state: string; year: string; value: string; fixed
 
 const STATUS: Record<string, string> = {
   LINKED: "linked", AMBIGUOUS: "more than one district had this name", UNLINKED: "no district had this name",
+  DUPLICATE_IDENTITY: "another row is the same district in the same year; neither was used, to avoid counting it twice",
   BEFORE_FIRST_MAP: "year is before the 1951 map", NO_VALUE: "value is not a number",
 };
 
@@ -156,6 +157,7 @@ export default function Harmonize() {
             <p>
               <b>{fmt(result.summary.linked)}</b> of {fmt(result.summary.rows)} rows matched a district identity
               {result.summary.ambiguous > 0 && <>; {fmt(result.summary.ambiguous)} ambiguous</>}
+              {result.summary.duplicate > 0 && <>; {fmt(result.summary.duplicate)} duplicated (not used)</>}
               {result.summary.unlinked > 0 && <>; {fmt(result.summary.unlinked)} not found</>}
               {result.summary.before_first_map > 0 && <>; {fmt(result.summary.before_first_map)} before the 1951 map</>}
               {result.summary.no_value > 0 && <>; {fmt(result.summary.no_value)} without a numeric value</>}.

@@ -103,7 +103,7 @@ def test_overview_event_status_matches_the_pipeline_rule(api):
     totals = {}
     for e in events:
         totals[e["status"]] = totals.get(e["status"], 0) + e["events"]
-    assert totals == {"MEASURED": 399, "UNIDENTIFIED_MULTI_EVENT_WINDOW": 189, "NOT_MEASURABLE": 21}
+    assert totals == {"MEASURED": 402, "UNIDENTIFIED_MULTI_EVENT_WINDOW": 192, "NOT_MEASURABLE": 15}
 
 
 def test_release_states_its_validation(api):

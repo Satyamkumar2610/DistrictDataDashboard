@@ -15,7 +15,13 @@ already existed) to a new CK first mapped at least one map later and built mostl
 (>= lineage.reconstitution_share) from its land.
 
 BOUNDARY_DISPLACEMENT and SLIVER area never create edges or transfers; it is
-reported separately. Event corroboration is added by s09 in its own table, so
+reported separately.
+
+A measured transfer is REVERSED (reversal_km2 > 0, is_reversed) when material area flows back
+between the same two districts within lineage.reversal_windows maps either side, amounting to at
+least lineage.reversal_share of it: the signature of two map editions disagreeing, not of
+administration (Udaipur <-> Ajmer). The flag is evidence for users and the research queue; the
+transfer itself is never removed. Event corroboration is added by s09 in its own table, so
 geometry-derived lineage is never rewritten by event data. The lineage graph
 is validated as a DAG with networkx (L-1).
 """
@@ -73,6 +79,21 @@ def reconstitutions(reg: pd.DataFrame, rel: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=cols).assign(relationship_type="RECONSTITUTED_FROM")
 
 
+def reversals(xfer: pd.DataFrame) -> pd.DataFrame:
+    """reversal_km2: material area moving the opposite way between the same two districts within
+    reversal_windows maps either side; is_reversed when it reaches reversal_share of the transfer."""
+    cfg = core.CFG["lineage"]
+    w = {y: i for i, y in enumerate(core.YEARS)}
+    back = xfer[["from_ck", "to_ck", "year_a", "transfer_km2"]].rename(
+        columns={"from_ck": "to_ck", "to_ck": "from_ck", "year_a": "year_back", "transfer_km2": "back_km2"})
+    pairs = xfer[["from_ck", "to_ck", "year_a"]].reset_index().merge(back, on=["from_ck", "to_ck"])
+    gap = (pairs.year_back.map(w) - pairs.year_a.map(w)).abs()
+    pairs = pairs[(gap >= 1) & (gap <= cfg["reversal_windows"])]
+    xfer["reversal_km2"] = pairs.groupby("index").back_km2.sum().reindex(xfer.index).fillna(0.0)
+    xfer["is_reversed"] = xfer.reversal_km2 >= cfg["reversal_share"] * xfer.transfer_km2
+    return xfer
+
+
 def main() -> None:
     reg = pd.read_parquet(core.GOLD_CORE_DIR / "ck_registry.parquet")
     established = dict(zip(reg.canonical_key, reg.established_year, strict=True))
@@ -107,10 +128,10 @@ def main() -> None:
                "period_start", "period_end", "transfer_km2", "outflow_share", "inflow_share", "lineage_basis"]
               ].sort_values(["year_b", "from_ck", "to_ck"])
 
-    xfer = cross[~is_new].copy()
+    xfer = reversals(cross[~is_new].copy())
     xfer["transfer_id"] = [core.stable_id("XFER", r.from_ck, r.to_ck, r.year_a, r.year_b) for r in xfer.itertuples()]
     xfer = xfer[["transfer_id", "from_ck", "to_ck", "year_a", "year_b", "period_start", "period_end",
-                 "transfer_km2", "outflow_share", "inflow_share"]].sort_values(["year_b", "from_ck", "to_ck"])
+                 "transfer_km2", "outflow_share", "inflow_share", "reversal_km2", "is_reversed"]].sort_values(["year_b", "from_ck", "to_ck"])
 
     disp = f[(f.from_ck != f.to_ck) & (f.displacement_km2 > 0)][
         ["year_a", "year_b", "from_ck", "to_ck", "displacement_km2"]]
@@ -129,6 +150,8 @@ def main() -> None:
     lineage_graph.ancestry(dag).to_csv(core.OUTPUT_DIR / "s05_district_ancestry.csv", index=False)
 
     print(rel.relationship_type.value_counts().to_string())
+    print(f"reversed transfers (edition disagreement signature): {int(xfer.is_reversed.sum())} "
+          f"({xfer.loc[xfer.is_reversed, 'transfer_km2'].sum():,.0f} km2)")
     print(f"lineage edges: {len(rel)}  measured transfers: {len(xfer)} ({xfer.transfer_km2.sum():,.0f} km2)  "
           f"displacement pairs: {len(disp)} ({disp.displacement_km2.sum():,.0f} km2)  DAG: acyclic")
 

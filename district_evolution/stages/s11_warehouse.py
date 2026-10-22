@@ -28,6 +28,7 @@ import duckdb
 import pandas as pd
 
 from district_evolution import core
+from district_evolution.stages.s08_event_linkage import STRONG_NAME_EVIDENCE
 
 G = core.PROJECT_ROOT / "data" / "gold"
 P = core.PRODUCTS_DIR
@@ -100,6 +101,7 @@ CREATE TABLE measured_area_transfer (
   to_ck VARCHAR NOT NULL REFERENCES ck_registry(canonical_key), year_a INTEGER NOT NULL, year_b INTEGER NOT NULL,
   period_start INTEGER NOT NULL, period_end INTEGER NOT NULL CHECK (period_end > period_start),
   transfer_km2 DOUBLE NOT NULL CHECK (transfer_km2 > 0), outflow_share DOUBLE NOT NULL, inflow_share DOUBLE NOT NULL,
+  reversal_km2 DOUBLE NOT NULL CHECK (reversal_km2 >= 0), is_reversed BOOLEAN NOT NULL,
   CHECK (from_ck <> to_ck));
 
 CREATE TABLE boundary_event (
@@ -111,7 +113,8 @@ CREATE TABLE boundary_event (
 CREATE TABLE event_participant (
   participant_id VARCHAR PRIMARY KEY, event_id VARCHAR NOT NULL REFERENCES boundary_event(event_id),
   role VARCHAR NOT NULL CHECK (role IN ('PREDECESSOR','SUCCESSOR')), district_name_raw VARCHAR NOT NULL,
-  name_norm VARCHAR NOT NULL, event_state_norm VARCHAR);
+  name_norm VARCHAR NOT NULL, name_alternatives_norm VARCHAR NOT NULL, partial BOOLEAN NOT NULL,
+  event_state_norm VARCHAR);
 
 CREATE TABLE event_linkage (
   participant_id VARCHAR PRIMARY KEY REFERENCES event_participant(participant_id),
@@ -263,9 +266,14 @@ def invariants(con: duckdb.DuckDBPyConnection) -> list[tuple]:
              WHERE a > t * (1 + {core.CFG['closure']['tol_pct']} / 100) + {core.CFG['closure']['tol_km2']})"""),
         ("V16", "area ledger closure beyond tolerance", "WARNING",
          "SELECT count(*) FROM district_ledger WHERE NOT closure_ok"),
-        ("V17", "overlap repair changed a polygon's area by more than 0.1% (review)", "WARNING",
-         f"""SELECT count(*) FROM read_csv('{(core.OUTPUT_DIR / "s01_overlap_repairs.csv").as_posix()}')
-             WHERE area_removed_km2 / area_before_km2 > 0.001"""),
+        # a repair reviewed in data/reference/reviewed_exceptions.csv is exempt only while its cut
+        # stays within the reviewed max_value: a larger cut on the same polygon warns again
+        ("V17", "overlap repair changed a polygon's area by more than 0.1% (review; reviewed_exceptions.csv)", "WARNING",
+         f"""SELECT count(*) FROM read_csv('{(core.OUTPUT_DIR / "s01_overlap_repairs.csv").as_posix()}') r
+             LEFT JOIN (SELECT geom_obs_id, max_value FROM read_csv('{(core.REFERENCE_DIR / "reviewed_exceptions.csv").as_posix()}',
+                        types={{'geom_obs_id': 'VARCHAR', 'max_value': 'DOUBLE'}}) WHERE check_id = 'V17') x USING (geom_obs_id)
+             WHERE r.area_removed_km2 / r.area_before_km2 > 0.001
+               AND (x.max_value IS NULL OR r.area_removed_km2 > x.max_value)"""),
         ("V21", "evidence claim linked to a CK that does not exist", "ERROR",
          """SELECT count(*) FROM claim_ck_link l LEFT JOIN ck_registry r USING (canonical_key)
              WHERE l.canonical_key IS NOT NULL AND r.canonical_key IS NULL"""),
@@ -276,8 +284,11 @@ def invariants(con: duckdb.DuckDBPyConnection) -> list[tuple]:
              WHERE abs(c.on_reference_km2 + c.unallocated_km2 - greatest(c.area_km2, c.on_reference_km2)) > {eps}
                 OR abs(c.on_reference_km2 - coalesce(x.s, 0)) > {eps}"""),
         ("V27", "a linkage probability class lies near the match threshold (links may flip; see config linkage)", "WARNING",
+         # only strong-name classes meet the map-wide threshold (s09); weaker ones are re-weighed in a footprint
          f"""SELECT count(*) FROM (SELECT round(match_probability, 3) AS p, count(*) AS n
-                                   FROM participant_ck_candidate GROUP BY 1)
+                                   FROM participant_ck_candidate
+                                   WHERE name_evidence IN ({", ".join(f"'{e}'" for e in sorted(STRONG_NAME_EVIDENCE))})
+                                   GROUP BY 1)
              WHERE n >= {core.CFG['linkage']['class_min_pairs']}
                AND abs(p - {core.CFG['linkage']['min_match_probability']}) < {core.CFG['linkage']['threshold_margin']}"""),
         ("V25", "a placeholder (unnamed or disputed strip) holds a district identity", "ERROR",

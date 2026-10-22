@@ -53,7 +53,7 @@ test("how it works quotes the method and the live release figures", async ({ pag
   const about = page.getByTestId("about-page");
   await expect(about).toContainText("at least 90% of its land");
   await expect(about).toContainText("785 district identities");
-  await expect(about).toContainText("399 of 609 events are measured exactly");
+  await expect(about).toContainText("402 of 609 events are measured exactly");
 });
 
 test("the header search opens any district from any page", async ({ page }) => {

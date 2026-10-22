@@ -255,11 +255,12 @@ export default function District() {
       {tl.data && tl.data.transfers.length > 0 && (
         <details className="panel more">
           <summary>All {tl.data.transfers.length} transfers with districts that carried on, as a table</summary>
-          <div className="scroll" tabIndex={0}><table className="data"><thead><tr><th>between maps</th><th>from</th><th>to</th><th className="r">km²</th><th className="r">share of giver</th></tr></thead>
+          <div className="scroll" tabIndex={0}><table className="data"><thead><tr><th>between maps</th><th>from</th><th>to</th><th className="r">km²</th><th className="r">share of giver</th><th>comes back later?</th></tr></thead>
             <tbody>{tl.data.transfers.map((t) => (
               <tr key={t.transfer_id}><td className="num">{t.year_a}–{t.year_b}</td>
                 <td><Link viewTransition to={`/district/${t.from_ck}`}>{t.from_name}</Link></td><td><Link viewTransition to={`/district/${t.to_ck}`}>{t.to_name}</Link></td>
-                <td className="r num">{fmt(t.transfer_km2)}</td><td className="r num">{pct(t.outflow_share, 1)}</td></tr>))}</tbody></table></div>
+                <td className="r num">{fmt(t.transfer_km2)}</td><td className="r num">{pct(t.outflow_share, 1)}</td>
+                <td>{t.is_reversed ? <span className="chip warn" title={`${fmt(t.reversal_km2 ?? 0)} km² moves back between these two districts within two maps: the usual sign of two map editions drawing a line differently, not of a real transfer`}>yes, likely a map difference</span> : <span className="muted">no</span>}</td></tr>))}</tbody></table></div>
           <span className="src">Source: measured_area_transfer</span>
         </details>)}
 

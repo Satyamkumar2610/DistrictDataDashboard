@@ -9,6 +9,15 @@ both types; `recorded_as` keeps the original types for provenance. A
 1-parent-3-children split is therefore one event with three successors
 (conservation is testable only at this grain). RENAME rows are already 1:1.
 
+Compound names (core.parse_participants, core.split_name_alternatives):
+  "A, B" and "A and B"   several districts, but "and" splits only when the whole name is not a
+                         known district and every piece is ("Dadra and Nagar Haveli" stays whole;
+                         "United Khasi and Jaintia Hills" stays whole: it is one district on the
+                         1971 map). Known = a name on some map or a documented alias.
+  "Parts of A and B"     A and B, each marked partial (it gave only part of its territory)
+  "A/B"                  ONE district under two names (Bhimnagar/Sambhal); the participant keeps
+                         both as `name_alternatives_norm` and s08/s09 match either.
+
 `event_state` is the state the CSV files the event under. It describes the
 event's context at the time, not where each participant is mapped later: a
 successor can sit in a reorganised state. s08/s09 therefore use it only as
@@ -22,15 +31,26 @@ import pandas as pd
 from district_evolution import core
 
 
+def known_names() -> frozenset[str]:
+    """Normalised district names on any map, plus every documented alias and its canonical name."""
+    obs = pd.read_parquet(core.GOLD_CORE_DIR / "ck_observation.parquet", columns=["district_name"])
+    a = core.name_aliases()
+    return frozenset(obs.district_name.map(core.normalize_name)) | set(a.alias_norm) | set(a.canonical_norm)
+
+
 def main() -> None:
     df = pd.read_csv(core.EVENTS_CSV)
     df["event_state"] = df["state"].map(core.canonical_state)
+    known = known_names()
     events, parts = [], []
 
-    def add_participant(event_id: str, role: str, name: str, state: str) -> None:
+    def add_participant(event_id: str, role: str, name: str, state: str, partial: bool = False) -> None:
+        alternatives = [core.normalize_name(a) for a in core.split_name_alternatives(name)]
         parts.append({"participant_id": core.stable_id("PART", event_id, role, name),
                       "event_id": event_id, "role": role, "district_name_raw": name,
                       "name_norm": core.normalize_name(name),
+                      "name_alternatives_norm": ";".join(dict.fromkeys(a for a in alternatives if a)),
+                      "partial": partial,
                       "event_state_norm": core.normalize_name(state)})
 
     sub = df[df.event_type.isin(["SPLIT", "NEW_DISTRICT"])]
@@ -39,14 +59,14 @@ def main() -> None:
         types = sorted(set(grp.event_type))
         etype = "SPLIT" if "SPLIT" in types else "NEW_DISTRICT"
         eid = core.stable_id("EVENT", parent, state, year)
-        preds = core.parse_multi_name(parent)
+        preds = core.parse_participants(parent, known.__contains__)
         succs = sorted(set(grp.child_district.dropna().astype(str)))
         events.append({"event_id": eid, "event_type": etype, "recorded_as": "+".join(types),
                        "event_state": state, "parent_district_raw": str(parent), "effective_year": int(year),
                        "n_predecessors": len(preds), "n_successors": len(succs),
                        "n_csv_rows": len(grp), "sources_cited": ";".join(sorted(set(grp.source.astype(str))))})
-        for n in preds:
-            add_participant(eid, "PREDECESSOR", n, state)
+        for n, partial in preds:
+            add_participant(eid, "PREDECESSOR", n, state, partial)
         for n in succs:
             add_participant(eid, "SUCCESSOR", n, state)
 
@@ -71,7 +91,8 @@ def main() -> None:
                     csv_copy=core.EVENTS_OUTPUT_DIR / "s07_boundary_event.csv")
     core.write_table(pt, core.GOLD_EVENTS_DIR / "event_participant.parquet", "event_participant")
     print(f"{len(df)} CSV rows -> {len(ev)} events, {len(pt)} participants; "
-          f"multi-successor events: {(ev.n_successors > 1).sum()}")
+          f"multi-successor events: {(ev.n_successors > 1).sum()}; partial predecessors: {int(pt.partial.sum())}; "
+          f"participants with alternative names: {int(pt.name_alternatives_norm.str.contains(';').sum())}")
 
 
 if __name__ == "__main__":
