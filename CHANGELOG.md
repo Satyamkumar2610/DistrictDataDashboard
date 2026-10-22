@@ -44,7 +44,7 @@ to 4.0.0). Deltas for every regression count are explained in `tests/baselines/v
 ### Validation
 - V17 can be exempted by a reviewed row in `data/reference/reviewed_exceptions.csv`, only while the
   measured value stays at or below the reviewed maximum. One row: the 0.074 km² New Delhi / Central overlap
-  on the Stanford 2001 map (pending owner countersign). Gate: PASS with no warnings.
+  on the Stanford 2001 map, accepted by the owner. Gate: PASS with no warnings.
 
 ### Harmonization
 - Two statistics that link to the same identity in the same year are `DUPLICATE_IDENTITY` and are not
