@@ -269,11 +269,11 @@ def parse_participants(value: object, is_known: Callable[[str], bool]) -> list[t
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return []
     out: list[tuple[str, bool]] = []
-    for chunk in (c.strip().rstrip(".").strip() for c in str(value).split(",")):
-        if not chunk:
+    for raw in (c.strip().rstrip(".").strip() for c in str(value).split(",")):
+        if not raw:
             continue
-        partial = bool(_PARTS_OF_RE.match(chunk))
-        chunk = _PARTS_OF_RE.sub("", chunk).strip()
+        partial = bool(_PARTS_OF_RE.match(raw))
+        chunk = _PARTS_OF_RE.sub("", raw).strip()
         pieces = [p.strip().rstrip(".").strip() for p in re.split(r"\s+(?:and|&)\s+", chunk, flags=re.IGNORECASE)]
         pieces = [p for p in pieces if p]
         whole_known = any(is_known(normalize_name(a)) for a in split_name_alternatives(chunk))

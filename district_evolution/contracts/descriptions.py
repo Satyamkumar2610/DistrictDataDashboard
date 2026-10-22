@@ -71,7 +71,8 @@ DESCRIPTIONS: dict[str, dict[str, str]] = {
         "outflow_share": "Share of the giver's area (0-1)",
         "inflow_share": "Share of the receiver's area (0-1)",
         "reversal_km2": "Material area moving back between the same two districts within two maps either side (km²)",
-        "is_reversed": "True when reversal_km2 is at least 80% of the transfer: the signature of two map editions disagreeing on a line, not of an administrative change (config lineage.reversal_*)",
+        "is_reversed": ("True when reversal_km2 is at least 80% of the transfer: the signature of two map editions "
+                        "disagreeing on a line, not of an administrative change (config lineage.reversal_*)"),
     },
     "area_ledger": {
         "canonical_key": CK,
@@ -107,8 +108,10 @@ DESCRIPTIONS: dict[str, dict[str, str]] = {
         "role": "PREDECESSOR or SUCCESSOR",
         "district_name_raw": "District name as written in the events compilation",
         "name_norm": "Matching key of that name (normalised)",
-        "name_alternatives_norm": "Every name the participant is written under, ';'-separated ('Bhimnagar/Sambhal' is one district under two names); s08/s09 match any of them",
-        "partial": "True when the compilation says only part of this district's territory was involved ('Parts of Meerut and Bulandshahr')",
+        "name_alternatives_norm": ("Every name the participant is written under, ';'-separated ('Bhimnagar/Sambhal' is "
+                                   "one district under two names); s08/s09 match any of them"),
+        "partial": ("True when the compilation says only part of this district's territory was involved "
+                    "('Parts of Meerut and Bulandshahr')"),
         "event_state_norm": "Matching key of the event's state",
     },
     "event_linkage": {
@@ -233,7 +236,8 @@ DESCRIPTIONS: dict[str, dict[str, str]] = {
         "unit": "Unit of value",
         "source": "Publisher, table and edition of the value",
         "canonical_key": "Identity that carried raw_name in a compatible state on map_year; empty unless LINKED",
-        "link_status": "LINKED, AMBIGUOUS (several identities fit), DUPLICATE_IDENTITY (another row of the same indicator and year resolves to the same identity; neither is allocated), UNLINKED, or BEFORE_FIRST_MAP",
+        "link_status": ("LINKED, AMBIGUOUS (several identities fit), DUPLICATE_IDENTITY (another row of the same indicator "
+                        "and year resolves to the same identity; neither is allocated), UNLINKED, or BEFORE_FIRST_MAP"),
         "boundary_uncertain": "An event touching the district falls between map_year and year: its boundary then is not observed",
     },
     "statistical_crosswalk": {

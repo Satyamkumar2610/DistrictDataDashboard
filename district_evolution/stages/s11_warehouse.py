@@ -225,6 +225,7 @@ def invariants(con: duckdb.DuckDBPyConnection) -> list[tuple]:
     area_pct = core.CFG["area_check"]["max_rel_diff_pct"]
     ref = core.REFERENCE_YEAR
     eps = core.CFG["products"]["arithmetic_tol_km2"]
+    exceptions = (core.REFERENCE_DIR / "reviewed_exceptions.csv").as_posix()
     checks = [
         ("V3", "overlay closure broken (excess > closure.error_pct of polygon)", "ERROR",
          f"SELECT count(*) FROM transition_residual WHERE closure_error_km2 > area_km2 * {err_pct} / 100"),
@@ -270,7 +271,7 @@ def invariants(con: duckdb.DuckDBPyConnection) -> list[tuple]:
         # stays within the reviewed max_value: a larger cut on the same polygon warns again
         ("V17", "overlap repair changed a polygon's area by more than 0.1% (review; reviewed_exceptions.csv)", "WARNING",
          f"""SELECT count(*) FROM read_csv('{(core.OUTPUT_DIR / "s01_overlap_repairs.csv").as_posix()}') r
-             LEFT JOIN (SELECT geom_obs_id, max_value FROM read_csv('{(core.REFERENCE_DIR / "reviewed_exceptions.csv").as_posix()}',
+             LEFT JOIN (SELECT geom_obs_id, max_value FROM read_csv('{exceptions}',
                         types={{'geom_obs_id': 'VARCHAR', 'max_value': 'DOUBLE'}}) WHERE check_id = 'V17') x USING (geom_obs_id)
              WHERE r.area_removed_km2 / r.area_before_km2 > 0.001
                AND (x.max_value IS NULL OR r.area_removed_km2 > x.max_value)"""),

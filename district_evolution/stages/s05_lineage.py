@@ -131,7 +131,8 @@ def main() -> None:
     xfer = reversals(cross[~is_new].copy())
     xfer["transfer_id"] = [core.stable_id("XFER", r.from_ck, r.to_ck, r.year_a, r.year_b) for r in xfer.itertuples()]
     xfer = xfer[["transfer_id", "from_ck", "to_ck", "year_a", "year_b", "period_start", "period_end",
-                 "transfer_km2", "outflow_share", "inflow_share", "reversal_km2", "is_reversed"]].sort_values(["year_b", "from_ck", "to_ck"])
+                 "transfer_km2", "outflow_share", "inflow_share", "reversal_km2", "is_reversed"]]
+    xfer = xfer.sort_values(["year_b", "from_ck", "to_ck"])
 
     disp = f[(f.from_ck != f.to_ck) & (f.displacement_km2 > 0)][
         ["year_a", "year_b", "from_ck", "to_ck", "displacement_km2"]]
