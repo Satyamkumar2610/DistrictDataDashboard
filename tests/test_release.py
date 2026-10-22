@@ -228,6 +228,8 @@ def _basic(user: str, password: str) -> dict[str, str]:
 @pytest.fixture
 def private_client():
     """The app wrapped in the same auth middleware a hosted instance runs, over a trivial inner app."""
+    if not (RELEASE / "release_info.json").exists():
+        pytest.skip("release not built; run dvc repro")  # importing the API reads the release
     from fastapi.testclient import TestClient
     from starlette.applications import Starlette
     from starlette.responses import PlainTextResponse

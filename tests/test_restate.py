@@ -8,6 +8,9 @@ from district_evolution.harmonize import engine, restate
 
 TABLES = core.RELEASE_DIR / "tables"
 
+pytestmark = pytest.mark.skipif(not (core.RELEASE_DIR / "MANIFEST.csv").exists(),
+                                reason="release not built; run dvc repro")
+
 
 def kept_share(ck: str, year: int) -> float:
     """Share of a district's land on `year`'s map that lies in 2025 districts (weights are never renormalised)."""

@@ -6,10 +6,14 @@ import subprocess
 import sys
 
 import duckdb
+import pytest
 
 from district_evolution import core
 
 EXAMPLES = core.PROJECT_ROOT / "examples"
+
+pytestmark = pytest.mark.skipif(not (core.RELEASE_DIR / "MANIFEST.csv").exists(),
+                                reason="release not built; run dvc repro")
 
 
 def statements(sql: str) -> list[str]:
