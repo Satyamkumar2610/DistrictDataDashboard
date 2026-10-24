@@ -8,6 +8,9 @@ from district_evolution.harmonize import engine, restate
 
 TABLES = core.RELEASE_DIR / "tables"
 
+pytestmark = pytest.mark.skipif(not (core.RELEASE_DIR / "MANIFEST.csv").exists(),
+                                reason="release not built; run dvc repro")
+
 
 def kept_share(ck: str, year: int) -> float:
     """Share of a district's land on `year`'s map that lies in 2025 districts (weights are never renormalised)."""
@@ -63,9 +66,13 @@ def test_api_harmonize(areas_1991):
     c = TestClient(app)
     body = {"rows": [{"name": "Kangra", "state": "Himachal Pradesh", "year": 1971, "value": "100"},
                      {"name": "Kangra", "state": "", "year": 1971, "value": "1"}], "indicator": "x"}
+    # both rows reach the same identity in the same year: allocating both would count Kangra twice
     d = c.post("/api/harmonize", json=body).json()["data"]
-    assert d["summary"]["linked"] == 2
-    assert d["summary"]["value_allocated"] == pytest.approx(101 * kept_share("IND-000202", 1971), rel=1e-12)
+    assert (d["summary"]["linked"], d["summary"]["duplicate"]) == (0, 2) and d["summary"]["value_allocated"] == 0
+    body = {**body, "rows": body["rows"][:1]}
+    d = c.post("/api/harmonize", json=body).json()["data"]
+    assert d["summary"]["linked"] == 1
+    assert d["summary"]["value_allocated"] == pytest.approx(100 * kept_share("IND-000202", 1971), rel=1e-12)
     # Kangra's 1971 land now lies in several 2025 districts (Kangra, Hamirpur, Una)
     assert len(d["harmonized"]) >= 3
     assert c.post("/api/harmonize", json={**body, "kind": "ratio"}).status_code == 422

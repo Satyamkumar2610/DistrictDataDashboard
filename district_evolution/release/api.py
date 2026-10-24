@@ -477,7 +477,8 @@ def harmonize(req: HarmonizeRequest):
     counts = links.link_status.value_counts()
     linked = links[links.link_status == "LINKED"]
     summary = {"rows": len(links), "linked": int(counts.get("LINKED", 0)), "ambiguous": int(counts.get("AMBIGUOUS", 0)),
-               "unlinked": int(counts.get("UNLINKED", 0)), "before_first_map": int(counts.get("BEFORE_FIRST_MAP", 0)),
+               "duplicate": int(counts.get("DUPLICATE_IDENTITY", 0)), "unlinked": int(counts.get("UNLINKED", 0)),
+               "before_first_map": int(counts.get("BEFORE_FIRST_MAP", 0)),
                "no_value": int(counts.get("NO_VALUE", 0)), "value_linked": float(linked.value.sum()),
                "value_allocated": float(out.value.sum())}
     link_cols = ["row", "raw_name", "state", "year", "map_year", "value", "link_status", "canonical_key", "matched_name",

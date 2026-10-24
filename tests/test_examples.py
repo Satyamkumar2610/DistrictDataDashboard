@@ -6,10 +6,14 @@ import subprocess
 import sys
 
 import duckdb
+import pytest
 
 from district_evolution import core
 
 EXAMPLES = core.PROJECT_ROOT / "examples"
+
+pytestmark = pytest.mark.skipif(not (core.RELEASE_DIR / "MANIFEST.csv").exists(),
+                                reason="release not built; run dvc repro")
 
 
 def statements(sql: str) -> list[str]:
@@ -28,7 +32,7 @@ def test_sql_questions_run_on_the_release(monkeypatch):
     assert (per_map[1951], per_map[2025]) == (316, 733)
     assert [r[1] for r in results[1]] == ["Kangra"] * 9
     assert len(results[2]) == 10 and {"Kannur", "Kozhikode", "Palakkad"} <= {r[0] for r in results[3]}
-    assert dict(results[4]) == {"MEASURED": 399, "UNIDENTIFIED_MULTI_EVENT_WINDOW": 189, "NOT_MEASURABLE": 21}
+    assert dict(results[4]) == {"MEASURED": 402, "UNIDENTIFIED_MULTI_EVENT_WINDOW": 192, "NOT_MEASURABLE": 15}
 
 
 def test_python_examples_run(capsys):

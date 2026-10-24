@@ -3,6 +3,60 @@
 Versions follow semantic versioning of `pipeline_version` (config/pipeline.yaml).
 A MAJOR change can renumber canonical keys or change the meaning of a product.
 
+## 4.1.0 (unreleased)
+
+MINOR: no canonical key changes (`ck_registry`, `ck_observation` and `district_relationship` are identical
+to 4.0.0). Deltas for every regression count are explained in `tests/baselines/v4.1.0.yaml`.
+
+### Event linkage (s07-s09)
+- **Compound names are parsed, not guessed.** "Parts of X", "A and B", "A/B" and comma lists are split by
+  `core.parse_participants` only when every piece is a district name the maps or aliases know, so a
+  district called "Daman and Diu" stays whole. "Parts of" marks the participant `partial`. Alternative
+  spellings ("A/B") are each compared and the best kept.
+- **A linkage key for names.** `core.linkage_key` resolves aliases, turns number words into numerals and
+  translates directional qualifiers (Paschim -> West, Purba -> East, Uttar -> North, Dakshin -> South,
+  Madhya -> Central) and separates them from the stem. Spelling similarity never links two names whose
+  qualifiers differ (East Jaintia Hills is no longer a spelling of West Jaintia Hills).
+- **Priors that match the search.** The splink probability uses a map-wide prior (about 1 in 900). s09
+  searches a much smaller set: the predecessor's footprint, or the districts of one state. It now re-bases
+  the Bayes factor on that set's prior (`linkage.footprint_prior` 0.9, measured 0.965;
+  `linkage.state_scope_prior` 0.9, measured 0.994) instead of reusing the map-wide posterior. A map-wide
+  link without footprint or state evidence now needs strong name evidence (exact, alias/key or Jaro-Winkler
+  >= 0.88 on the stem); weak spelling matches such as Akola ~ Kolaba are refused.
+- The state comparison distinguishes lineal states (a state and its successors or predecessors) from
+  sibling states. The pooled level had a Bayes factor of 0.22, so correct historical states counted against
+  a link.
+- `participant_ck_candidate` records the name evidence of every candidate; V27 checks only strong-name classes.
+- Result: 1,136 links (was 1,103), 93 unresolved names (was 124), 27 outside the footprint (was 35); 457 lineage edges corroborated by an event (was 436);
+  402 events measured exactly (was 399). Corrections include Delhi North/North East/North West, Imphal
+  East/West, East Jaintia Hills and West Jaintia Hills (was West Khasi Hills) and East Siang (was West Siang).
+- Seven aliases: Khargone -> West Nimar and Khandwa -> East Nimar (renames recorded in the events
+  compilation), and five spellings (Punch, Sahranpur, Pasumpon Thevar Thir, Midnapur, Cudappah).
+
+### Lineage and overlay
+- **Reversals.** `measured_area_transfer` gains `reversal_km2` and `is_reversed`: land that moves from A to
+  B and at least 80% of it returns from B to A within two windows (`lineage.reversal_share`,
+  `reversal_windows`). 572 of 1,371 transfers (37,388 km²) are flagged; they are more likely differences
+  between map editions than administrative transfers. Nothing is removed or netted.
+- **Numerical noise floor.** Overlay parts under 1e-6 km² (`overlay.numerical_noise_km2`) are GEOS
+  round-off, not territory. They made `transition_flow` differ between Linux and macOS (51,765 vs 51,767); it now has 48,578 rows.
+
+### Validation
+- V17 can be exempted by a reviewed row in `data/reference/reviewed_exceptions.csv`, only while the
+  measured value stays at or below the reviewed maximum. One row: the 0.074 km² New Delhi / Central overlap
+  on the Stanford 2001 map, accepted by the owner. Gate: PASS with no warnings.
+
+### Harmonization
+- Two statistics that link to the same identity in the same year are `DUPLICATE_IDENTITY` and are not
+  allocated (they were allocated twice). The API summary reports the count.
+
+### Platform
+- Error handling: API errors are typed; only network and server errors are retried. A page that fails shows
+  an error with a retry, not a blank screen; a stale bundle after a deploy offers a reload; an outage shows a
+  banner that recovers when the API returns.
+- Icon buttons meet the 44 px touch target on touch screens; hover styles do not stick on touch.
+- The district page shows which transfers come back later.
+
 ## 4.0.0 (unreleased)
 
 MAJOR: canonical keys change. Every 3.x key resolves through `data/reference/ck_migration_v3_to_v4.csv`

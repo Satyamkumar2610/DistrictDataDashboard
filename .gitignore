@@ -23,6 +23,7 @@ logs/
 !data/reference/review_outcomes.csv
 !data/reference/vintage_depiction.csv
 !data/reference/known_geometry_gaps.csv
+!data/reference/reviewed_exceptions.csv
 !outputs/research/*.csv
 !data/reference/research_findings.csv
 # Supplied district statistics are bronze inputs (config/indicators.yaml), not output

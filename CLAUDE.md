@@ -30,6 +30,7 @@ semantics.
 | v2 → v3 key map | `data/reference/ck_migration_v2_to_v3.csv` | Resolves every old v2 key |
 | Mislabelled vintages (curated, confirmed only) | `data/reference/vintage_depiction.csv` | A map's boundaries depict a later year than its own label (e.g. Stanford "1981" Assam depicts ~1989) |
 | Research findings (curated, with evidence and citation) | `data/reference/research_findings.csv` | Settled research questions; the only way a research-queue item is closed |
+| Reviewed exceptions (curated, with reviewer and maximum) | `data/reference/reviewed_exceptions.csv` | A validation finding someone has examined and accepted, valid only while the measured value stays at or below the stated maximum (V17) |
 | Known geometry gaps (curated, confirmed only) | `data/reference/known_geometry_gaps.csv` | A vintage is missing districts other evidence confirms already existed (e.g. SOI 2025 still shows Mizoram's pre-2018 8 districts) |
 
 Bronze files are committed and must never be modified.
@@ -66,8 +67,8 @@ are evidence and never drive geometry.
 | s05 lineage | FORMED_FROM / SPLIT_FROM / MERGED_INTO into new CKs; RECONSTITUTED_FROM across a gap (OD-01). Measured transfers between existing CKs. networkx DAG check. |
 | s06 ledger | Per-CK, per-window area accounting that closes exactly |
 | s07 events | CSV → administrative event grain. A change recorded as both NEW_DISTRICT and SPLIT is one event. |
-| s08 linkage | splink Fellegi-Sunter model linking event names to CK records (name + state evidence: the map's state, the district's present-day state, state lineage). V27 warns if a probability class nears the threshold. |
-| s09 reconciliation | Link successors only within the predecessor's territorial footprint. Partition-exact accounting. MEASURED only when there is one event per window. |
+| s08 linkage | splink Fellegi-Sunter model linking event names to CK records (name + state evidence: the map's state, the district's present-day state, state lineage). Compound names are split only into known names; directional qualifiers must agree. V27 warns if a strong-name probability class nears the threshold. |
+| s09 reconciliation | Link successors only within the predecessor's territorial footprint, re-basing the posterior on the footprint's prior. Partition-exact accounting. MEASURED only when there is one event per window. |
 | s10 products | `district_area_admin`, `crosswalk_to_reference`, `district_reference_context` |
 | e01 evidence claims | Every statement of every evidence source (now: the frozen Wikidata snapshot) as a cited claim: NAME, AREA, INCEPTION, PARENT |
 | e02 claim linkage | Locate each claim's subject by its coordinate on the map of its date; the name only qualifies the link |

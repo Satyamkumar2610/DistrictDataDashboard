@@ -95,3 +95,8 @@ combined with a boundary change that took it below the 0.90 "unchanged" band:
 If documents confirm each is the same entity, adding them to `data/reference/name_aliases.csv`
 would keep their keys continuous. That renumbers keys, so it is a MAJOR version with a migration
 map, and it needs its own decision.
+
+Owner decision 2026-10-22 (4.1.0 audit): East Nimar → "Khandwa (East Nimar)" is confirmed as the
+strongest of these (the events compilation records Khandwa as East Nimar's rename, now an alias in
+4.1.0, but the 2011 map writes the name with the parenthetical, so continuity still breaks). It stays
+deferred to the next MAJOR version with the others; no key changes in 4.1.0.

@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { getMeta } from "./api";
 import DistrictSearch from "./components/DistrictSearch";
+import { ConnectionBanner, PageErrorBoundary } from "./components/ErrorState";
 import Footer from "./components/Footer";
 import { PageSkeleton } from "./components/Skeleton";
 import { toggleTheme } from "./motion";
@@ -82,7 +83,9 @@ export default function App() {
               <nav aria-label={g.group}>{g.links.map(([to, label]) => <NavLink viewTransition key={to} to={to} end={to === "/"}>{label}</NavLink>)}</nav>
             </div>))}
         </div>)}
+      <ConnectionBanner />
       <div id="main">
+        <PageErrorBoundary resetKey={pathname}>
         <Suspense fallback={<PageSkeleton />}>
           <Routes>
             <Route path="/" element={<Overview />} />
@@ -98,6 +101,7 @@ export default function App() {
             <Route path="*" element={<main className="page"><h1>Page not found</h1><p><NavLink viewTransition to="/">Back to the overview</NavLink></p></main>} />
           </Routes>
         </Suspense>
+        </PageErrorBoundary>
       </div>
       {!atlas && <Footer meta={meta} />}
     </>

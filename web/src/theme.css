@@ -68,7 +68,7 @@ p { text-wrap: pretty }
 .nav a { padding: 7px 10px; border-radius: var(--r); color: var(--ink-2); text-decoration: none; white-space: nowrap; font-size: 14px }
 .nav a:hover { background: var(--sunk); color: var(--ink) } .nav a.active { background: var(--accent-soft); color: var(--ink); font-weight: 500 }
 .version { font: var(--t-xs) var(--mono); color: var(--muted); white-space: nowrap }
-.iconbtn { min-height: 32px; min-width: 36px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-2); border-radius: var(--r);
+.iconbtn { min-height: var(--control); min-width: var(--control); border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-2); border-radius: var(--r);
   padding: 5px 9px; cursor: pointer; font: inherit; font-size: 14px }
 .iconbtn:hover { border-color: var(--accent); color: var(--ink) }
 .topsearch { width: 230px; flex-shrink: 0 }
@@ -379,4 +379,16 @@ table.data td.r, table.data th.r { text-align: right }
 @media (pointer: coarse) {
   .brand, .howto summary, .more summary, .toc a, .chrono-year, .sectionnav a, .years button { min-height: 44px }
   .maplibregl-ctrl-group button { width: 44px !important; height: 44px !important }
+}
+
+/* ---- states: error, outage ---- */
+.error-state { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s3) var(--s4);
+  padding: var(--s4) var(--s5); background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--crit);
+  border-radius: var(--r-lg); box-shadow: var(--shadow) }
+.error-state p { margin: 0 } .error-state .small { margin-top: 2px }
+.conn-banner { max-width: 1240px; margin: var(--s4) auto 0; padding: 0 var(--s5) }
+/* hover feedback only where there is a hovering pointer: on touch screens it sticks after a tap */
+@media (hover: none) {
+  .btn:hover, .iconbtn:hover { border-color: var(--line-strong) }
+  .nav a:not(.active):hover { background: none; color: var(--ink-2) }
 }

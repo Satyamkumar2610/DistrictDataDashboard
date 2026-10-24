@@ -1,6 +1,6 @@
-# Harmonization checks — pipeline v4.0.0
+# Harmonization checks — pipeline v4.1.0
 
-Conservation: 9 of 9 indicator-year-method totals conserved (max error 9.31e-10).
+Conservation: 9 of 9 indicator-year-method totals conserved (max error 4.66e-10).
 
 Self-check: harmonized mapped area vs `district_reference_context.mapped_km2` over 6597 district-years: max difference 7.28e-12 km² (tolerance 1e-06).
 

@@ -1,0 +1,109 @@
+# Regression baselines for pipeline v4.1.0.
+# Delta from v4.0.0 (MINOR, no key changes; ck_registry, ck_observation, continuity_decision classes and
+# district_relationship are identical):
+#  (1) s03 drops overlay parts under 1e-6 km2 (overlay.numerical_noise_km2): GEOS round-off, which made the
+#      count differ between Linux and macOS. transition_flow 51767 -> 48578. No product changes: every
+#      dropped part is below the precision of any area reported.
+#  (2) s07 splits compound participants only into known names and records "Parts of" as partial:
+#      event_linkage 1777 -> 1772 participant rows.
+#  (3) s08/s09 linkage key (aliases, numerals, directional qualifiers), lineal vs sibling states, posterior
+#      re-based on the footprint or state prior, map-wide links need strong name evidence; 7 aliases.
+#      event_linkage LINKED 1103 -> 1136, RETAINED_SELF 480 -> 484, UNRESOLVED_NAME 124 -> 93,
+#      OUTSIDE_FOOTPRINT 35 -> 27, LINKED_NAME_ONLY 22 -> 19, LINKED_AMBIGUOUS 13 -> 13.
+#      event_summary MEASURED 399 -> 402, UNIDENTIFIED_MULTI_EVENT_WINDOW 189 -> 192, NOT_MEASURABLE 21 -> 15
+#      (more participants linked: some windows become measurable, others reveal a second event).
+#      lineage edges corroborated by an event 436 -> 457.
+#  (4) The new aliases also reach the Wikidata comparison (internal check): claim_ck_link LINKED 1413 -> 1418,
+#      LINKED_GEOMETRY_ONLY 313 -> 308; claim_verdict AGREE 1228 -> 1232, CONFLICT 210 -> 208,
+#      NOT_CHECKABLE 230 -> 228.
+#   research_queue 376 -> 334: CLAIM_CONFLICT 208 (4), EVENT_NAME_UNRESOLVED 93, EVENT_NAME_OUTSIDE_FOOTPRINT 27
+#     (3), MAP_DATE 7 -> 6 (a creation event now linked to the right district no longer contradicts a map).
+#  (5) V17's one finding (New Delhi / Central, Stanford 2001, 0.074 km2) is a reviewed exception
+#     (data/reference/reviewed_exceptions.csv): no WARNING has findings.
+#  measured_area_transfer keeps 1371 rows and gains reversal_km2 / is_reversed (572 reversed). Contracts 37.
+# Delta from v3.9.0 (MAJOR, keys change; every v3 key resolves via data/reference/ck_migration_v3_to_v4.csv):
+#  (1) s01 excludes the nine "Disputed (...)" strips on the SOI 2025 map (config placeholders).
+#  (2) OD-02 growth continuation (identity.growth_continues): 10 districts that stay whole, keep their
+#      name and grow keep their key (BREAK_NO_CORE 19 -> 9, GROWTH_NAME_RETAINED 10).
+#  (3) s08 compares an event's state with the state holding the district's land today, and the match
+#      threshold moves to 0.52 (config linkage); 55 aliases added (scripts/curation/propose_aliases.py).
+#  (4) New product crosswalk_coverage (+1 contract: 34 -> 35).
+#  (5) CROPLAND weights (WP4): two harmonization tables, cropland_coverage and
+#      harmonization_method_sensitivity (+2 contracts: 35 -> 37), both 0 rows until a cropland raster is
+#      declared (config/indicators.yaml weights.cropland). No other count changes.
+#   ck_registry 804 -> 785 (-9 retired strips, -10 keys no longer minted by (2)); active 742 -> 733 (1),
+#     closed 62 -> 52 (2).
+#   ck_observation / district_area_admin / stat_observation 4614 -> 4605; transition_flow 51991 -> 51767;
+#     crosswalk_to_reference / statistical_crosswalk 23398 -> 23271; district_reference_context /
+#     stat_harmonized_value 6678 -> 6597 (9 targets x 9 maps): all (1).
+#   district_relationship / lineage_corroboration 633 -> 602: FORMED_FROM 494 -> 475 (8 into strips (1);
+#     11 into districts that now continue (2), recorded as measured transfers instead); SPLIT_FROM
+#     134 -> 125 and MERGED_INTO 3 -> 0: a grown district no longer splits from / merges into its own new
+#     key (2); Khawzawl and Saitual now pass their land to Champhai, which continues, as transfers.
+#   measured_area_transfer 1358 -> 1371 (+11 and +2 above).
+#   event_linkage LINKED 1094 -> 1103, RETAINED_SELF 469 -> 480, UNRESOLVED_NAME 132 -> 124,
+#     OUTSIDE_FOOTPRINT 42 -> 35, LINKED_NAME_ONLY 25 -> 22, LINKED_AMBIGUOUS 15 -> 13 (3). Corrections
+#     include Raigarh 1998 (was linked to Raygad, Maharashtra) and Manipur East/West (were swapped).
+#   event_summary MEASURED 401 -> 399, UNIDENTIFIED_MULTI_EVENT_WINDOW 186 -> 189, NOT_MEASURABLE 22 -> 21:
+#     more linked participants reveal more windows shared by two events.
+#   lineage edges corroborated by an event 431 -> 436 (of 602 edges, was of 633).
+#   claim_ck_link LINKED 1395 -> 1413; claim_verdict AGREE 1213 -> 1228, CONFLICT 214 -> 210,
+#     EXPLAINED 105 -> 103, NOT_CHECKABLE 239 -> 230 (Wikidata, internal check): aliases let more names agree.
+#   research_queue 395 -> 376: CLAIM_CONFLICT 210, EVENT_NAME_UNRESOLVED 124, OUTSIDE_FOOTPRINT 35.
+# Delta from v3.8.0 (WP9-WP11 evidence page, container, examples): none.
+# Delta from v3.7.0 (WP8 harmonize your data): none. The engine can also read a release; h01-h05 outputs unchanged.
+# Delta from v3.6.0 (WP7 platform insights): none. API endpoints and web pages only.
+# Delta from v3.5.0 (WP6 web platform): none. The release gains its validation files; no table changes.
+# Delta from v3.4.0 (WP4 harmonization): five harmonization tables and their contracts
+# (V11 29 -> 34 table checks). Every earlier count is unchanged.
+# Delta from v3.3.0 (WP3 data service): none. The release, dictionary and API add outputs
+# outside the gold tables; every count below is unchanged.
+# Delta from v3.2.0 (WP2 evidence layer): four new evidence tables and their contracts
+# (25 -> 29). Every core, lineage, event and product count is unchanged.
+# Delta from v3.1.0 (OD-01 decided: new key + RECONSTITUTED_FROM edge): district_relationship
+# 631 -> 633 and lineage_corroboration 631 -> 633, from two RECONSTITUTED_FROM edges (Fatehgarh Sahib
+# 1951 -> 2001, Barnala 1951 -> 2011). No key, product or other count changes.
+# Delta from v3.0.0 (in v3.1.0): V18 has no findings; the map-date rule counted RENAME rows as creations.
+# A PR that changes any value here must update it in the same PR and explain each delta.
+# Golden histories (Kangra, Hoshangabad, Durg, Jhansi, Nellore, Belgaum, Adilabad, Malabar,
+# 24 Parganas) are asserted in tests/test_golden_history.py.
+
+row_counts: {ck_registry: 785, ck_observation: 4605, continuity_decision: 3872, district_relationship: 602, measured_area_transfer: 1371,
+  lineage_corroboration: 602, transition_flow: 48578, boundary_event: 609, event_summary: 609, event_linkage: 1772,
+  crosswalk_to_reference: 23271, district_area_admin: 4605, district_reference_context: 6597, evidence_claim: 1771,
+  claim_ck_link: 1771, claim_verdict: 1771, research_queue: 334, stat_observation: 4605, statistical_crosswalk: 23271,
+  stat_harmonized_value: 6597, stat_ratio_value: 0, harmonization_check: 9, crosswalk_coverage: 3872,
+  cropland_coverage: 0, harmonization_method_sensitivity: 0}
+breakdowns:
+- table: ck_registry
+  column: is_active
+  counts: {true: 733, false: 52}
+- table: continuity_decision
+  column: continuity_class
+  counts: {STRONG: 3243, CARVE_OUT_CORE: 302, ABSORPTION_CORE: 124, NAME_RETAINED_CORE: 101, BREAK_NAME_DIFFERS: 43,
+    REORGANISED_CORE: 40, GROWTH_NAME_RETAINED: 10, BREAK_NO_CORE: 9}
+- table: district_relationship
+  column: relationship_type
+  counts: {FORMED_FROM: 475, SPLIT_FROM: 125, RECONSTITUTED_FROM: 2}
+# measurement_status lives in event_summary, not boundary_event
+- table: event_summary
+  column: measurement_status
+  counts: {MEASURED: 402, UNIDENTIFIED_MULTI_EVENT_WINDOW: 192, NOT_MEASURABLE: 15}
+- table: event_linkage
+  column: link_status
+  counts: {LINKED: 1136, RETAINED_SELF: 484, UNRESOLVED_NAME: 93, OUTSIDE_FOOTPRINT: 27, LINKED_NAME_ONLY: 19,
+    LINKED_AMBIGUOUS: 13}
+- table: claim_ck_link
+  column: link_status
+  counts: {LINKED: 1418, LINKED_GEOMETRY_ONLY: 308, UNLINKED: 45}
+- table: claim_verdict
+  column: verdict
+  counts: {AGREE: 1232, NOT_CHECKABLE: 228, CONFLICT: 208, EXPLAINED: 103}
+- table: research_queue
+  column: topic
+  counts: {CLAIM_CONFLICT: 208, EVENT_NAME_UNRESOLVED: 93, EVENT_NAME_OUTSIDE_FOOTPRINT: 27, MAP_DATE: 6}
+lineage_event_corroborated: 457
+gate:
+  error_violations: 0
+  warnings_with_findings: []
+  contracts_passing: 37

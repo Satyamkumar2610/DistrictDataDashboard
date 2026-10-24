@@ -26,7 +26,7 @@ fix those. They need the flagged cases reviewed and a few official documents.
 | Harmonization | 9 of 9 conservation and self-checks pass; crosswalk coverage adds up exactly (V26) |
 | Reproducibility | two forced rebuilds byte-identical except the DuckDB file (allowed: build timestamp) |
 | Event linkage stability | results move < 0.5% when the alias list changes (9% before 4.0.0); V27 warns if a probability class nears the threshold |
-| Events measured exactly | 399 of 609 (the only event touching its districts between two maps) |
+| Events measured exactly | 402 of 609 (the only event touching its districts between two maps) |
 | Lineage edges an event corroborates | 436 of 602 |
 
 ## 2. Fixed in 4.0.0

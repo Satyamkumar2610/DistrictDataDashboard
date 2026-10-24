@@ -39,11 +39,14 @@ from .names import (
     display_name,
     is_qualified_derivative,
     jaro_winkler,
+    linkage_key,
     name_aliases,
     name_similarity,
     names_agree,
     normalize_name,
     parse_multi_name,
+    parse_participants,
+    split_name_alternatives,
 )
 from .provenance import provenance
 from .reference import (
@@ -51,6 +54,7 @@ from .reference import (
     depicted_year,
     is_documented_geometry_gap,
     known_geometry_gaps,
+    lineal_states,
     shown_before_creation,
     state_lineage_graph,
 )

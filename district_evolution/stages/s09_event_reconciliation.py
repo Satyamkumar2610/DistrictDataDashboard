@@ -12,6 +12,23 @@ Replaces v2's s8, s10 and s10b. For every event:
    linked predecessors (s05 ck_flow). A successor name is matched ONLY inside
    this set, so a same-named district elsewhere can never be picked. A good
    match outside it is reported as OUTSIDE_FOOTPRINT and never accepted.
+   Inside it the name is weighed against the footprint, not the whole map:
+   s08's probability carries the map-wide prior (lambda ~ 1/900, "is this one of
+   ~700 districts?"), but the geometry has already narrowed the question to
+   the k districts that received the predecessor's land. The same Bayes factor
+   is therefore re-based on the prior footprint_prior / k (config
+   linkage.footprint_prior) and the posterior must clear the same
+   min_match_probability. An exact name in a lineal state then links within a
+   footprint of five; a stem that only shares a qualifier does not.
+   Outside a footprint (predecessors; successors of events whose predecessor
+   is unlinked) only STRONG name evidence links (s08 name_evidence: exact,
+   alias or same key, stem Jaro-Winkler >= 0.88): the loosest spelling level
+   is plausible only where geometry has already narrowed the candidates, and
+   map-wide it pairs Akola with Kolaba and Bagalkot with Bangalore. A predecessor
+   with strong name evidence that misses the map-wide threshold only because
+   its event is filed under a reorganised state (Saharanpur under Uttarakhand)
+   is weighed the same way against the districts of the states compatible
+   with the event's state (config linkage.state_scope_prior).
 4. Accounting follows the s03 partition exactly, so no area is left over:
      source = declared_successor + retained + undeclared_neighbour
               + displacement + sliver + unmapped
@@ -23,9 +40,12 @@ Replaces v2's s8, s10 and s10b. For every event:
 
 from __future__ import annotations
 
+import json
+
 import pandas as pd
 
 from district_evolution import core
+from district_evolution.stages.s08_event_linkage import STRONG_NAME_EVIDENCE
 
 LK = core.CFG["linkage"]
 MATERIAL = core.CFG["lineage"]["material_km2"]
@@ -36,13 +56,19 @@ class Data:
     def __init__(self) -> None:
         self.events = pd.read_parquet(core.GOLD_EVENTS_DIR / "boundary_event.parquet").sort_values("event_id")
         self.parts = pd.read_parquet(core.GOLD_EVENTS_DIR / "event_participant.parquet")
+        self.parts["names"] = self.parts.name_alternatives_norm.str.split(";")
         cand = pd.read_parquet(core.GOLD_EVENTS_DIR / "participant_ck_candidate.parquet")
-        cand = cand[cand.match_probability >= LK["min_match_probability"]]
+        # thresholds are applied in best(): map-wide on match_probability, in a footprint on the
+        # re-based posterior, so every candidate s08 scored is kept here
+        cand["bayes_factor"] = bayes_factors(cand.match_probability)
         self.cand = {k: g for k, g in cand.groupby(["name_norm", "event_state_norm", "year"])}
         self.reg = pd.read_parquet(core.GOLD_CORE_DIR / "ck_registry.parquet").set_index("canonical_key")
         obs = pd.read_parquet(core.GOLD_CORE_DIR / "ck_observation.parquet")
         self.area = obs.set_index(["canonical_key", "year"]).area_km2
         self.obs_id = obs.set_index(["canonical_key", "year"]).geom_obs_id
+        obs_state = obs.state.map(lambda x: core.normalize_name(core.canonical_state(x)))
+        self.states_on_map = {y: g for y, g in obs_state.groupby(obs.year)}
+        self.ck_on_map = {y: g for y, g in obs.canonical_key.groupby(obs.year)}
         self.flow = pd.read_parquet(core.GOLD_SPATIAL_DIR / "ck_flow.parquet")
         res = pd.read_parquet(core.GOLD_SPATIAL_DIR / "transition_residual.parquet")
         self.unmapped = res[(res.kind == "ADJACENT") & (res.side == "SOURCE")].set_index(
@@ -50,19 +76,79 @@ class Data:
         self.rel = pd.read_parquet(core.GOLD_EVENTS_DIR / "district_relationship.parquet")
 
 
-def best(d: Data, name: str, state: str, year: int, allowed: set[str] | None = None):
-    c = d.cand.get((name, state, year))
-    if c is None:
+def bayes_factors(p: pd.Series) -> pd.Series:
+    """The likelihood ratio of s08's match probability with its map-wide prior lambda removed."""
+    lam = json.loads((core.EVENTS_OUTPUT_DIR / "s08_splink_model.json").read_text())[
+        "probability_two_random_records_match"]
+    p = p.clip(upper=1 - 1e-12)
+    return (p / (1 - p)) / (lam / (1 - lam))
+
+
+def rebased_posterior(bf: pd.Series, prior: float) -> pd.Series:
+    """Posterior that a candidate is the named district when its prior is `prior` instead of s08's
+    map-wide lambda."""
+    odds = bf * prior / (1 - prior)
+    return odds / (1 + odds)
+
+
+def footprint_posterior(bf: pd.Series, k: int) -> pd.Series:
+    """Posterior within a footprint of k districts: prior footprint_prior / k."""
+    return rebased_posterior(bf, LK["footprint_prior"] / max(k, 1))
+
+
+def state_scope(d: Data, state: str, year: int) -> set[str] | None:
+    """The CKs on map `year` filed under a state compatible with `state` (None when the event has no state)."""
+    if not state:
         return None
+    on_map = d.states_on_map[year]
+    compatible = core.compatible_states(state)
+    return set(d.ck_on_map[year][on_map.isin(compatible).to_numpy()])
+
+
+def best(d: Data, names: list[str], state: str, year: int, allowed: set[str] | None = None,
+         prior: float | None = None):
+    """Best candidate for a participant written under `names` (alternatives) on map `year`.
+    Returns (ck, probability, ambiguous) or None.
+
+    allowed=None: map-wide, s08's probability, strong name evidence only.
+    allowed=a set of CKs and prior p: the Bayes factor re-based on p / len(allowed) (a footprint, or the
+    districts of the compatible states), so the probability is the posterior within that set."""
+    frames = [d.cand[k] for n in names if (k := (n, state, year)) in d.cand]
+    if not frames:
+        return None
+    c = pd.concat(frames)
     if allowed is not None:
         c = c[c.canonical_key.isin(allowed)]
+        if c.empty:
+            return None
+        c = c.assign(match_probability=rebased_posterior(c.bayes_factor, prior / max(len(allowed), 1)))
+    else:
+        c = c[c.name_evidence.isin(STRONG_NAME_EVIDENCE)]
+    c = c[c.match_probability >= LK["min_match_probability"]]
     if c.empty:
         return None
-    c = c.sort_values(["match_probability", "canonical_key"], ascending=[False, True])
+    c = (c.sort_values(["match_probability", "canonical_key"], ascending=[False, True])
+         .drop_duplicates("canonical_key"))
     top = c.iloc[0]
     other = c[c.canonical_key != top.canonical_key]
     ambiguous = len(other) > 0 and top.match_probability - other.iloc[0].match_probability < LK["ambiguity_margin"]
     return top.canonical_key, float(top.match_probability), bool(ambiguous)
+
+
+def best_predecessor(d: Data, names: list[str], state: str, year: int):
+    """Map-wide first; then, with strong name evidence only, within the districts of the states compatible
+    with the event's state."""
+    hit = best(d, names, state, year)
+    if hit or not state:
+        return hit
+    scope = state_scope(d, state, year)
+    frames = [d.cand[k] for n in names if (k := (n, state, year)) in d.cand]
+    strong = {ck for f in frames for ck in f[f.name_evidence.isin(STRONG_NAME_EVIDENCE)].canonical_key}
+    if not scope or not (strong & scope):
+        return None
+    # the scope sets the prior; only strong-name candidates in it may win
+    hit = best(d, names, state, year, scope, LK["state_scope_prior"])
+    return hit if hit and hit[0] in strong else None
 
 
 def candidate_windows(year: int, state: str = "") -> list[tuple[tuple[int, int], str]]:
@@ -80,7 +166,7 @@ def candidate_windows(year: int, state: str = "") -> list[tuple[tuple[int, int],
 def resolve_window(d: Data, preds: pd.DataFrame, succs: pd.DataFrame, a: int, b: int) -> tuple[list, set, int]:
     rows, pred_cks = [], set()
     for p in preds.itertuples():
-        hit = best(d, p.name_norm, p.event_state_norm, a)
+        hit = best_predecessor(d, p.names, p.event_state_norm, a)
         if hit:
             pred_cks.add(hit[0])
             rows.append((p.participant_id, a, hit[0], hit[1], "LINKED_AMBIGUOUS" if hit[2] else "LINKED"))
@@ -90,17 +176,17 @@ def resolve_window(d: Data, preds: pd.DataFrame, succs: pd.DataFrame, a: int, b:
     footprint = set(f[(f.material_km2 >= MATERIAL) | (f.from_ck == f.to_ck)].to_ck)
     for s in succs.itertuples():
         if pred_cks:
-            hit = best(d, s.name_norm, s.event_state_norm, b, footprint)
+            hit = best(d, s.names, s.event_state_norm, b, footprint, LK["footprint_prior"])
             if hit:
                 status = ("RETAINED_SELF" if hit[0] in pred_cks
                           else "LINKED_AMBIGUOUS" if hit[2] else "LINKED")
                 rows.append((s.participant_id, b, hit[0], hit[1], status))
                 continue
-            out = best(d, s.name_norm, s.event_state_norm, b)
+            out = best(d, s.names, s.event_state_norm, b)
             rows.append((s.participant_id, b, out[0] if out else None, out[1] if out else None,
                          "OUTSIDE_FOOTPRINT" if out else "UNRESOLVED_NAME"))
         else:
-            hit = best(d, s.name_norm, s.event_state_norm, b)
+            hit = best(d, s.names, s.event_state_norm, b)
             rows.append((s.participant_id, b, hit[0] if hit else None, hit[1] if hit else None,
                          "LINKED_NAME_ONLY" if hit and not hit[2] else "UNRESOLVED_NAME"))
     score = len(pred_cks) + sum(r[4] in ACCEPTED for r in rows[len(preds):])

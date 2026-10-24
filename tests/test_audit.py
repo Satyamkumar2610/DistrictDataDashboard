@@ -7,6 +7,9 @@ from district_evolution import core
 
 AUDIT = core.PROJECT_ROOT / "outputs" / "audit"
 
+pytestmark = pytest.mark.skipif(not (core.GOLD_CORE_DIR / "ck_registry.parquet").exists(),
+                                reason="pipeline not built; run scripts/run_all.sh")
+
 
 def test_no_placeholder_holds_an_identity():
     obs = pd.read_parquet(core.GOLD_CORE_DIR / "ck_observation.parquet")

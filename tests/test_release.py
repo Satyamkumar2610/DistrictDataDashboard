@@ -103,7 +103,7 @@ def test_overview_event_status_matches_the_pipeline_rule(api):
     totals = {}
     for e in events:
         totals[e["status"]] = totals.get(e["status"], 0) + e["events"]
-    assert totals == {"MEASURED": 399, "UNIDENTIFIED_MULTI_EVENT_WINDOW": 189, "NOT_MEASURABLE": 21}
+    assert totals == {"MEASURED": 402, "UNIDENTIFIED_MULTI_EVENT_WINDOW": 192, "NOT_MEASURABLE": 15}
 
 
 def test_release_states_its_validation(api):
@@ -228,6 +228,8 @@ def _basic(user: str, password: str) -> dict[str, str]:
 @pytest.fixture
 def private_client():
     """The app wrapped in the same auth middleware a hosted instance runs, over a trivial inner app."""
+    if not (RELEASE / "release_info.json").exists():
+        pytest.skip("release not built; run dvc repro")  # importing the API reads the release
     from fastapi.testclient import TestClient
     from starlette.applications import Starlette
     from starlette.responses import PlainTextResponse

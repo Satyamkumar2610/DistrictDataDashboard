@@ -47,7 +47,9 @@ def classify_parts(layer_a: gpd.GeoDataFrame, layer_b: gpd.GeoDataFrame) -> gpd.
     ap = parts.geometry.apply(core.geodesic_area_perimeter)
     parts["part_km2"] = [x[0] for x in ap]
     parts["perimeter_km"] = [x[1] for x in ap]
-    parts = parts[parts["part_km2"] > 0].copy()
+    # Overlay dust (degenerate parts of ~1e-14 km2 where two layers share a vertex) exists on one
+    # platform's GEOS build and not another's; below the noise floor a part is not area at all.
+    parts = parts[parts["part_km2"] >= OV["numerical_noise_km2"]].copy()
     smaller = np.minimum(parts["area_a"], parts["area_b"])
     width = 2.0 * parts["part_km2"] / parts["perimeter_km"]
     sliver = parts["part_km2"] < np.maximum(OV["sliver_abs_km2"], smaller * OV["sliver_rel_fraction"])

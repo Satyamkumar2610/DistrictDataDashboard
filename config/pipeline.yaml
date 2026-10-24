@@ -1,7 +1,7 @@
 # Pipeline v3 configuration. Every threshold used by any stage lives here with
 # its rationale; code reads it via lib.CFG. See docs/architecture/REVAMP_PLAN_V3.md.
 
-pipeline_version: "4.0.0"
+pipeline_version: "4.1.0"
 
 vintages:
   # (source, year) in chronological order. The last entry is the reference
@@ -33,6 +33,13 @@ overlay:
   # Floating-point / snapping noise along shared boundaries (unchanged from v2).
   sliver_abs_km2: 0.5
   sliver_rel_fraction: 0.0001
+  # Overlay parts below this are floating-point dust, not territory: 3,153 of the 4.0.0
+  # transition_flow rows carried < 1e-9 km2 (most ~1e-14 km2, i.e. 0.01 mm2), and whether GEOS
+  # emits them differs between platforms (Linux wheel 51,765 rows vs macOS 51,767), which broke
+  # the cross-platform row-count baseline. 1 m2 is six orders of magnitude below the sliver
+  # threshold, so no CORE / TRANSFER / DISPLACEMENT area is affected; the dropped dust is
+  # reported as unmapped (sum over the whole build < 0.01 km2).
+  numerical_noise_km2: 1.0e-6
   # A non-core parcel whose mean width (2 * area / perimeter) is below this is
   # BOUNDARY_DISPLACEMENT: two independently digitized editions disagreeing on
   # where a line runs, not territory changing hands. 1 km ~ positional accuracy
@@ -92,6 +99,15 @@ lineage:
   # Measured: the two cases in the data (Fatehgarh Sahib 0.63, Barnala 0.96, both PEPSU 1951)
   # clear it; docs/decisions/OD-01_reclassification.md.
   reconstitution_share: 0.5
+  # A measured transfer between two existing districts is REVERSED when, within
+  # reversal_windows maps either side, material area flows back between the same two districts
+  # amounting to at least reversal_share of it. Land that goes and comes back between map
+  # editions is how two independently digitized editions disagree (Udaipur <-> Ajmer exchange
+  # the same ~1,354 km2 on four map pairs with no event), not a sequence of administrative
+  # changes. The flag never removes a transfer (every km2 keeps its one classification); it lets
+  # a user filter, and the events decide what remains administrative.
+  reversal_share: 0.8
+  reversal_windows: 2
 
 linkage:
   # splink event-name -> CK record linkage (s08) and resolution (s09).
@@ -113,6 +129,18 @@ linkage:
   # absolute veto. 0.01 = strong evidence against, but a name + footprint
   # match can still win.
   state_mismatch_m_floor: 0.01
+  # s09: prior probability that a successor named by an event lies in the predecessor's
+  # territorial footprint at all. Inside a footprint of k districts each candidate's prior is
+  # footprint_prior / k (instead of s08's map-wide lambda ~ 1/900) and the s08 Bayes factor is
+  # re-based on it. Measured on the 4.0.0 build: of the successors (with a linked predecessor)
+  # whose name matched, 971 matched inside the footprint and 35 only outside it (0.965). 0.9 is
+  # deliberately below that, so footprint evidence never outweighs a poor name.
+  footprint_prior: 0.9
+  # s09: the same re-basing for a PREDECESSOR with strong name evidence that misses the map-wide
+  # threshold: prior state_scope_prior / k over the k districts on the map filed under a state
+  # compatible with the event's state. Measured on the 4.0.0 build: 621 of the 625 linked
+  # predecessors lie in such a state (0.994); 0.9 again keeps it conservative.
+  state_scope_prior: 0.9
 
 map_dates:
   # A state-map is flagged as possibly depicting later boundaries than its

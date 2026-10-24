@@ -32,3 +32,14 @@ def test_review_outcomes_use_the_verdict_vocabulary():
     assert list(r.columns) == ["item_id", "item_type", "verdict", "evidence", "reviewer", "reviewed_on"]
     assert set(r.verdict.dropna()) <= {"CORRECT", "WRONG", "UNSURE"}
     assert r.item_id.is_unique
+
+
+def test_reviewed_exceptions_are_well_formed():
+    x = pd.read_csv(REF / "reviewed_exceptions.csv", dtype={"geom_obs_id": str})
+    assert list(x.columns) == ["check_id", "geom_obs_id", "subject", "measured_value", "max_value",
+                               "reviewer", "reviewed_on", "reason"]
+    assert set(x.check_id) <= {"V17"}, "only checks whose SQL reads this file may be exempted"
+    assert (x.max_value >= x.measured_value).all() and (x.max_value <= x.measured_value * 1.05).all(), \
+        "an exception covers the reviewed value, not a wider band"
+    assert x.reviewer.notna().all() and (x.reason.str.len() > 80).all()
+    assert x[["check_id", "geom_obs_id"]].drop_duplicates().shape[0] == len(x)

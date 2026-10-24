@@ -117,7 +117,8 @@ export default function About() {
             new districts, or Mizoram's 2019 ones, so statistics restated there land on the older units.</li>
           <li><b>Different map editions draw the same border differently.</b> The 2011 map in particular traces many borders afresh, so
             some land appears to move when it did not. Strips under {METHOD.displacementWidthKm} km wide are set aside as drawing differences, but wider
-            differences can remain.</li>
+            differences can remain. A transfer whose land goes back between the same two districts within two maps is
+            flagged as a likely drawing difference (“comes back later” on a district page); it is kept, so you can decide.</li>
           <li><b>Some land is on no 2025 district.</b> Statistics for that land cannot be restated; the Crosswalk page shows how much of
             each past district is covered.</li>
           <li><b>The events list cites no primary documents</b> such as gazette notifications, which is why it only confirms the maps and

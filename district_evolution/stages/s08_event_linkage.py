@@ -8,10 +8,28 @@ are estimated from the data and written out for inspection.
   right  one record per (canonical_key, vintage): the name and state mapped then
 
 Comparisons
-  name   exact / documentary alias (data/reference/name_aliases.csv) /
-         Jaro-Winkler >= 0.95 / >= 0.88 / >= 0.80 / else
-  state  exact / the state holding the district's land today / historically compatible
-         (data/reference/state_lineage.csv) / else
+  name   exact / documentary alias (data/reference/name_aliases.csv) or same linkage key /
+         stem Jaro-Winkler >= 0.95 / >= 0.88 / >= 0.80 (qualifiers equal) / else
+  state  exact / the state holding the district's land today / lineal (the same land under a
+         parent or child state: Uttarakhand <-> Uttar Pradesh, Chandigarh <-> Punjab) /
+         sibling (shares a parent state: Kerala <-> Andhra Pradesh via Madras) / else
+
+Linkage key (core.linkage_key): the alias-resolved name with number words as digits ("Twenty Four
+Parganas" = "24 Parganas"), directional words in English ("Paschim Medinipur" = "Medinipur West")
+and its qualifiers split off. Similarity is measured on the stem and the qualifiers must be equal:
+on whole names a shared qualifier carried the score (Paschim Medinipur ~ Paschim Bardhaman) and
+different ones barely lowered it (East Nimar ~ West Nimar, 0.87). An alias also resolves the
+event side before a fuzzy comparison, so "Alleppey" (alias of Alappuzha) meets the map's
+"Alapuzha" as a spelling variant; in 4.0.0 it met nothing.
+
+Lineal and sibling states were one level in 4.0.0. Pooled, 7% of random pairs fell in it and EM
+gave it a Bayes factor of 0.22, i.e. evidence AGAINST a match: an exact name filed under the
+child state of a reorganisation (Saharanpur under Uttarakhand, Ambala under Chandigarh,
+Trivandrum under Tamil Nadu) scored 0.14 and stayed unlinked. Lineal states share land; siblings
+share only a parent, so they are separate levels and EM weighs each.
+
+An event name written as alternatives ("Bhimnagar/Sambhal", s07) enters as one row per
+alternative; s09 takes the best.
 
 The events compilation files events under present-day states (a 1991 Dhanbad event is filed
 under Jharkhand, created 2000; a 1957 Malabar event under Kerala), while each map record carries
@@ -40,9 +58,23 @@ from district_evolution import core
 LK = core.CFG["linkage"]
 
 
+# gamma_name -> what the name comparison found (level order in settings(); -1 is the null level).
+# s09 accepts a match outside any territorial footprint only on STRONG_NAME_EVIDENCE: the loosest
+# spelling level (stem Jaro-Winkler 0.80-0.88: Akola ~ Kolaba, Bagalkot ~ Bangalore, Alappuzha ~
+# Malappuram) is plausible only where the geometry has already narrowed the candidates.
+NAME_EVIDENCE = {5: "EXACT", 4: "ALIAS_OR_KEY", 3: "SPELLING_0.95", 2: "SPELLING_0.88", 1: "SPELLING_0.80",
+                 0: "NONE", -1: "NONE"}
+STRONG_NAME_EVIDENCE = frozenset({"EXACT", "ALIAS_OR_KEY", "SPELLING_0.95", "SPELLING_0.88"})
+
+
 def with_keys(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df["alias_norm"] = df["name_norm"].map(core.alias_key)
+    keys = [core.linkage_key(n, s) for n, s in zip(df["name_norm"], df["state_norm"], strict=True)]
+    df["stem"] = [k[0] for k in keys]
+    df["quals"] = [k[1] for k in keys]
+    df["stem_sorted"] = df["stem"].map(lambda x: " ".join(sorted(x.split())))
+    df["state_lineal"] = df["state_norm"].map(lambda s: sorted(core.lineal_states(s)))
     df["state_compat"] = df["state_norm"].map(lambda s: sorted(core.compatible_states(s)))
     return df
 
@@ -65,6 +97,9 @@ def present_day_state(obs: pd.DataFrame) -> pd.Series:
 
 def build_inputs() -> tuple[pd.DataFrame, pd.DataFrame]:
     pt = pd.read_parquet(core.GOLD_EVENTS_DIR / "event_participant.parquet")
+    # one row per name a participant is written under ("Bhimnagar/Sambhal" -> both)
+    pt = (pt.assign(name_norm=pt.name_alternatives_norm.str.split(";")).explode("name_norm"))
+    pt = pt[pt.name_norm.str.len() > 0]
     left = (pt[["name_norm", "event_state_norm"]].drop_duplicates()
             .rename(columns={"event_state_norm": "state_norm"})
             .sort_values(["name_norm", "state_norm"]).reset_index(drop=True))
@@ -90,10 +125,14 @@ def settings() -> SettingsCreator:
         comparison_levels=[
             cll.NullLevel("name_norm"),
             cll.ExactMatchLevel("name_norm"),
-            cll.ExactMatchLevel("alias_norm").configure(label_for_charts="documentary alias"),
-            cll.JaroWinklerLevel("name_norm", 0.95),
-            cll.JaroWinklerLevel("name_norm", 0.88),
-            cll.JaroWinklerLevel("name_norm", 0.80),
+            # two deterministic equivalences in one level, so EM estimates them together: a rare level of
+            # its own got m ~ 0.001 and a Bayes factor of 32 (vs ~725 for an alias) from too few pairs
+            cll.CustomLevel("alias_norm_l = alias_norm_r OR (stem_sorted_l = stem_sorted_r AND quals_l = quals_r)",
+                            label_for_charts="documentary alias, or the same name up to qualifiers' language, "
+                                             "numerals and word order"),
+            *[cll.CustomLevel(f"jaro_winkler_similarity(stem_l, stem_r) >= {t} AND quals_l = quals_r",
+                              label_for_charts=f"stem Jaro-Winkler >= {t}, qualifiers equal")
+              for t in (0.95, 0.88, 0.80)],
             cll.ElseLevel(),
         ])
     state = cl.CustomComparison(
@@ -102,9 +141,12 @@ def settings() -> SettingsCreator:
             cll.NullLevel("state_norm"),
             cll.ExactMatchLevel("state_norm"),
             cll.ExactMatchLevel("today_state_norm").configure(label_for_charts="district's state today"),
+            cll.CustomLevel("list_contains(state_lineal_l, state_norm_r) "
+                            "OR list_contains(state_lineal_r, state_norm_l)",
+                            label_for_charts="lineal state (same land, parent or child state)"),
             cll.CustomLevel("list_contains(state_compat_l, state_norm_r) "
                             "OR list_contains(state_compat_r, state_norm_l)",
-                            label_for_charts="compatible via state lineage"),
+                            label_for_charts="sibling state (shares a parent state)"),
             # EM sees no true match with an incompatible state and estimates
             # m = 0, which would let a mis-filed state veto any name match.
             # A fixed floor keeps it strong-but-finite evidence against.
@@ -117,8 +159,10 @@ def settings() -> SettingsCreator:
         blocking_rules_to_generate_predictions=[
             block_on("name_norm"),
             block_on("alias_norm"),
+            block_on("stem"),
             "substr(l.name_norm, 1, 3) = substr(r.name_norm, 1, 3)",
             "jaro_winkler_similarity(l.name_norm, r.name_norm) >= 0.80",
+            "jaro_winkler_similarity(l.stem, r.stem) >= 0.80",
         ],
     )
 
@@ -136,7 +180,8 @@ def stable_model(value):
 
 def main() -> None:
     left, right = build_inputs()
-    model_cols = ["uid", "name_norm", "alias_norm", "state_norm", "today_state_norm", "state_compat"]
+    model_cols = ["uid", "name_norm", "alias_norm", "stem", "stem_sorted", "quals", "state_norm", "today_state_norm",
+                  "state_lineal", "state_compat"]
     linker = Linker([left[model_cols], right[model_cols]], settings(), db_api=DuckDBAPI(),
                     input_table_aliases=["events", "districts"])
     linker.training.estimate_probability_two_random_records_match(
@@ -149,11 +194,14 @@ def main() -> None:
 
     pred = linker.inference.predict(threshold_match_probability=0.01).as_pandas_dataframe()
     ev = pred.uid_l.str.startswith("P")
+    if "gamma_name" not in pred:
+        raise RuntimeError("splink predictions carry no gamma_name column; name_evidence cannot be recorded")
     p = pd.DataFrame({
         "left_uid": pred.uid_l.where(ev, pred.uid_r),
         "right_uid": pred.uid_r.where(ev, pred.uid_l),
         "match_probability": pred.match_probability.round(10),
         "match_weight": pred.match_weight.round(8),
+        "name_evidence": pred.gamma_name.map(NAME_EVIDENCE),
     })
     p = p.merge(left[["uid", "name_norm", "state_norm"]].rename(
         columns={"uid": "left_uid", "state_norm": "event_state_norm"}), on="left_uid")

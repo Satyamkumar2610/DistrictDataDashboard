@@ -103,3 +103,10 @@ Sant Ravidas Nagar (Bhadohi),Bhadohi,Uttar Pradesh,RENAME,EVENTS_COMPILATION,Eve
 Peren,Paren,Nagaland,SPELLING,NAME_NORMALIZATION,"Transliteration variant: one identity (IND-000675) on the 2021 and 2025 maps, same consonant skeleton (prn)"
 Kanshiram Nagar,Kasganj,Uttar Pradesh,RENAME,EVENTS_COMPILATION,Events compilation records RENAME Kanshiram Nagar/Kasganj (2011); one identity (IND-000682) on the 2011 and 2021 maps
 Sipahijala,Sepahijala,Tripura,SPELLING,NAME_NORMALIZATION,"Transliteration variant: one identity (IND-000779) on the 2021 and 2025 maps, same consonant skeleton (sphjl)"
+Khargone,West Nimar,Madhya Pradesh,RENAME,EVENTS_COMPILATION,"Events compilation records RENAME West Nimar -> Khargone (1961); one identity (IND-000107) labelled Khargone on the 1961 map and West Nimar on the 1971 and 1981 maps"
+Khandwa,East Nimar,Madhya Pradesh,RENAME,EVENTS_COMPILATION,"Events compilation records RENAME Khandwa -> East Nimar (1971) and East Nimar -> Khandwa; one identity (IND-000128) labelled Khandwa on the 1961 map and East Nimar on the 1981 map"
+Punch,Poonch,Jammu And Kashmir,SPELLING,NAME_NORMALIZATION,"Transliteration variant: the 1961-1981 maps label the district Punch, the events compilation Poonch"
+Sahranpur,Saharanpur,Uttar Pradesh,SPELLING,NAME_NORMALIZATION,"Misspelling in the events compilation (1987 Saharanpur rows); no district of this spelling exists on any map"
+Pasumpon Thevar Thir,Pasumpon Muthuramalinga Thevar,Tamil Nadu,SPELLING,NAME_NORMALIZATION,"Truncated label on the 1991 map (Pasumpon-Thevar-Thir); the events compilation spells the full name"
+Midnapur,Medinipur,West Bengal,SPELLING,NAME_NORMALIZATION,"Transliteration variant (the events compilation's 1951 spelling; Midnapore is already recorded)"
+Cudappah,Kadapa,Andhra Pradesh,SPELLING,NAME_NORMALIZATION,"Misspelling of Cuddapah in the events compilation; Cuddapah -> Kadapa is already recorded"

@@ -11,22 +11,34 @@ from district_evolution.core import lineage_graph
 from district_evolution.stages import s09_event_reconciliation as s09
 
 
-def data_with(cands):
+def data_with(cands, evidence="EXACT", bayes_factor=1000.0):
     df = pd.DataFrame(cands, columns=["name_norm", "event_state_norm", "year", "canonical_key", "match_probability"])
+    df = df.assign(name_evidence=evidence, bayes_factor=bayes_factor)
     return SimpleNamespace(cand={k: g for k, g in df.groupby(["name_norm", "event_state_norm", "year"])})
 
 
 def test_successor_match_is_restricted_to_the_footprint():
     d = data_with([("bilaspur", "chhattisgarh", 2001, "IND-000001", 0.94),   # same name, other state
                    ("bilaspur", "chhattisgarh", 2001, "IND-000002", 0.80)])  # the one in the footprint
-    assert s09.best(d, "bilaspur", "chhattisgarh", 2001)[0] == "IND-000001"
-    assert s09.best(d, "bilaspur", "chhattisgarh", 2001, allowed={"IND-000002"})[0] == "IND-000002"
-    assert s09.best(d, "bilaspur", "chhattisgarh", 2001, allowed={"IND-000009"}) is None
+    assert s09.best(d, ["bilaspur"], "chhattisgarh", 2001)[0] == "IND-000001"
+    assert s09.best(d, ["bilaspur"], "chhattisgarh", 2001, allowed={"IND-000002"}, prior=0.9)[0] == "IND-000002"
+    assert s09.best(d, ["bilaspur"], "chhattisgarh", 2001, allowed={"IND-000009"}, prior=0.9) is None
 
 
 def test_close_runner_up_is_flagged_ambiguous():
     d = data_with([("x", "s", 1991, "IND-000001", 0.90), ("x", "s", 1991, "IND-000002", 0.85)])
-    assert s09.best(d, "x", "s", 1991)[2] is True
+    assert s09.best(d, ["x"], "s", 1991)[2] is True
+
+
+def test_map_wide_link_needs_strong_name_evidence():
+    # a weak spelling match (Akola ~ Kolaba) is refused map-wide, whatever its probability
+    d = data_with([("kolaba", "maharashtra", 1971, "IND-000001", 0.95)], evidence="SPELLING_0.80")
+    assert s09.best(d, ["kolaba"], "maharashtra", 1971) is None
+
+
+def test_best_tries_every_alternative_name():
+    d = data_with([("a", "s", 1991, "IND-000001", 0.60), ("b", "s", 1991, "IND-000002", 0.95)])
+    assert s09.best(d, ["a", "b"], "s", 1991)[0] == "IND-000002"
 
 
 def test_candidate_windows():
