@@ -56,6 +56,16 @@ to 4.0.0). Deltas for every regression count are explained in `tests/baselines/v
   banner that recovers when the API returns.
 - Icon buttons meet the 44 px touch target on touch screens; hover styles do not stick on touch.
 - The district page shows which transfers come back later.
+- Visual system (`docs/design/visual_system.md`): the interface now reads as a statistical publication. Flat
+  surfaces with hairline rules replace drop shadows, the hero glow and frosted glass; key figures are a ruled strip;
+  navigation is tab-style with an underline; one navy accent for links and selection, so colour is left to the data;
+  sans labels replace tracked mono caps; SVG icons replace text glyphs; the theme switch is a short crossfade.
+- Charts share one mark specification (thin bars with 4 px data ends, 2 px surface gaps between segments, hairline
+  grid, top-left legend that reserves its own rows so it never overlaps the plot on a phone, surface-coloured
+  tooltips). Every figure has **Show the data**, the same numbers as a table, so no value is hover-only.
+- Chart colours pass the colour-vision validator in both themes. The lineage chart had used the critical-status red
+  for "merged into" (ΔE 3.4 from its ochre neighbour for deuteranopes); lineage kinds now take the categorical slots
+  in order, event certainty an ordinal blue ramp, and the district-count chart greys the context series.
 
 ## 4.0.0 (unreleased)
 

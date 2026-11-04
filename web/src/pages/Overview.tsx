@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { lazy, Suspense, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import Chart, { axis } from "../components/Chart";
+import Chart, { axis, tableFromOption } from "../components/Chart";
 import DistrictSearch from "../components/DistrictSearch";
 import Figure from "../components/Figure";
+import Icon from "../components/Icon";
 import Skeleton from "../components/Skeleton";
 import Term from "../components/Term";
 import { fmt, get, YEARS, type Overview as OverviewData } from "../api";
@@ -15,10 +16,12 @@ const HAS_WEBGL = (() => {
   try { const c = document.createElement("canvas"); return !!(c.getContext("webgl2") || c.getContext("webgl")); } catch { return false; }
 })();
 
-const MAP_PALETTE = ["--accent", "--new"];
-const EVENT_PALETTE = ["--good", "--warn", "--neutral"];
+// Colours carry meaning and pass the colour-vision checks (docs/design/visual_system.md): the context series is grey and
+// the story series blue; lineage kinds take the categorical slots in order; event certainty is an ordinal blue ramp.
+const MAP_PALETTE = ["--series-base", "--series-1"];
+const EVENT_PALETTE = ["--ord-1", "--ord-2", "--ord-3"];
 const LINEAGE_ORDER = ["FORMED_FROM", "SPLIT_FROM", "MERGED_INTO", "RECONSTITUTED_FROM"];
-const LINEAGE_TOKEN: Record<string, string> = { FORMED_FROM: "--new", SPLIT_FROM: "--out", MERGED_INTO: "--crit", RECONSTITUTED_FROM: "--ochre" };
+const LINEAGE_TOKEN: Record<string, string> = { FORMED_FROM: "--series-1", SPLIT_FROM: "--series-2", MERGED_INTO: "--series-3", RECONSTITUTED_FROM: "--series-4" };
 
 const EXAMPLES = [
   { ck: "IND-000202", name: "Kangra", why: "kept its identity through four carve-outs" },
@@ -62,8 +65,8 @@ export default function Overview() {
     xAxis: { type: "category" as const, data: data.maps.map((m) => String(m.year)), ...axis() },
     yAxis: { type: "value" as const, ...axis() },
     series: [
-      { name: "Districts on the map", type: "bar" as const, data: data.maps.map((m) => m.districts), itemStyle: { borderRadius: [3, 3, 0, 0] } },
-      { name: "First appearing on it", type: "bar" as const, data: data.maps.map((m) => m.new_identities), itemStyle: { borderRadius: [3, 3, 0, 0] } },
+      { name: "Districts on the map", type: "bar" as const, data: data.maps.map((m) => m.districts) },
+      { name: "First appearing on it", type: "bar" as const, data: data.maps.map((m) => m.new_identities) },
     ],
   }, [data]);
 
@@ -88,7 +91,7 @@ export default function Overview() {
     };
   }, [data]);
 
-  const landPalette = useMemo(() => [...LINEAGE_ORDER.filter((t) => data?.lineage.some((l) => l.relationship_type === t)).map((t) => LINEAGE_TOKEN[t]), "--muted"], [data]);
+  const landPalette = useMemo(() => [...LINEAGE_ORDER.filter((t) => data?.lineage.some((l) => l.relationship_type === t)).map((t) => LINEAGE_TOKEN[t]), "--series-base"], [data]);
 
   const eventsChart = useMemo(() => {
     if (!data) return null;
@@ -163,9 +166,9 @@ export default function Overview() {
         <Figure
           title={facts ? `District count rose from ${fmt(facts.first.districts)} to ${fmt(facts.last.districts)}` : "Districts on each map"}
           subtitle={facts ? <>The largest jump came between the {facts.jump.from} and {facts.jump.to} maps: {fmt(facts.jump.delta)} more districts. Click a bar to see that map.</> : null}
-          howTo={<>Blue bars count the districts on each <Term k="map">map</Term>. Orange bars count the districts appearing for the first time
+          howTo={<>Grey bars count the districts on each <Term k="map">map</Term>. Blue bars count the districts appearing for the first time
             on that map. The 2025 map has fewer than 2021: it does not yet show some new districts (see <Term k="reference">the 2025 map</Term>).</>}
-          source="ck_observation, ck_registry">
+          source="ck_observation, ck_registry" table={tableFromOption(mapsChart, "Map")}>
           {mapsChart && <Chart option={mapsChart} palette={MAP_PALETTE} testId="chart-maps" onClick={(i) => nav(`/atlas?year=${data!.maps[i].year}&mode=new`, { viewTransition: true })} />}
         </Figure>
         <Figure
@@ -175,7 +178,7 @@ export default function Overview() {
             a new district, land of a district that <Term k="split">split</Term> and ended, land of a <Term k="restored">restored</Term> district, and{" "}
             <Term k="transfer">transfers</Term>. Thin strips where two maps merely draw a border differently are excluded
             (<Term k="displacement">boundary displacement</Term>).</>}
-          source="district_relationship, measured_area_transfer">
+          source="district_relationship, measured_area_transfer" table={tableFromOption(lineageChart, "Between maps (km²)")}>
           {lineageChart ? <Chart option={lineageChart} height={300} palette={landPalette} /> : <Skeleton h={300} />}
         </Figure>
         <Figure
@@ -184,7 +187,7 @@ export default function Overview() {
           howTo={<>An event's area is <Term k="measured">measured</Term> when it is the only event touching its districts between two maps. When
             two events share that span, only their combined area is known, so each is <Term k="bounded">bounded</Term>.
             An event is <Term k="notMeasurable">not measurable</Term> when its parent is not on the maps.</>}
-          source="boundary_event, event_accounting">
+          source="boundary_event, event_accounting" table={tableFromOption(eventsChart, "Decade")}>
           {eventsChart ? <Chart option={eventsChart} palette={EVENT_PALETTE} /> : <Skeleton h={280} />}
         </Figure>
         <Figure
@@ -206,10 +209,10 @@ export default function Overview() {
       </div>
 
       <section aria-label="Where to go next">
-        <h2 className="section-title">Where to go next</h2>
+        <h2 className="section-title">Continue</h2>
         <div className="tasks">
           {TASKS.map((t) => (
-            <Link viewTransition key={t.to} to={t.to} className="task"><h3>{t.title} →</h3><p>{t.text}</p></Link>))}
+            <Link viewTransition key={t.to} to={t.to} className="task"><h3>{t.title}<Icon name="arrow" /></h3><p>{t.text}</p></Link>))}
         </div>
       </section>
     </main>

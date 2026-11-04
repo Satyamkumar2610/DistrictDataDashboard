@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import Chart, { axis } from "../components/Chart";
+import Chart, { axis, tableFromOption } from "../components/Chart";
+import Figure from "../components/Figure";
 import MapView from "../components/MapView";
 import { PageSkeleton } from "../components/Skeleton";
 import { fmt, get, km2, signed, YEARS, type Edge } from "../api";
@@ -16,7 +17,7 @@ type StateDetail = {
   changes: Omit<Edge, "depth">[];
 };
 
-const ACCENT = ["--accent"];
+const SERIES = ["--series-1"];
 
 const KIND: Record<string, string> = {
   FORMED_FROM: "carved out of", SPLIT_FROM: "split from", MERGED_INTO: "merged from", RECONSTITUTED_FROM: "restored from",
@@ -75,8 +76,7 @@ function StateView({ name }: { name: string }) {
     grid: { left: 40, right: 16, top: 16, bottom: 28 }, tooltip: { trigger: "axis" as const },
     xAxis: { type: "category" as const, data: data.maps.map((m) => String(m.year)), ...axis() },
     yAxis: { type: "value" as const, minInterval: 1, ...axis() },
-    series: [{ name: "districts", type: "bar" as const, data: data.maps.map((m) => m.districts),
-      itemStyle: { borderRadius: [3, 3, 0, 0] } }],
+    series: [{ name: "Districts", type: "bar" as const, data: data.maps.map((m) => m.districts) }],
   }, [data]);
   if (isError) return <main className="page"><h1>No state called {name}</h1><Link viewTransition to="/states">All states</Link></main>;
   if (!data) return <PageSkeleton />;
@@ -94,8 +94,11 @@ function StateView({ name }: { name: string }) {
       </div>
       <div className="grid2">
         <div className="dmap"><MapView year={2025} mode="highlight" highlight={highlight} fitTo={data.bbox} onSelect={(k) => nav(`/district/${k}`, { viewTransition: true })} testId="state-map" /></div>
-        <section className="panel"><h2>Districts on each map</h2>{chart && <Chart option={chart} height={300} palette={ACCENT} />}
-          <span className="src">Source: ck_observation</span></section>
+        <Figure title={first.districts === last.districts ? `${last.districts} districts on every map`
+            : `From ${first.districts} district${first.districts === 1 ? "" : "s"} in ${first.year} to ${last.districts} in ${last.year}`}
+          subtitle="Districts of this state on each of the nine maps." source="ck_observation" table={tableFromOption(chart, "Map")}>
+          {chart && <Chart option={chart} height={300} palette={SERIES} />}
+        </Figure>
       </div>
       <section className="panel">
         <h2>How its districts were formed</h2>

@@ -5,6 +5,7 @@ import { getMeta } from "./api";
 import DistrictSearch from "./components/DistrictSearch";
 import { ConnectionBanner, PageErrorBoundary } from "./components/ErrorState";
 import Footer from "./components/Footer";
+import Icon, { BrandMark } from "./components/Icon";
 import { PageSkeleton } from "./components/Skeleton";
 import { toggleTheme } from "./motion";
 
@@ -37,6 +38,12 @@ export default function App() {
   const { pathname } = useLocation();
   const atlas = pathname.startsWith("/atlas");
   const [menu, setMenu] = useState(false);
+  const [dark, setDark] = useState(() => document.documentElement.dataset.theme === "dark");
+  useEffect(() => {
+    const sync = () => setDark(document.documentElement.dataset.theme === "dark");
+    window.addEventListener("themechange", sync);
+    return () => window.removeEventListener("themechange", sync);
+  }, []);
   useEffect(() => {
     const t = TITLES.find(([re]) => re.test(pathname))?.[1];
     document.title = t ? `${t} · District Evolution` : "District Evolution";
@@ -53,8 +60,9 @@ export default function App() {
     <>
       <a className="skip" href="#main">Skip to content</a>
       <header className="topbar">
-        <NavLink viewTransition to="/" className="brand" aria-label="District Evolution, home">
-          <span className="brand-mark" aria-hidden="true"><i /><i /><i /><i /></span>District <span>Evolution</span>
+        <NavLink viewTransition to="/" className="brand">
+          <BrandMark />
+          <span className="brand-text">District Evolution<small>India's district map, 1951–2025</small></span>
         </NavLink>
         <nav className="nav" aria-label="Sections">
           {NAV.map((g) => (
@@ -69,9 +77,12 @@ export default function App() {
           </div>
         )}
         {meta && <span className="version" title={`config sha256 ${meta.config_sha256}`}>v{meta.pipeline_version}</span>}
-        <button type="button" className="iconbtn" onClick={(e) => toggleTheme(e.currentTarget)} aria-label="Switch light or dark theme">◐</button>
+        <button type="button" className="iconbtn" onClick={(e) => toggleTheme(e.currentTarget)}
+          aria-label="Switch light or dark theme" aria-pressed={dark} title={dark ? "Use the light theme" : "Use the dark theme"}>
+          <Icon name={dark ? "sun" : "moon"} />
+        </button>
         <button type="button" className="iconbtn menubtn" aria-expanded={menu} aria-controls="menu" onClick={() => setMenu(!menu)}>
-          {menu ? "Close" : "Menu"}
+          <Icon name={menu ? "close" : "menu"} />{menu ? "Close" : "Menu"}
         </button>
       </header>
       {menu && (

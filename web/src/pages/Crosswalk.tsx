@@ -32,7 +32,7 @@ export default function Crosswalk() {
     tooltip: { trigger: "axis" as const, valueFormatter: (v: unknown) => `${fmt(v as number)} km²` },
     xAxis: { type: "value" as const, ...axis() },
     yAxis: { type: "category" as const, inverse: true, data: shown.map((r) => other(r).name), ...axis() },
-    series: [{ type: "bar" as const, data: shown.map((r) => Math.round(r.area_km2)), itemStyle: { borderRadius: [0, 3, 3, 0] },
+    series: [{ type: "bar" as const, data: shown.map((r) => Math.round(r.area_km2)),
       label: { show: true, position: "right" as const, formatter: (p: { dataIndex: number }) => pct(other(shown[p.dataIndex]).share, 0) } }],
   } : null, [data, dir]); // eslint-disable-line react-hooks/exhaustive-deps
   const example = async () => { setYear(1951); setDir("forward"); setPick(await get<Registry>("/districts/IND-000202")); };

@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import Chart, { axis } from "../components/Chart";
+import Chart, { axis, tableFromOption } from "../components/Chart";
 import Chronology, { buildChronology, chronologyFacts } from "../components/Chronology";
 import Figure from "../components/Figure";
 import SectionNav from "../components/SectionNav";
@@ -67,7 +67,7 @@ export default function District() {
     tooltip: { trigger: "axis" as const, valueFormatter: (v: unknown) => `${fmt(v as number)} km²` },
     xAxis: { type: "category" as const, data: tl.data.maps.map((m) => String(m.year)), ...axis() },
     yAxis: { type: "value" as const, name: "km²", ...axis() },
-    series: [{ type: "line" as const, data: tl.data.maps.map((m) => Math.round(m.area_km2)), symbolSize: 8, areaStyle: { opacity: 0.12 } }],
+    series: [{ name: "Area (km²)", type: "line" as const, data: tl.data.maps.map((m) => Math.round(m.area_km2)), showSymbol: true, symbolSize: 8, areaStyle: { opacity: 0.08 } }],
   }, [tl.data]);
 
   const sankey = useMemo(() => {
@@ -200,7 +200,7 @@ export default function District() {
           subtitle="Its area on each map it appears on, in km² measured on the earth's curved surface."
           howTo={<>A drop means land left the district; a rise means it received land. Small wiggles without a drop or rise in the history
             above are differences in how two maps draw the same border (<Term k="displacement">boundary displacement</Term>).</>}
-          source="district_area_admin">
+          source="district_area_admin" table={d.observations.length > 1 ? tableFromOption(areaChart, "Map") : null}>
           {d.observations.length > 1 ? (areaChart && <Chart option={areaChart} testId="area-chart" />)
             : <p className="answer">{km2(f.first.area_km2)} on the {f.first.year} map, the only map it is on.</p>}
         </Figure>

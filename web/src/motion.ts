@@ -8,10 +8,10 @@ import { useLayoutEffect, useRef } from "react";
 export const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /**
- * Switch the theme with a circular reveal spreading from the control that asked for it. A View Transition animates
- * snapshots, so the live page never sits half-way between themes or at reduced contrast.
+ * Switch the theme with a short crossfade. A View Transition animates snapshots, so the live page never sits half-way
+ * between themes or at reduced contrast.
  */
-export function toggleTheme(from?: HTMLElement | null) {
+export function toggleTheme(_from?: HTMLElement | null) {
   const apply = () => {
     const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = next;
@@ -19,17 +19,9 @@ export function toggleTheme(from?: HTMLElement | null) {
     window.dispatchEvent(new Event("themechange"));
   };
   if (!document.startViewTransition || reducedMotion()) { apply(); return; }
-  const r = from?.getBoundingClientRect();
-  const x = r ? r.left + r.width / 2 : innerWidth - 40, y = r ? r.top + r.height / 2 : 30;
-  const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
   const root = document.documentElement;
   root.classList.add("theme-switch");
-  const t = document.startViewTransition(apply);
-  t.ready.then(() => root.animate(
-    { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
-    { duration: 520, easing: "cubic-bezier(.2, .8, .2, 1)", pseudoElement: "::view-transition-new(root)" },
-  )).catch(() => undefined);
-  t.finished.finally(() => root.classList.remove("theme-switch"));
+  document.startViewTransition(apply).finished.finally(() => root.classList.remove("theme-switch"));
 }
 
 /**
