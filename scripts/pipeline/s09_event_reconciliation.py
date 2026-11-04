@@ -21,6 +21,11 @@ Replaces v2's s8, s10 and s10b. For every event:
    could be the one that moved the territory). Otherwise the window total is
    an upper bound: UNIDENTIFIED_MULTI_EVENT_WINDOW or
    UNIDENTIFIED_UNLINKED_EVENT_IN_WINDOW.
+   Successor-level identification is finer: the km2 a declared successor
+   received from a predecessor is attributable to an event when that event is
+   the ONLY one declaring that successor in that window, even if other events
+   touch the same predecessor (event_flow.attribution = IDENTIFIED / SHARED;
+   event_summary.successor_measurement = ALL_IDENTIFIED / PARTIAL / NONE).
 6. Lineage corroboration is written to its own table; lineage is not changed.
 """
 
@@ -246,6 +251,16 @@ def main() -> None:
                         if (s == x).any()), "MEASURED"))
     summ["measurement_status"] = summ.event_id.map(worst).fillna("NOT_MEASURABLE")
 
+    flows = pd.DataFrame(flows)
+    dec = flows[flows.target_role == "DECLARED_SUCCESSOR"]
+    n_decl = dec.groupby(["year_a", "target_ck"]).event_id.nunique()
+    flows["attribution"] = [
+        ("IDENTIFIED" if n_decl.get((y, t), 0) == 1 else "SHARED") if r == "DECLARED_SUCCESSOR" else "NOT_DECLARED"
+        for y, t, r in zip(flows.year_a, flows.target_ck, flows.target_role)]
+    per = flows[flows.target_role == "DECLARED_SUCCESSOR"].groupby("event_id").attribution.agg(
+        lambda a: "ALL_IDENTIFIED" if (a == "IDENTIFIED").all() else "PARTIAL" if (a == "IDENTIFIED").any() else "NONE")
+    summ["successor_measurement"] = summ.event_id.map(per).fillna("NONE")
+
     # lineage corroboration: an edge is corroborated by an event in the same
     # window linking its source as predecessor and its target as successor
     lp = link[link.link_status.isin(ACCEPTED)]
@@ -262,7 +277,7 @@ def main() -> None:
                     csv_copy=lib.EVENTS_OUTPUT_DIR / "s09_event_linkage.csv")
     lib.write_table(acc, lib.GOLD_EVENTS_DIR / "event_accounting.parquet", "event_accounting",
                     csv_copy=lib.EVENTS_OUTPUT_DIR / "s09_event_accounting.csv")
-    lib.write_table(pd.DataFrame(flows), lib.GOLD_EVENTS_DIR / "event_flow.parquet", "event_flow",
+    lib.write_table(flows, lib.GOLD_EVENTS_DIR / "event_flow.parquet", "event_flow",
                     csv_copy=lib.EVENTS_OUTPUT_DIR / "s09_event_flows.csv")
     lib.write_table(summ, lib.GOLD_EVENTS_DIR / "event_summary.parquet", "event_summary",
                     csv_copy=lib.EVENTS_OUTPUT_DIR / "s09_event_summary.csv")

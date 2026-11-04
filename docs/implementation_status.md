@@ -1,31 +1,35 @@
-# Implementation Status: pipeline v3.0.0
+# Implementation Status: pipeline v4.1.0
 
-The design is in `docs/architecture/REVAMP_PLAN_V3.md`, and §7 there has the measured results.
-The live check results are in `outputs/pipeline/s12_validation_report.md`.
+Design: `docs/architecture/REVAMP_PLAN_V3.md`; changes since v3 and their measured effect: `CHANGELOG.md`.
+Live check results: `outputs/pipeline/s12_validation_report.md`. Column definitions: `docs/CODEBOOK.md`.
+Dataset-level description, limitations and recommended uses: `docs/DATASHEET.md`.
 
 | Stage | Script | Status |
 |---|---|---|
-| s01 | s01_bronze_to_silver.py | Done: exact-partition repair, placeholder exclusion |
-| s02 | s02_topology_audit.py | Done: V1 gate |
-| s03 | s03_transition_matrix.py | Done: parts classified as CORE/TRANSFER/DISPLACEMENT/SLIVER; reference overlays |
-| s04 | s04_identity.py | Done: core-continuity identity, 804 CKs; v2 migration map |
-| s05 | s05_lineage.py | Done: networkx DAG, 631 edges |
-| s06 | s06_area_ledger.py | Done |
-| s07 | s07_events_aggregate.py | Done: 609 events, double recording merged |
-| s08 | s08_event_linkage.py | Done: splink model, parameters in outputs/events/s08_splink_model.json |
-| s09 | s09_event_reconciliation.py | Done: footprint-constrained linkage, partition accounting |
-| s10 | s10_census_products.py | Done: admin areas, crosswalk to 2025, reference context |
-| s11 | s11_warehouse.py | Done: DuckDB + spatial, enforced DDL, 13 SQL invariants |
-| s12 | s12_validate.py | Done: gate PASS; 25/25 contracts; output hash manifest |
+| s01 | s01_bronze_to_silver.py | Exact-partition repair; placeholder and curated non-administrative exclusion; enclave-aware repair log |
+| s02 | s02_topology_audit.py | V1 self-overlap gate; V2 interior gaps |
+| s03 | s03_transition_matrix.py | ADJACENT, SKIP and REFERENCE overlays; parts classified; map-edition window types; width distribution |
+| s04 | s04_identity.py | Core-continuity identity with skip-vintage rule; pinned CK numbers; sensitivity grid; `ck_identity_confidence` |
+| s05 | s05_lineage.py | Lineage edges (km² + share floors), measured transfers, `ck_fate`, DAG check |
+| s06 | s06_area_ledger.py | Two-sided ledger (OUT and IN close) |
+| s07 | s07_events_aggregate.py | Event grain on the normalized predecessor set; protected multi-word names |
+| s08 | s08_event_linkage.py | splink model, deterministic training |
+| s09 | s09_event_reconciliation.py | Footprint-constrained linkage, joint disambiguation, predecessor- and successor-level identification |
+| s10 | s10_census_products.py | Admin areas, crosswalks (reference + adjacent, with envelopes), context, continuity, district codes, gazetteer |
+| s10h | s10h_harmonization.py | Census attributes, measured area uncertainty, comparable units, restated population, harmonization back-test |
+| s11 | s11_warehouse.py | DuckDB + spatial, enforced DDL, SQL invariants V3–V29, views |
+| s12 | s12_validate.py | Contracts, gate, manifest, source agreement and capture–recapture, research queue, report |
 
 | Principle | Enforced by |
 |---|---|
 | Events are evidence, not spatial truth | DAG order (s07+ after s04/s05); lineage never rewritten by events |
-| Conservation by construction | Exact layer partitions (V1 = 0) and overlay closure (V3) |
-| Deterministic outputs | V5: 36/36 files byte-identical across builds (CI) |
+| Conservation by construction | Exact layer partitions (V1), overlay closure (V3), two-sided ledger (V16, V23) |
+| Deterministic outputs | V5: byte-identical output manifests across builds (CI) |
 | One area method | V4: pyproj vs DuckDB ST_Area_Spheroid ≤ 0.01% |
-| DAG lineage | networkx (s05) and a recursive CTE (V10) |
-| Transfers between continuing districts create no lineage edge | V9 (L-3) |
-| Identified vs bounded event areas | V8 (MEASURED only when there is one event per window) |
+| Every closed district has a fate | V20 |
+| Comparable units partition their period | V27 |
+| Uncertainty is reported, never hidden | crosswalk envelopes, `district_area_uncertainty`, `ck_identity_confidence`, `harmonization_backtest` |
 
-Open decisions are listed in `CLAUDE.md` under "Open items".
+Tools outside the build: `scripts/audit/` (Wikidata external audit, identity sensitivity at other deltas,
+stratified manual review sample/score, boundary Monte Carlo), `scripts/maintenance/` (CK pinning, release
+diff), `scripts/docs/build_codebook.py`. Open decisions: `CLAUDE.md`, "Open items".

@@ -38,11 +38,20 @@ def load(year: int) -> gpd.GeoDataFrame:
     return gpd.read_parquet(lib.silver_path(year), columns=["geom_obs_id", "area_km2", "geometry"])
 
 
+WIDTH_BINS = [0, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0, 10.0, np.inf]
+
+
+def displacement_width(year_a: int, year_b: int) -> float:
+    by_type = OV.get("displacement_width_km_by_window_type") or {}
+    return float(by_type.get(lib.window_type(year_a, year_b), OV["displacement_width_km"]))
+
+
 def overlay_parts(year_a: int, year_b: int) -> gpd.GeoDataFrame:
-    return classify_parts(load(year_a), load(year_b))
+    return classify_parts(load(year_a), load(year_b), displacement_width(year_a, year_b))
 
 
-def classify_parts(layer_a: gpd.GeoDataFrame, layer_b: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+def classify_parts(layer_a: gpd.GeoDataFrame, layer_b: gpd.GeoDataFrame,
+                   width_km: float | None = None) -> gpd.GeoDataFrame:
     """Overlay two layers (geom_obs_id, area_km2, geometry) and classify every connected part."""
     a = layer_a.rename(columns={"geom_obs_id": "obs_a", "area_km2": "area_a"})
     b = layer_b.rename(columns={"geom_obs_id": "obs_b", "area_km2": "area_b"})
@@ -60,6 +69,9 @@ def classify_parts(layer_a: gpd.GeoDataFrame, layer_b: gpd.GeoDataFrame) -> gpd.
     parts["part_class"] = np.select(
         [sliver, core, width < OV["displacement_width_km"]],
         ["sliver", "core", "displacement"], default="transfer")
+    if width_km is not None:  # an explicit width replaces the default threshold
+        parts["part_class"] = np.select(
+            [sliver, core, width < width_km], ["sliver", "core", "displacement"], default="transfer")
     return parts
 
 
@@ -97,7 +109,8 @@ def summarize(flow, res, kind, year_a, year_b) -> dict:
     src = res[res.side == "SOURCE"]
     tgt = res[res.side == "TARGET"]
     return {
-        "kind": kind, "year_a": year_a, "year_b": year_b,
+        "kind": kind, "year_a": year_a, "year_b": year_b, "window_type": lib.window_type(year_a, year_b),
+        "displacement_width_km": displacement_width(year_a, year_b),
         "source_area_km2": round(src.area_km2.sum(), 1),
         **{f"{c}_km2": round(flow[f"{c}_km2"].sum(), 1) for c in CLASSES},
         "unmapped_source_km2": round(src.unmapped_km2.sum(), 1),
@@ -111,7 +124,7 @@ def main() -> None:
     pairs = [("ADJACENT", a, b) for a, b in lib.WINDOWS]
     pairs += [("SKIP", a, b) for a, b in zip(lib.YEARS[:-2], lib.YEARS[2:])]
     pairs += [("REFERENCE", y, lib.REFERENCE_YEAR) for y in lib.YEARS if y != lib.REFERENCE_YEAR]
-    flows, residuals, summary, inspect = [], [], [], []
+    flows, residuals, summary, inspect, widths = [], [], [], [], []
     cache: dict[tuple[int, int], gpd.GeoDataFrame] = {}
     for kind, ya, yb in pairs:
         if (ya, yb) not in cache:
@@ -125,6 +138,10 @@ def main() -> None:
         print(s)
         if kind == "ADJACENT":
             keep = parts[parts.part_class.isin(["transfer", "displacement"])]
+            h = keep.assign(bin=pd.cut(keep.width_km, WIDTH_BINS, right=False)).groupby("bin", observed=False)
+            widths.append(pd.DataFrame({"year_a": ya, "year_b": yb, "window_type": lib.window_type(ya, yb),
+                                        "width_bin_km": [str(b) for b in h.part_km2.sum().index],
+                                        "n_parts": h.size().values, "area_km2": h.part_km2.sum().values}))
             inspect.append(keep.assign(year_a=ya, year_b=yb)[
                 ["year_a", "year_b", "obs_a", "obs_b", "part_km2", "width_km", "part_class", "geometry"]])
 
@@ -132,6 +149,7 @@ def main() -> None:
                     "transition_flow")
     lib.write_table(pd.concat(residuals, ignore_index=True), lib.GOLD_SPATIAL_DIR / "transition_residual.parquet",
                     "transition_residual")
+    pd.concat(widths, ignore_index=True).to_csv(lib.OUTPUT_DIR / "s03_width_distribution.csv", index=False)
     summary = pd.DataFrame(summary)
     summary.to_csv(lib.OUTPUT_DIR / "s03_transition_summary.csv", index=False)
     gpd.GeoDataFrame(pd.concat(inspect, ignore_index=True), geometry="geometry", crs="EPSG:4326").to_file(

@@ -24,7 +24,10 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lib  # noqa: E402
+import quality  # noqa: E402
 import schemas  # noqa: E402
+
+CONFIRMED = ("CARVE_OUT", "CLEAN_SPLIT", "SAME_IDENTITY", "IDENTITY_CHANGED", "TRANSFER_BETWEEN_EXISTING")
 
 G = lib.PROJECT_ROOT / "data" / "gold"
 CONTRACTS = {
@@ -52,6 +55,10 @@ CONTRACTS = {
     "event_flow": G / "events/event_flow.parquet",
     "event_summary": G / "events/event_summary.parquet",
     "lineage_corroboration": G / "events/lineage_corroboration.parquet",
+    **{t: lib.PRODUCTS_DIR / f"{t}.parquet" for t in (
+        "crosswalk_adjacent", "ck_district_code", "name_gazetteer", "ck_identity_confidence", "census_attribute",
+        "district_area_uncertainty", "comparable_unit", "comparable_unit_member", "population_on_reference",
+        "population_on_units", "harmonization_backtest")},
 }
 
 
@@ -169,9 +176,57 @@ def research_queue(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
                                "year": md.first_map, "evidence": [
                                    f"{n} first mapped {y}, events CSV dates creation {int(c)}"
                                    for n, y, c in zip(md.latest_name, md.first_map, md.csv_year)]}))
+    add("FRAGILE_IDENTITY", """
+        SELECT i.canonical_key AS ck, NULL AS other_ck, r.established_year AS year,
+               printf('%s regroups under %d of %d threshold settings (min cliff distance %.3f)', r.latest_name,
+                      i.n_settings_changed, i.n_settings_tested, coalesce(i.min_cliff_distance, -1)) AS evidence
+        FROM ck_identity_confidence i JOIN ck_registry r USING (canonical_key) WHERE i.confidence_grade = 'C'""")
+    add("LEAKY_COMPARABLE_UNIT", f"""
+        SELECT NULL AS ck, unit_id AS other_ck, start_year AS year,
+               printf('unit of %s leaks %.1f%% of its area', reference_districts, 100 * max_leakage_share) AS evidence
+        FROM comparable_unit WHERE max_leakage_share > {lib.CFG['units']['leakage_warn_share']}""")
     out = pd.concat(q, ignore_index=True)[["kind", "ck", "other_ck", "year", "evidence"]]
     out["year"] = out.year.astype("Int64")
     return out.sort_values(["kind", "year", "ck", "evidence"], na_position="last").reset_index(drop=True)
+
+
+def source_agreement(con: duckdb.DuckDBPyConnection) -> tuple[pd.DataFrame, dict, dict]:
+    """How far the maps and the events compilation agree, what that implies
+    about changes both missed, and whether the compilation's own confidence
+    score predicts confirmation by the maps."""
+    q = lambda sql: con.execute(sql).fetchone()[0]  # noqa: E731
+    rows = [
+        ("lineage edges (map-detected changes)", q("SELECT count(*) FROM district_relationship")),
+        ("  corroborated by an event", q("SELECT count(*) FROM lineage_corroboration WHERE corroboration = 'EVENT_CORROBORATED'")),
+        ("  geometry only (events compilation silent)", q("SELECT count(*) FROM lineage_corroboration WHERE corroboration = 'GEOMETRY_ONLY'")),
+        ("events (SPLIT / NEW_DISTRICT / RENAME)", q("SELECT count(*) FROM event_summary")),
+        ("  confirmed by geometry", q(f"SELECT count(*) FROM event_summary WHERE spatial_class IN {CONFIRMED}")),
+        ("  no transfer observed", q("SELECT count(*) FROM event_summary WHERE spatial_class = 'NO_TRANSFER_OBSERVED'")),
+        ("  not linkable to the maps", q("SELECT count(*) FROM event_summary WHERE spatial_class = 'UNLINKED'")),
+    ]
+    # capture-recapture on district CREATIONS: maps = new CKs; events = successors named
+    # in SPLIT/NEW_DISTRICT events that are not the parent itself and not a district the
+    # maps show existing before the event window (those are transfers, not creations).
+    n1 = q("SELECT count(*) FROM ck_registry WHERE origin_kind = 'NEW'")
+    ent = con.execute("""
+        SELECT DISTINCT CASE WHEN l.canonical_key IS NOT NULL THEN l.canonical_key
+                             ELSE 'name:' || p.name_norm || '|' || coalesce(p.event_state_norm, '') END AS entity,
+               c.origin_kind
+        FROM event_linkage l JOIN event_participant p USING (participant_id)
+        JOIN boundary_event b ON b.event_id = l.event_id
+        JOIN event_summary s ON s.event_id = l.event_id
+        LEFT JOIN ck_registry c ON c.canonical_key = l.canonical_key
+        WHERE l.role = 'SUCCESSOR' AND b.event_type IN ('SPLIT', 'NEW_DISTRICT') AND l.link_status <> 'RETAINED_SELF'
+          AND (c.canonical_key IS NULL OR s.pre_vintage IS NULL OR c.established_year > s.pre_vintage)""").df()
+    n2, m = len(ent), int((ent.origin_kind == "NEW").sum())
+    cr = quality.chapman(n1, n2, m)
+    ev = con.execute("SELECT spatial_class, confidence_score_mean FROM event_summary").df()
+    au = quality.auc(ev.confidence_score_mean.to_numpy(), ev.spatial_class.isin(CONFIRMED).to_numpy())
+    rows += [("district creations: maps (new CKs), n1", cr["n1"]), ("district creations: events, n2", cr["n2"]),
+             ("  in both, m", cr["m"]), ("  estimated total (Chapman)", round(cr["n_hat"], 1)),
+             ("  95% interval", f"{cr['ci_low']:.0f}-{cr['ci_high']:.0f}"),
+             ("  estimated missed by both sources", round(cr["missed_by_both"], 1))]
+    return pd.DataFrame(rows, columns=["measure", "value"]), cr, au
 
 
 def manifest() -> pd.DataFrame:
@@ -236,6 +291,25 @@ def main() -> None:
     checks.to_csv(lib.OUTPUT_DIR / "s12_checks.csv", index=False)
     man = manifest()
     man.to_csv(lib.OUTPUT_DIR / "s12_output_manifest.csv", index=False)
+    agree, cr, au = source_agreement(con)
+    agree.to_csv(lib.OUTPUT_DIR / "s12_source_agreement.csv", index=False)
+    bt = con.execute('SELECT * FROM harmonization_backtest WHERE "window" = \'pooled\' ORDER BY measure').df()
+    cal = pd.read_csv(lib.OUTPUT_DIR / "s10h_area_calibration.csv")
+    units = con.execute("""SELECT start_year, count(*) AS units, sum(n_reference_districts) AS reference_districts,
+                                  round(median(max_leakage_share), 4) AS median_leakage,
+                                  round(max(max_leakage_share), 4) AS max_leakage
+                           FROM comparable_unit GROUP BY 1 ORDER BY 1""").df()
+    grades = con.execute("SELECT confidence_grade, count(*) n FROM ck_identity_confidence GROUP BY 1 ORDER BY 1").df()
+    s03 = pd.read_csv(lib.OUTPUT_DIR / "s03_transition_summary.csv")
+    s03 = s03[s03.kind == "ADJACENT"][["year_a", "year_b", "window_type", "transfer_km2", "displacement_km2"]]
+    if au["status"] == "CONSTANT":
+        conf_text = (f"The compilation's `confidence_score` is {au['value']:g} on every row: it carries no "
+                     "information and cannot be tested or used as an evidence weight.")
+    elif au["status"] == "TESTED":
+        conf_text = (f"AUC of `confidence_score` for confirmation by the maps: {au['auc']:.3f} "
+                     f"(95% CI {au['ci_low']:.3f}-{au['ci_high']:.3f}; 0.5 = uninformative).")
+    else:
+        conf_text = "`confidence_score` could not be tested (no confirmed or no unconfirmed events)."
     queue_all = research_queue(con)
     queue_all.to_csv(lib.OUTPUT_DIR / "s12_research_queue.csv", index=False)
     m = metrics(con)
@@ -273,6 +347,40 @@ V5 determinism: `outputs/pipeline/s12_output_manifest.csv` holds the sha256 of e
 ## Event classification from geometry
 
 {spatial.to_markdown(index=False)}
+
+## Source agreement (maps vs events compilation)
+
+{agree.to_markdown(index=False)}
+
+Capture-recapture assumes the two sources detect creations independently and contain no false
+positives; dependence (both miss obscure changes) biases the total LOW, false positives HIGH.
+Treat it as an order of magnitude. {conf_text}
+
+## Harmonization quality
+
+Area weighting back-test (population of census Y restated onto census Y+10 districts; log error
+after state growth; bootstrap 95% CI), pooled over 1951-2001:
+
+{bt[["measure", "n", "estimate", "ci_low", "ci_high"]].round(4).to_markdown(index=False)}
+
+Boundary error measured against census-reported areas: sigma =
+{cal.sigma_used_km.iloc[0]:.3f} km (median |map - census| / perimeter, n = {int(cal[cal.scope == "pooled"].n.iloc[0])}).
+
+Comparable units (exact aggregation, no interpolation):
+
+{units.to_markdown(index=False)}
+
+Identity confidence grades (A = stable and clear of every threshold; B = stable; C = regroups
+under a +/- {lib.CFG["identity"]["sensitivity_delta"]} threshold change):
+
+{grades.to_markdown(index=False)}
+
+## Change by map-edition window
+
+Windows between independently digitized editions mix territorial change with digitization
+differences; read their transfer totals as upper bounds.
+
+{s03.to_markdown(index=False)}
 
 ## Research queue
 

@@ -1,7 +1,7 @@
 # Pipeline v4 configuration. Every threshold used by any stage lives here with
 # its rationale; code reads it via lib.CFG. See docs/architecture/REVAMP_PLAN_V3.md.
 
-pipeline_version: "4.0.0"
+pipeline_version: "4.1.0"
 
 vintages:
   # (source, year) in chronological order. The last entry is the reference
@@ -17,6 +17,22 @@ vintages:
   - [soi, 2025]
 reference_year: 2025
 
+# Map edition of each vintage: layers digitized together share boundary lines,
+# so differences between them are territorial change; layers digitized
+# independently also differ by digitization. Assigned from the measured
+# displacement (s03 summary): ~200-270 km2 per window within 1951-2001,
+# 44,458 km2 (2001->2011), 40,503 km2 (2011->2021), 3,998 km2 (2021->2025).
+editions:
+  1951: stanford_1951_2001
+  1961: stanford_1951_2001
+  1971: stanford_1951_2001
+  1981: stanford_1951_2001
+  1991: stanford_1951_2001
+  2001: stanford_1951_2001
+  2011: stanford_2011
+  2021: stanford_2021
+  2025: soi_2025
+
 overlay:
   # A parcel is SLIVER when smaller than max(abs, rel * smaller polygon area).
   # Floating-point / snapping noise along shared boundaries (unchanged from v2).
@@ -29,6 +45,13 @@ overlay:
   # windows (1951-61, 1981-91) have real transfers >= 3 km wide; cross-edition
   # windows (2001-11, 2021-25) show jitter strips peaking at 0.1-0.6 km.
   displacement_width_km: 1.0
+  # Per window type (SAME_EDITION / CROSS_EDITION, from `editions`). Both are
+  # the measured 1.0 km for now; s03 writes the width distribution of non-core
+  # parts per window type (outputs/pipeline/s03_width_distribution.csv) so a
+  # separate same-edition value can be justified from data before changing it.
+  displacement_width_km_by_window_type:
+    SAME_EDITION: 1.0
+    CROSS_EDITION: 1.0
   # A parcel is CORE when it holds at least this share of the smaller of its
   # two polygons; core parcels are never classified as displacement.
   core_share: 0.5
@@ -69,6 +92,11 @@ identity:
   # Durg/Raipur/Surguja); none was a reconstitution.
   name_retained: 0.15
   name_jw: 0.90         # similarity threshold for "names agree" (tie-break only)
+  # s04 reruns rules 1-4 with each threshold above moved by +/- this much; a CK
+  # whose observations regroup under any of those 8 settings is grade C in
+  # ck_identity_confidence. 0.05 = the spacing of thresholds one would
+  # plausibly have chosen instead (v4: at most 9 of 789 identities move).
+  sensitivity_delta: 0.05
 
 lineage:
   # Minimum TRANSFER-class area for a cross-CK flow to count as a lineage edge
@@ -118,6 +146,46 @@ products:
   # "drawn on" by a reference district when it supplies at least this share of
   # the reference district (was hard-coded in s10 before v4).
   min_source_share: 0.01
+
+units:
+  # s10h comparable units: the smallest groups of districts whose combined
+  # territory is the same in every vintage of a period. A cross-district flow
+  # joins two districts into one unit when it is material (>= lineage.material_km2)
+  # AND at least this share of its source or target. Smaller real transfers are
+  # tolerated and measured as the unit's leakage (comparable_unit.max_leakage_share);
+  # 0 would make every 1-km-wide boundary edit merge whole regions.
+  min_share: 0.01
+  # V29 lists units whose leakage exceeds this (v4.1: median 0.13%, max 2.6%).
+  leakage_warn_share: 0.02
+
+uncertainty:
+  # Relative area uncertainty of a district = sigma * perimeter / area, where
+  # sigma is an effective boundary error (km). s10h MEASURES sigma as the median
+  # of |map area - census-reported area| / perimeter over every district with
+  # both (census areas carried in the 1961-2001 layers); this value is used only
+  # if fewer than min_calibration_districts districts have a census area.
+  fallback_sigma_km: 0.5
+  min_calibration_districts: 200
+  # district_area_uncertainty.high_uncertainty when the relative uncertainty
+  # exceeds this.
+  flag_rel: 0.05
+  # Census areas whose sum is this far from the map area sum are in other units
+  # (1961: square miles); the unit factor is then chosen among known factors.
+  unit_factors: {km2: 1.0, sq_mile: 2.589988}
+
+backtest:
+  # s10h harmonization back-test: restate census population of year Y onto the
+  # districts of the next census by area weights and compare with the census.
+  # UNCHANGED targets (one source holds >= unchanged_share of the target AND of
+  # itself) measure differential growth alone; RESTATED targets (largest source
+  # < restated_max_share of the target, or the target's main source was split)
+  # carry the area-weighting error on top. Excess log-error variance = the error
+  # attributable to the uniform-density assumption.
+  unchanged_share: 0.98
+  restated_max_share: 0.90
+  min_coverage: 0.99
+  bootstrap: 1000
+  seed: 20261104
 
 anomaly:
   # V24 area anomaly: a CK whose area at one vintage differs from its area at

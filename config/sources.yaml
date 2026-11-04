@@ -28,6 +28,10 @@ sources:
         path: data/bronze/stanford/1951/1951.gpkg
         primary_layer: districts_1951
         source_pk: C_CODE51
+        # census totals carried with the layer (s10h): population = persons, area = census-reported area
+        attribute_fields: {population: TOT_POP}
+        # district code columns carried into data/products/ck_district_code (s10); system label: column
+        code_fields: {census_1951: C_CODE51}
         name_field: NAME
         state_field: STATE_UT
         observation_year: 1951
@@ -41,6 +45,10 @@ sources:
         path: data/bronze/stanford/1961/1961.gpkg
         primary_layer: districts_1961
         source_pk: C_CODE61
+        # census totals carried with the layer (s10h): population = persons, area = census-reported area
+        attribute_fields: {population: TOT_POP, area: TOT_AREA}
+        # district code columns carried into data/products/ck_district_code (s10); system label: column
+        code_fields: {census_1961: C_CODE61}
         name_field: NAME
         state_field: STATE_UT
         observation_year: 1961
@@ -48,6 +56,10 @@ sources:
         path: data/bronze/stanford/1971/1971.gpkg
         primary_layer: districts_1971
         source_pk: C_CODE71
+        # census totals carried with the layer (s10h): population = persons, area = census-reported area
+        attribute_fields: {population: TOT_POP, area: TOT_AREA}
+        # district code columns carried into data/products/ck_district_code (s10); system label: column
+        code_fields: {census_1971: C_CODE71}
         name_field: NAME
         state_field: STATE_UT
         observation_year: 1971
@@ -55,6 +67,10 @@ sources:
         path: data/bronze/stanford/1981/1981.gpkg
         primary_layer: districts_1981
         source_pk: C_CODE81
+        # census totals carried with the layer (s10h): population = persons, area = census-reported area
+        attribute_fields: {population: TOT_POP_81}
+        # district code columns carried into data/products/ck_district_code (s10); system label: column
+        code_fields: {census_1981: C_CODE81}
         name_field: NAME
         state_field: STATE_UT
         observation_year: 1981
@@ -62,6 +78,10 @@ sources:
         path: data/bronze/stanford/1991/1991.gpkg
         primary_layer: districts_1991
         source_pk: DISTRICT_9
+        # census totals carried with the layer (s10h): population = persons, area = census-reported area
+        attribute_fields: {population: TOT_POP, area: TOT_AREA}
+        # district code columns carried into data/products/ck_district_code (s10); system label: column
+        code_fields: {source_id_stanford_1991: DISTRICT_9}
         name_field: NAME
         state_field: STATE_UT
         observation_year: 1991
@@ -69,6 +89,10 @@ sources:
         path: data/bronze/stanford/2001/2001.gpkg
         primary_layer: districts_2001
         source_pk: DIS01_ID
+        # census totals carried with the layer (s10h): population = persons, area = census-reported area
+        attribute_fields: {population: TOT_POP, area: TOT_AREA}
+        # district code columns carried into data/products/ck_district_code (s10); system label: column
+        code_fields: {census_2001: C_CODE01, source_id_stanford_2001: DIS01_ID}
         name_field: NAME
         state_field: STATE_UT
         observation_year: 2001
@@ -76,6 +100,8 @@ sources:
         path: data/bronze/stanford/2011/2011.gpkg
         primary_layer: districts_2011
         source_pk: pc11_d_id
+        # district code columns carried into data/products/ck_district_code (s10); system label: column
+        code_fields: {census_2011_pc11: pc11_d_id}
         name_field: d_name
         state_field: null
         state_code_field: pc11_s_id
@@ -85,6 +111,8 @@ sources:
         path: data/bronze/stanford/2021/2021.gpkg
         primary_layer: districts_2021
         source_pk: JID
+        # district code columns carried into data/products/ck_district_code (s10); system label: column
+        code_fields: {lgd: Dist_LGD, census_2011_series_extended: dtcode11, source_id_stanford_2021: JID}
         name_field: dtname
         state_field: stname
         observation_year: 2021
@@ -105,6 +133,8 @@ sources:
         path: data/bronze/soi/2025/2025.gpkg
         primary_layer: India_District_Boundary
         source_pk: DISTRICT_L
+        # district code columns carried into data/products/ck_district_code (s10); system label: column
+        code_fields: {source_id_soi_2025: DISTRICT_L}
         name_field: District
         state_field: STATE
         observation_year: 2025

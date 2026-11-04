@@ -113,7 +113,18 @@ SCHEMAS: dict[str, DataFrameSchema] = {
             "NAME_RETAINED_CORE", "SKIP_VINTAGE_CORE", "BREAK_NAME_DIFFERS", "BREAK_NO_CORE"])),
         "continues": Column(bool),
         "evidence_year": _year(),
+        "cliff_distance": Column(float, Check.ge(0)),
     }, unique=["year_a", "year_b", "geom_obs_id_a"]),
+
+    "ck_identity_confidence": DataFrameSchema({
+        "canonical_key": Column(str, CK, unique=True),
+        "n_continuations": Column(int, Check.ge(0)),
+        "min_cliff_distance": Column(float, Check.ge(0), nullable=True, coerce=True),
+        "n_name_decided": Column(int, Check.ge(0)), "n_renamed_continuations": Column(int, Check.ge(0)),
+        "n_skip_vintage": Column(int, Check.ge(0)), "n_settings_changed": Column(int, Check.ge(0)),
+        "n_settings_tested": Column(int, Check.ge(1)),
+        "confidence_grade": Column(str, Check.isin(["A", "B", "C"])),
+    }),
 
     # ---- s05 lineage -------------------------------------------------------
     "district_relationship": DataFrameSchema({
@@ -190,6 +201,7 @@ SCHEMAS: dict[str, DataFrameSchema] = {
         "n_successors": Column(int, Check.ge(0)),
         "n_parent_spellings": Column(int, Check.ge(1)),
         "n_csv_rows": Column(int, Check.ge(1)),
+        "confidence_score_mean": Column(float, nullable=True, coerce=True),
     }),
     "event_participant": DataFrameSchema({
         "participant_id": Column(str, SHA, unique=True),
@@ -243,7 +255,10 @@ SCHEMAS: dict[str, DataFrameSchema] = {
         "year_a": _year(), "year_b": _year(),
         "target_role": Column(str, Check.isin(["RETAINED", "DECLARED_SUCCESSOR", "UNDECLARED_NEIGHBOUR"])),
         "material_km2": _km2(), "displacement_km2": _km2(), "sliver_km2": _km2(),
-    }, unique=["event_id", "predecessor_ck", "target_ck"]),
+        "attribution": Column(str, Check.isin(["IDENTIFIED", "SHARED", "NOT_DECLARED"])),
+    }, unique=["event_id", "predecessor_ck", "target_ck"],
+        checks=[Check(lambda d: (d.target_role == "DECLARED_SUCCESSOR") == (d.attribution != "NOT_DECLARED"),
+                      error="attribution only for declared successors")]),
     "event_summary": DataFrameSchema({
         "event_id": Column(str, SHA, unique=True),
         "event_type": Column(str, Check.isin(["SPLIT", "NEW_DISTRICT", "RENAME"])),
@@ -254,6 +269,7 @@ SCHEMAS: dict[str, DataFrameSchema] = {
         "measurement_status": Column(str, Check.isin([
             "MEASURED", "UNIDENTIFIED_MULTI_EVENT_WINDOW", "UNIDENTIFIED_UNLINKED_EVENT_IN_WINDOW",
             "NOT_MEASURABLE"])),
+        "successor_measurement": Column(str, Check.isin(["ALL_IDENTIFIED", "PARTIAL", "NONE"])),
     }),
     "lineage_corroboration": DataFrameSchema({
         "rel_id": Column(str, SHA, unique=True),
@@ -273,18 +289,90 @@ SCHEMAS: dict[str, DataFrameSchema] = {
         "year": _year(),
         "source_ck": Column(str, CK), "target_ck": Column(str, CK),
         "area_km2": Column(float, Check.gt(0)),
+        "area_km2_low": _km2(), "area_km2_high": Column(float, Check.gt(0)),
         "share_of_source": Column(float, SHARE),
         "share_of_target": Column(float, SHARE),
         "source_mapped_share": Column(float, SHARE),
         "source_depicted_year": Column(int, Check.ge(1947)),
-    }, unique=["year", "source_ck", "target_ck"]),
+    }, unique=["year", "source_ck", "target_ck"],
+        checks=[Check(lambda d: (d.area_km2_low <= d.area_km2 + EPS) & (d.area_km2 <= d.area_km2_high + EPS),
+                      error="low <= point <= high")]),
+    "crosswalk_adjacent": DataFrameSchema({
+        "year_a": _year(), "year_b": _year(),
+        "source_ck": Column(str, CK), "target_ck": Column(str, CK),
+        "area_km2": Column(float, Check.gt(0)), "area_km2_low": _km2(), "area_km2_high": Column(float, Check.gt(0)),
+        "share_of_source": Column(float, SHARE), "share_of_target": Column(float, SHARE),
+        "source_mapped_share": Column(float, SHARE),
+    }, unique=["year_a", "source_ck", "target_ck"],
+        checks=[Check(lambda d: (d.area_km2_low <= d.area_km2 + EPS) & (d.area_km2 <= d.area_km2_high + EPS),
+                      error="low <= point <= high")]),
+    "ck_district_code": DataFrameSchema({
+        "year": _year(), "code_system": Column(str), "source_field": Column(str),
+        "code": Column(str, Check.str_length(min_value=1)), "canonical_key": Column(str, CK),
+        "district_name": Column(str),
+    }, unique=["year", "code_system", "code", "canonical_key"]),
+    "name_gazetteer": DataFrameSchema({
+        "name_norm": Column(str, Check.str_length(min_value=1)), "canonical_key": Column(str, CK),
+        "evidence": Column(str, Check.isin(["MAP", "ALIAS", "EVENT"])),
+        "name_variant": Column(str), "state": Column(str),
+        "first_year": _year(), "last_year": _year(),
+        "n_cks_with_name": Column(int, Check.ge(1)), "latest_name": Column(str),
+    }, unique=["name_norm", "canonical_key", "evidence"]),
     "ck_reference_continuity": DataFrameSchema({
         "canonical_key": Column(str, CK), "year": _year(),
         "area_then_km2": Column(float, Check.gt(0)), "area_reference_km2": Column(float, Check.gt(0)),
         "shared_km2": _km2(),
         "share_of_then_kept": Column(float, SHARE), "share_of_reference_from_then": Column(float, SHARE),
     }, unique=["canonical_key", "year"]),
+    # ---- s10h harmonization -------------------------------------------------
+    "census_attribute": DataFrameSchema({
+        "year": _year(), "geom_obs_id": Column(str, SHA, unique=True), "canonical_key": Column(str, CK),
+        "population": Column(float, Check.gt(0), nullable=True, coerce=True),
+        "census_area_raw": Column(float, Check.gt(0), nullable=True, coerce=True),
+        "census_area_km2": Column(float, Check.gt(0), nullable=True, coerce=True),
+        "area_unit": Column(str, Check.isin(["km2", "sq_mile"]), nullable=True),
+    }, unique=["year", "canonical_key"]),
+    "district_area_uncertainty": DataFrameSchema({
+        "canonical_key": Column(str, CK), "year": _year(), "area_km2": Column(float, Check.gt(0)),
+        "perimeter_km": Column(float, Check.gt(0)),
+        "census_area_km2": Column(float, Check.gt(0), nullable=True, coerce=True),
+        "sigma_km": Column(float, Check.gt(0)), "area_rel_uncertainty": Column(float, Check.ge(0)),
+        "area_km2_low": _km2(), "area_km2_high": Column(float, Check.gt(0)),
+        "rel_diff_vs_census": Column(float, nullable=True, coerce=True), "high_uncertainty": Column(bool),
+    }, unique=["canonical_key", "year"]),
+    "comparable_unit": DataFrameSchema({
+        "start_year": _year(), "unit_id": Column(str, Check.str_matches(r"^U\d{4}-[0-9a-f]{10}$")),
+        "n_district_observations": Column(int, Check.ge(1)), "n_reference_districts": Column(int, Check.ge(0)),
+        "n_start_year_districts": Column(int, Check.ge(0)), "area_reference_km2": _km2(),
+        "max_leakage_share": Column(float, SHARE), "reference_districts": Column(str, nullable=True),
+    }, unique=["start_year", "unit_id"]),
+    "comparable_unit_member": DataFrameSchema({
+        "start_year": _year(), "unit_id": Column(str), "year": _year(), "canonical_key": Column(str, CK),
+        "area_km2": Column(float, Check.gt(0)),
+    }, unique=["start_year", "year", "canonical_key"],
+        checks=[Check(lambda d: (d.year >= d.start_year).all(), error="member years within the unit period")]),
+    "population_on_reference": DataFrameSchema({
+        "year": _year(), "target_ck": Column(str, CK),
+        "population": Column(float, Check.ge(0)), "population_low": Column(float, Check.ge(0)),
+        "population_high": Column(float, Check.ge(0)),
+        "coverage_share": Column(float, SHARE), "n_sources": Column(int, Check.ge(0)),
+        "largest_source_share": Column(float, SHARE),
+    }, unique=["year", "target_ck"],
+        checks=[Check(lambda d: (d.population_low <= d.population * (1 + 1e-9) + EPS)
+                      & (d.population <= d.population_high * (1 + 1e-9) + EPS), error="low <= point <= high")]),
+    "population_on_units": DataFrameSchema({
+        "start_year": _year(), "unit_id": Column(str), "year": _year(),
+        "population": Column(float, Check.gt(0), nullable=True, coerce=True),
+        "complete": Column(bool), "n_districts": Column(int, Check.ge(1)),
+    }, unique=["start_year", "unit_id", "year"],
+        checks=[Check(lambda d: d.complete == d.population.notna(), error="value iff every member has data")]),
+    "harmonization_backtest": DataFrameSchema({
+        "window": Column(str), "measure": Column(str), "n": Column(int, Check.ge(0)),
+        "estimate": Column(float, nullable=True), "ci_low": Column(float, nullable=True),
+        "ci_high": Column(float, nullable=True),
+    }, unique=["window", "measure"]),
     "district_reference_context": DataFrameSchema({
+        "not_depicted_km2": _km2(),
         "target_ck": Column(str, CK), "year": _year(),
         "mapped_km2": _km2(),
         "n_source_districts": Column(int, Check.ge(0)),

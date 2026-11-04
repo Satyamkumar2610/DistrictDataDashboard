@@ -51,6 +51,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -203,11 +204,86 @@ def assign_identities(flow: pd.DataFrame, layers: dict, pinned: dict[str, str], 
     return registry, obs_ck, decisions
 
 
+NAME_DECIDED = {"CARVE_OUT_CORE", "NAME_RETAINED_CORE", "REORGANISED_CORE", "BREAK_NAME_DIFFERS"}
+
+
+def cliff_distance(d: pd.DataFrame) -> pd.Series:
+    """Distance from a decision's shares (r, h) to the nearest identity threshold;
+    for decisions the names decided, also |name similarity - name_jw|. Small =
+    a slightly different threshold could have flipped it."""
+    ts = [ID["strong"], ID["core"], ID["name_retained"]]
+    geo = pd.concat([(d.r_share - t).abs() for t in ts] + [(d.h_share - t).abs() for t in ts], axis=1).min(axis=1)
+    name = (d.name_jw - ID["name_jw"]).abs().where(d.continuity_class.isin(NAME_DECIDED))
+    return pd.concat([geo, name], axis=1).min(axis=1)
+
+
+def partition(obs_ck: dict[str, str]) -> dict[str, frozenset[str]]:
+    groups: dict[str, set[str]] = {}
+    for o, ck in obs_ck.items():
+        groups.setdefault(ck, set()).add(o)
+    return {ck: frozenset(g) for ck, g in groups.items()}
+
+
+def sensitivity(flow, layers, pinned, seq, base_obs_ck) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Rerun rules 1-4 with each identity threshold moved by +/- identity.sensitivity_delta.
+    Returns (summary per setting, changed baseline CKs per setting)."""
+    base = partition(base_obs_ck)
+    rows, changed = [], []
+    for param in ("strong", "core", "name_retained", "name_jw"):
+        original = ID[param]
+        for sign in (-1, 1):
+            value = round(original + sign * ID["sensitivity_delta"], 6)
+            ID[param] = value
+            try:
+                run = set(partition(assign_identities(flow, layers, pinned, seq, verbose=False)[1]).values())
+                moved = sorted(ck for ck, g in base.items() if g not in run)
+                note = ""
+            except AssertionError as exc:  # the rules themselves broke (not one-to-one)
+                moved, note = sorted(base), str(exc)
+            finally:
+                ID[param] = original
+            rows.append({"parameter": param, "baseline": original, "value": value, "ck_sets_changed": len(moved),
+                         "obs_reassigned": sum(len(base[c]) for c in moved), "note": note})
+            changed += [{"parameter": param, "value": value, "canonical_key": c} for c in moved]
+    return pd.DataFrame(rows), pd.DataFrame(changed, columns=["parameter", "value", "canonical_key"])
+
+
+def identity_confidence(reg: pd.DataFrame, ck_obs: pd.DataFrame, decisions: pd.DataFrame,
+                        changed: pd.DataFrame, n_settings: int) -> pd.DataFrame:
+    """One row per CK: how robust is this identity, and what evidence holds it together."""
+    ck = dict(zip(ck_obs.geom_obs_id, ck_obs.canonical_key))
+    d = decisions.assign(ck_a=decisions.geom_obs_id_a.map(ck), ck_b=decisions.geom_obs_id_b.map(ck))
+    # a CK's decisions: every window it continued through or ended in, plus the break that created it
+    own = pd.concat([d.assign(canonical_key=d.ck_a), d[~d.continues].assign(canonical_key=d.ck_b)])
+    own = own[own.canonical_key.notna()]
+    g = own.groupby("canonical_key")
+    cont = d[d.continues].groupby("ck_a")
+    out = pd.DataFrame({"canonical_key": reg.canonical_key})
+    out["n_continuations"] = out.canonical_key.map(cont.size()).fillna(0).astype(int)
+    out["min_cliff_distance"] = out.canonical_key.map(g.cliff_distance.min())
+    out["n_name_decided"] = out.canonical_key.map(
+        d[d.continues & d.continuity_class.isin(NAME_DECIDED)].groupby("ck_a").size()).fillna(0).astype(int)
+    out["n_renamed_continuations"] = out.canonical_key.map(
+        d[d.continues & ~d.names_agree].groupby("ck_a").size()).fillna(0).astype(int)
+    out["n_skip_vintage"] = out.canonical_key.map(
+        d[d.continuity_class == "SKIP_VINTAGE_CORE"].groupby("ck_a").size()).fillna(0).astype(int)
+    out["n_settings_changed"] = out.canonical_key.map(changed.groupby("canonical_key").size()).fillna(0).astype(int)
+    out["n_settings_tested"] = n_settings
+    margin = ID["sensitivity_delta"]
+    stable = out.n_settings_changed == 0
+    clear = out.min_cliff_distance.isna() | (out.min_cliff_distance >= margin)
+    out["confidence_grade"] = np.select(
+        [stable & clear & (out.n_name_decided == 0) & (out.n_skip_vintage == 0), stable],
+        ["A", "B"], default="C")
+    return out.sort_values("canonical_key")
+
+
 def main() -> None:
     flow = pd.read_parquet(lib.GOLD_SPATIAL_DIR / "transition_flow.parquet")
     layers = {y: load_layer(y) for y in lib.YEARS}
     pinned, seq = pinned_registry()
     registry, obs_ck, decisions = assign_identities(flow, layers, pinned, seq)
+    sens, changed = sensitivity(flow, layers, pinned, seq, obs_ck)
 
     obs = pd.concat([layers[y].assign(year=y) for y in lib.YEARS], ignore_index=True)
     obs["canonical_key"] = obs["geom_obs_id"].map(obs_ck)
@@ -237,6 +313,8 @@ def main() -> None:
 
     decisions = pd.concat(decisions, ignore_index=True).astype({"evidence_year": int, "continues": bool,
                                                                 "names_agree": bool})
+    decisions["cliff_distance"] = cliff_distance(decisions)
+    conf = identity_confidence(reg, ck_obs, decisions, changed, len(sens))
     retired = sorted(set(pinned.values()) - set(registry))
     pd.DataFrame({"canonical_key": retired}).to_csv(lib.OUTPUT_DIR / "s04_retired_pinned_cks.csv", index=False)
     print(f"pinned CKs reused: {len(set(pinned.values()) & set(registry))}  retired: {len(retired)}  "
@@ -246,6 +324,14 @@ def main() -> None:
     lib.write_table(ck_obs, lib.GOLD_CORE_DIR / "ck_observation.parquet", "ck_observation")
     lib.write_table(decisions, lib.GOLD_CORE_DIR / "continuity_decision.parquet", "continuity_decision",
                     csv_copy=lib.OUTPUT_DIR / "s04_continuity_decisions.csv")
+    lib.write_table(conf, lib.PRODUCTS_DIR / "ck_identity_confidence.parquet", "ck_identity_confidence",
+                    csv_copy=lib.PRODUCTS_DIR / "ck_identity_confidence.csv")
+    sens.to_csv(lib.OUTPUT_DIR / "s04_identity_sensitivity.csv", index=False)
+    changed.assign(name=changed.canonical_key.map(reg.set_index("canonical_key").latest_name)).to_csv(
+        lib.OUTPUT_DIR / "s04_identity_sensitivity_changed.csv", index=False)
+    print("identity sensitivity (+/- %.2f): " % ID["sensitivity_delta"]
+          + ", ".join(f"{r.parameter}={r.value}: {r.ck_sets_changed}" for r in sens.itertuples()))
+    print("confidence grades: " + ", ".join(f"{k}={v}" for k, v in conf.confidence_grade.value_counts().sort_index().items()))
 
     n_active = int(reg.is_active.sum())
     print(f"CKs: {len(reg)}  active at {lib.YEARS[-1]}: {n_active}  closed: {len(reg) - n_active}")

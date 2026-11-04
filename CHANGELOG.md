@@ -3,6 +3,81 @@
 Versions follow semantic versioning of `pipeline_version` (config/pipeline.yaml).
 A MAJOR change can renumber canonical keys or change the meaning of a product.
 
+## 4.1.0
+
+Research-grade additions: measured uncertainty, delivered harmonization, and the pipeline's
+own error rates. Additive only: identity rules, thresholds and every v4.0.0 CK are unchanged.
+New stage **s10h** (harmonization) runs between s10 and s11.
+
+### Added — uncertainty
+- `crosswalk_to_reference` / new `crosswalk_adjacent`: `area_km2_low` (CORE + TRANSFER) and
+  `area_km2_high` (all overlap), an envelope from the measured map-edition disagreement.
+- `district_area_uncertainty`: relative area uncertainty σ·perimeter/area. σ = 0.097 km is
+  **measured**: the median |map area − census-reported area| / perimeter over 1,276 districts with
+  both, using the census areas the 1961/1971/2001 layers carry. Area units are detected from the data
+  (1961 is in square miles; 1991's areas match no unit and are rejected).
+- `ck_identity_confidence`: per CK, distance of its decisions from the thresholds, evidence kinds
+  (name-decided, renamed, skip-vintage) and stability under the s04 sensitivity grid (now part of
+  the build, `identity.sensitivity_delta`). Grades: 314 A, 440 B, 35 C.
+  `continuity_decision.cliff_distance` added.
+
+### Added — harmonization
+- `scripts/pipeline/harmonize.py`: `restate()` (area weighting; counts vs rates through their
+  denominator; coverage; envelope) and `aggregate_to_units()` (exact).
+- `comparable_unit` / `comparable_unit_member`: the smallest groups of districts with identical
+  combined territory over each period to 2025 (151 units for 1951–2025, up to 598 for 2021–2025),
+  with measured leakage (median 0.1%, max 2.6%).
+- `census_attribute`, `population_on_reference` (census population 1951–2001 restated onto 2025
+  districts, with envelope and coverage; 99.6% of the enumerated total retained), and
+  `population_on_units` (exact sums to comparable units).
+- `harmonization_backtest`: restates census Y onto census Y+10 districts and compares with what
+  Y+10 enumerated, after state growth. **Area weighting errs by a median of 15% (95% CI 14–17%)
+  where splitting is needed, against 2.9% where territory is unchanged; 12.8% of restated districts
+  are off by more than ×1.65** (urban cores carved out of rural districts, mountain valleys).
+
+### Added — usability
+- `ck_district_code`: every code the layers carry (census 1951–1981, 2001, 2011 PC11; LGD 2021;
+  other IDs labelled `source_id_*`) → CK. `name_gazetteer`: every name a CK is known by (map,
+  alias, linked event name) with an ambiguity count.
+- `district_reference_context.not_depicted_km2`: 2025 territory with no year-Y map (and so no
+  statistics) behind it.
+- Warehouse views `v_origin_composition`, `v_code_to_reference`.
+
+### Added — the pipeline's own error rates
+- s12 "Source agreement": map-detected changes vs events, events confirmed by geometry, and a
+  two-source capture–recapture (Chapman) estimate of district creations missed by both sources,
+  with its assumptions stated (`scripts/pipeline/quality.py`). Result: 473 creations in the
+  maps, 490 in the events, 439 in both; estimated total 528 (95% interval 525–535), so about 4
+  missed by both. That is a floor, since the two sources are probably not independent.
+- The events compilation's `confidence_score` is carried (`boundary_event.confidence_score_mean`)
+  and tested. It is 1.0 on every row, so it is reported as uninformative.
+- Successor-level identification in s09 (`event_flow.attribution`,
+  `event_summary.successor_measurement`): 56 events whose predecessor window is shared are still
+  fully identified at the successor level.
+- `scripts/audit/review_sample.py` / `review_score.py`: stratified manual review of decisions with
+  Wilson intervals and a stratum-weighted precision.
+- `scripts/audit/boundary_monte_carlo.py`: smooth random boundary perturbation (partition-
+  preserving) with the measured σ; percentiles of every crosswalk weight. Trial (2021 → 2025,
+  3 runs): the median p05–p95 width of a weight is 0.2 percentage points (p90 0.5 pp), so boundary-
+  position error is an order of magnitude below the area-weighting error.
+
+### Fixed
+- Comparable-unit outputs depended on Python's hash seed (set iteration order reached a float
+  sum). CI now builds under two different `PYTHONHASHSEED`s, and all 62 output files are identical.
+
+### Added — model transparency
+- `editions` in config: each vintage's map edition; s03 types every window SAME_EDITION /
+  CROSS_EDITION, allows a displacement width per type (both 1.0 km, so classification is unchanged)
+  and writes the width distribution (`s03_width_distribution.csv`) needed to justify a change.
+- Checks V27 (comparable units partition their period), V28 (restated population never exceeds
+  the enumerated total) and V29 (leaky units); research-queue kinds FRAGILE_IDENTITY and
+  LEAKY_COMPARABLE_UNIT.
+- `docs/CODEBOOK.md` (generated from `docs/codebook.yaml` + contracts; a test fails on an
+  undocumented column), `docs/DATASHEET.md`, `docs/release_diffs/`, and
+  `scripts/maintenance/release_diff.py`.
+- Tests: harmonization library, estimators, review scoring, and overlay conservation on random
+  grid partitions.
+
 ## 4.0.0
 
 Code-logic audit of v3.0.0 (no external sources). Every change below was measured on the

@@ -47,7 +47,12 @@ source .venv/bin/activate && dvc repro    # same DAG; reruns only what changed; 
 `outputs/pipeline/s12_validation_report.md`; every finding needing a documentary check is in
 `outputs/pipeline/s12_research_queue.csv`. s11 needs the DuckDB `spatial` extension: it loads it
 locally and only downloads it if missing; for offline builds set `DUCKDB_EXTENSION_DIRECTORY`.
-`scripts/audit/identity_sensitivity.py` reruns identity with each threshold ±0.05.
+s04 reruns identity with each threshold ±`identity.sensitivity_delta` on every build
+(`ck_identity_confidence`). Docs: `docs/CODEBOOK.md` (regenerate with
+`scripts/docs/build_codebook.py`), `docs/DATASHEET.md`. Audit tools outside the build:
+`scripts/audit/review_sample.py` + `review_score.py` (stratified manual review),
+`boundary_monte_carlo.py`, `identity_sensitivity.py --delta`. Release diff:
+`scripts/maintenance/release_diff.py`.
 
 ## Pipeline (`scripts/pipeline/`)
 
@@ -65,12 +70,15 @@ are evidence and never drive geometry.
 | s07 events | CSV → administrative event grain. A change recorded as both NEW_DISTRICT and SPLIT is one event; grouped on the normalized predecessor set; names that are one entity ("Jammu And Kashmir") are never split. |
 | s08 linkage | splink Fellegi-Sunter model linking event names to CK records (name + state-lineage evidence) |
 | s09 reconciliation | Link successors only within the predecessor's territorial footprint; predecessors of splits only among CKs that gave territory away; ambiguous links resolved by footprint or not used. Partition-exact accounting. MEASURED only when there is one event per window and no unlinked event beside it. |
-| s10 products | `district_area_admin`, `crosswalk_to_reference`, `district_reference_context`, `ck_reference_continuity` |
+| s10 products | `district_area_admin`, `crosswalk_to_reference` and `crosswalk_adjacent` (with low/high envelope), `district_reference_context`, `ck_reference_continuity`, `ck_district_code`, `name_gazetteer` |
+| s10h harmonization | Census attributes carried by the layers; area uncertainty with σ measured against census areas; comparable units (exact aggregation); population restated onto 2025 and onto units; back-test of area weighting |
 | s11 warehouse | `data/gold/district_evolution.duckdb`: enforced DDL, SQL invariants, independent ST_Area_Spheroid check |
 | s12 validate | pandera contracts, collect all checks, output hash manifest, research queue, report, gate |
 
 Shared modules: `lib.py` (paths, config, area, IDs, names, reference data, `write_table`),
-`schemas.py` (pandera contracts for every table), `lineage_graph.py` (networkx).
+`schemas.py` (pandera contracts for every table), `lineage_graph.py` (networkx),
+`harmonize.py` (restate by area weights / aggregate to comparable units), `quality.py`
+(capture–recapture, AUC).
 
 ## Rules for working in this repo
 
@@ -95,6 +103,9 @@ Shared modules: `lib.py` (paths, config, area, IDs, names, reference data, `writ
   update `CHANGELOG.md`, review the build, then run `scripts/maintenance/pin_ck_registry.py`
   (it appends new CKs to the pinned registry and writes the migration map for retired ones).
   Never edit or reuse a pinned number by hand.
+- **Report uncertainty with every number.** A new weight or area gets its envelope or measured error;
+  a rate is never area-weighted directly (use `harmonize.restate(kind="rate")` with its denominator).
+- **Document every product column** in `docs/codebook.yaml`; `tests/test_codebook.py` fails otherwise.
 - **A named polygon that is not a district** goes into `non_administrative_features.csv` with
   evidence; V25 fails if a CK carries such a name.
 
@@ -116,5 +127,12 @@ Shared modules: `lib.py` (paths, config, area, IDs, names, reference data, `writ
 - Research queue (`s12_research_queue.csv`): 30 outside-footprint successors, 26 historical
   absorptions, 19 shown-before-creation, 10 ambiguous links, Kolkata 2021 area anomaly, one
   non-enclave overlap repair (2011). Each needs a documentary check.
+- Manual review: `scripts/audit/review_sample.py` draws the stratified sample; the per-class
+  precision with intervals exists only once someone fills `outputs/audit/review_form.csv`.
+- Same-edition displacement width: `s03_width_distribution.csv` holds the evidence for setting
+  `displacement_width_km_by_window_type.SAME_EDITION` separately; still 1.0 km.
+- Area weighting misallocates population in urban cores and mountain districts (back-test: median
+  15% error where splitting is needed). Dasymetric weights need sub-district data the project
+  does not have; `harmonize.restate` accepts any crosswalk, so such weights can be added as one.
 - `state_lineage.csv` lacks some partial transfers (e.g. Bombay → Mysore/Karnataka 1956 for
   North Kanara), which is why exact-name links to historical states score only ~0.5.

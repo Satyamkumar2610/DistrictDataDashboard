@@ -177,6 +177,14 @@ stages:
       - data/gold/spatial/transition_flow.parquet
       - data/gold/core/ck_registry.parquet
       - data/gold/core/ck_observation.parquet
+      - data/gold/spatial/ck_flow.parquet
+      - data/gold/spatial/transition_residual.parquet
+      - data/gold/events/event_linkage.parquet
+      - data/gold/events/event_participant.parquet
+      - data/reference/name_aliases.csv
+      - config/sources.yaml
+      - data/bronze/stanford
+      - data/bronze/soi
     outs:
       - data/products/district_area_admin.parquet: {cache: false}
       - data/products/district_area_admin.csv: {cache: false}
@@ -188,6 +196,47 @@ stages:
       - data/products/district_reference_context_wide.csv: {cache: false}
       - data/products/ck_reference_continuity.parquet: {cache: false}
       - data/products/ck_reference_continuity.csv: {cache: false}
+      - data/products/crosswalk_adjacent.parquet: {cache: false}
+      - data/products/crosswalk_adjacent.csv: {cache: false}
+      - data/products/ck_district_code.parquet: {cache: false}
+      - data/products/ck_district_code.csv: {cache: false}
+      - data/products/name_gazetteer.parquet: {cache: false}
+      - data/products/name_gazetteer.csv: {cache: false}
+
+  s10h_harmonization:
+    cmd: python scripts/pipeline/s10h_harmonization.py
+    deps:
+      - scripts/pipeline/s10h_harmonization.py
+      - scripts/pipeline/harmonize.py
+      - scripts/pipeline/lib.py
+      - scripts/pipeline/schemas.py
+      - config/pipeline.yaml
+      - config/sources.yaml
+      - data/bronze/stanford
+      - data/silver/geometry
+      - data/gold/core/ck_observation.parquet
+      - data/gold/core/ck_registry.parquet
+      - data/gold/spatial/ck_flow.parquet
+      - data/products/crosswalk_to_reference.parquet
+      - data/products/crosswalk_adjacent.parquet
+    outs:
+      - data/products/census_attribute.parquet: {cache: false}
+      - data/products/census_attribute.csv: {cache: false}
+      - data/products/district_area_uncertainty.parquet: {cache: false}
+      - data/products/district_area_uncertainty.csv: {cache: false}
+      - data/products/comparable_unit.parquet: {cache: false}
+      - data/products/comparable_unit.csv: {cache: false}
+      - data/products/comparable_unit_member.parquet: {cache: false}
+      - data/products/comparable_unit_member.csv: {cache: false}
+      - data/products/population_on_reference.parquet: {cache: false}
+      - data/products/population_on_reference.csv: {cache: false}
+      - data/products/population_on_units.parquet: {cache: false}
+      - data/products/population_on_units.csv: {cache: false}
+      - data/products/harmonization_backtest.parquet: {cache: false}
+      - data/products/harmonization_backtest.csv: {cache: false}
+      - outputs/pipeline/s10h_area_calibration.csv: {cache: false}
+      - outputs/pipeline/s10h_census_area_units.csv: {cache: false}
+      - outputs/pipeline/s10h_backtest_districts.csv: {cache: false}
 
   s11_warehouse:
     cmd: python scripts/pipeline/s11_warehouse.py

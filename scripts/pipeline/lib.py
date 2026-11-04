@@ -45,10 +45,36 @@ YEARS: list[int] = [y for _, y in VINTAGES]
 SOURCE_BY_YEAR: dict[int, str] = {y: s for s, y in VINTAGES}
 REFERENCE_YEAR: int = int(CFG["reference_year"])
 WINDOWS: list[tuple[int, int]] = list(zip(YEARS[:-1], YEARS[1:]))
+EDITION_BY_YEAR: dict[int, str] = {int(y): str(e) for y, e in CFG["editions"].items()}
+
+
+def window_type(year_a: int, year_b: int) -> str:
+    """SAME_EDITION when both maps come from one digitization, else CROSS_EDITION."""
+    return "SAME_EDITION" if EDITION_BY_YEAR[year_a] == EDITION_BY_YEAR[year_b] else "CROSS_EDITION"
 
 
 def silver_path(year: int) -> Path:
     return SILVER_GEOM_DIR / f"{SOURCE_BY_YEAR[year]}_{year}.geoparquet"
+
+
+@functools.lru_cache(maxsize=1)
+def sources_config() -> dict:
+    with open(CONFIG_DIR / "sources.yaml") as fh:
+        return yaml.safe_load(fh)["sources"]
+
+
+def bronze_attributes(year: int, fields: list[str]) -> pd.DataFrame:
+    """Attribute columns of a bronze layer (read-only, no geometry), keyed by the
+    same geom_obs_id s01 assigns (stable_id(source, year, source_pk)). Rows s01
+    excluded simply find no observation downstream."""
+    import pyogrio
+    source = SOURCE_BY_YEAR[year]
+    cfg = sources_config()[source]["datasets"][str(year)]
+    df = pyogrio.read_dataframe(PROJECT_ROOT / cfg["path"], layer=cfg["primary_layer"], read_geometry=False)
+    out = pd.DataFrame({"geom_obs_id": [stable_id(source, year, pk) for pk in df[cfg["source_pk"]].astype(str)]})
+    for f in fields:
+        out[f] = df[f].values if f in df.columns else None
+    return out
 
 
 # ---------------------------------------------------------------------------

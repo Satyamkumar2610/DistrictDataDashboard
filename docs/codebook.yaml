@@ -1,0 +1,238 @@
+# Column descriptions for every user-facing table. scripts/docs/build_codebook.py
+# merges these with the type and validation rules in scripts/pipeline/schemas.py
+# into docs/CODEBOOK.md; tests/test_codebook.py fails if a built table has a
+# column with no description here. Units: km2 = square kilometres (WGS84
+# geodesic), years = census vintage labels unless a column says "depicted".
+
+common:
+  canonical_key: "Canonical key (CK) of one administrative identity across vintages, IND-000000. Stable across releases (data/reference/ck_pinned_registry.csv); retired keys are mapped in data/reference/ck_migration_*.csv."
+  year: "Census vintage (map label): 1951 ... 2021 Stanford, 2025 Survey of India."
+  year_a: "Earlier vintage of a window."
+  year_b: "Later vintage of a window."
+  source_ck: "CK of the district on the earlier / source map."
+  target_ck: "CK of the district on the later / target map."
+  from_ck: "CK that territory moved out of."
+  to_ck: "CK that territory moved into."
+  start_year: "First vintage of the period a comparable unit is stable over (the period runs to 2025)."
+  unit_id: "Comparable unit identifier, U<start_year>-<hash of its member set>."
+
+tables:
+  ck_registry:
+    stage: s04
+    meaning: "One row per administrative identity (CK): when it existed and what it was called."
+    columns:
+      established_year: "First vintage the identity appears on."
+      closed_year: "First vintage it no longer appears on (NULL = active in 2025)."
+      is_active: "True when the identity exists on the 2025 map."
+      origin_kind: "ANCHOR = present on the first (1951) map; NEW = created later."
+      display_name: "Name at creation (first vintage)."
+      state_at_creation: "State at creation."
+      latest_name: "Name on the last vintage it appears on."
+      latest_state: "State on the last vintage it appears on."
+      n_observations: "Number of vintages it appears on."
+      formed_after: "Creation happened after this (depicted) year: the date the previous map depicts."
+      formed_by: "Creation happened by this (depicted) year."
+      closed_after: "Closure happened after this (depicted) year."
+      closed_by: "Closure happened by this (depicted) year."
+  ck_fate:
+    stage: s05
+    meaning: "Where the territory of every closed identity went (one row per destination)."
+    columns:
+      closed_year: "Vintage on which the identity no longer appears."
+      fate_type: "SPLIT_FROM = into a new district created that window; MERGED_INTO = into a new district fed by >= 2 closing districts; ABSORBED_INTO = into a district that already existed."
+      transfer_km2: "Material (CORE + TRANSFER) area that went to this destination."
+      outflow_share: "transfer_km2 / area of the closing district."
+      fate_share_rank: "1 = the destination that received the most."
+  district_relationship:
+    stage: s05
+    meaning: "Lineage edges into newly created districts, measured from geometry only."
+    columns:
+      rel_id: "Deterministic edge id."
+      relationship_type: "FORMED_FROM = source continues (carve-out); SPLIT_FROM = source closes and is the target's only closing source; MERGED_INTO = source closes and >= 2 closing sources feed the target."
+      period_start: "Change happened after this depicted year."
+      period_end: "Change happened by this depicted year."
+      transfer_km2: "Material area that moved along the edge."
+      outflow_share: "transfer_km2 / source area."
+      inflow_share: "transfer_km2 / target area."
+      source_closes: "True when the source district does not continue past this window."
+      n_target_sources: "Number of districts that contributed to the target in this window."
+      lineage_basis: "Always SPATIAL: edges come from the overlay, never from the events compilation."
+  measured_area_transfer:
+    stage: s05
+    meaning: "Material territory that moved between two districts that both already existed (no lineage edge)."
+    columns:
+      transfer_id: "Deterministic transfer id."
+      period_start: "Change happened after this depicted year."
+      period_end: "Change happened by this depicted year."
+      transfer_km2: "Material area moved."
+      outflow_share: "transfer_km2 / source area."
+      inflow_share: "transfer_km2 / target area."
+  area_ledger:
+    stage: s06
+    file: district_area_ledger
+    meaning: "Per CK and window: where its territory went (OUT) and where its new territory came from (IN). Both sides close exactly."
+    columns:
+      area_before_km2: "Area at year_a (0 for a CK created in this window)."
+      retained_km2: "Area kept (non-sliver overlap with itself)."
+      to_new_districts_km2: "Material area given to districts created in this window."
+      to_existing_districts_km2: "Material area given to districts that already existed."
+      displacement_km2: "Area in thin boundary-displacement strips toward other districts (digitization, not change)."
+      sliver_km2: "Area in sliver parts (overlay noise)."
+      unmapped_km2: "Area of this district that the later map does not cover (coverage loss)."
+      closure_error_km2: "|sum of OUT parts - area_before|."
+      closure_ok: "OUT side closes within closure tolerance."
+      area_after_km2: "Area at year_b (0 if it closed)."
+      kept_in_km2: "Area at year_b that it already held at year_a (including its own slivers)."
+      received_km2: "Material area received from other districts."
+      received_displacement_km2: "Displacement-strip area received from other districts."
+      received_sliver_km2: "Sliver area received from other districts."
+      coverage_gain_km2: "Area at year_b that the earlier map does not cover at all."
+      forward_closure_error_km2: "|sum of IN parts - area_after|."
+      forward_closure_ok: "IN side closes within closure tolerance."
+  district_area_admin:
+    stage: s10
+    meaning: "Area of the administrative district as mapped at each vintage."
+    columns:
+      depicted_year: "The year these boundaries actually depict (differs from `year` for confirmed mislabelled layers)."
+      district_name: "Name on this vintage."
+      state: "State on this vintage."
+      area_km2: "Geodesic map area. See district_area_uncertainty for its uncertainty."
+  crosswalk_to_reference:
+    stage: s10
+    meaning: "km2 of district source_ck (year) lying inside 2025 district target_ck, from a direct overlay of that year's map on the 2025 map. The area weight for restating statistics onto 2025 districts."
+    columns:
+      area_km2: "Point value: CORE + TRANSFER + BOUNDARY_DISPLACEMENT overlap (sliver noise excluded)."
+      area_km2_low: "CORE + TRANSFER only (lower edge of the map-edition envelope)."
+      area_km2_high: "All overlap including slivers (upper edge of the map-edition envelope)."
+      share_of_source: "area_km2 / area of the source district: the restatement weight for a count."
+      share_of_target: "area_km2 / area of the 2025 district: the origin composition."
+      source_mapped_share: "Sum of share_of_source over the source's rows: how much of it the 2025 map covers (< 1 = undercount if used for counts)."
+      source_depicted_year: "Year the source boundaries depict."
+  crosswalk_adjacent:
+    stage: s10
+    meaning: "The same as crosswalk_to_reference between consecutive vintages (year_a -> year_b)."
+    columns:
+      area_km2: "Point value (CORE + TRANSFER + DISPLACEMENT)."
+      area_km2_low: "CORE + TRANSFER only."
+      area_km2_high: "All overlap including slivers."
+      share_of_source: "area_km2 / source area."
+      share_of_target: "area_km2 / target area."
+      source_mapped_share: "How much of the source the later map covers."
+  district_reference_context:
+    stage: s10
+    meaning: "For each 2025 district and each vintage: how much of it that vintage maps, how many of that vintage's districts it draws on, and its main container then."
+    columns:
+      mapped_km2: "Area of the 2025 district covered by year-Y districts (point weights)."
+      not_depicted_km2: "Area of the 2025 district the year-Y map does not depict at all: no year-Y statistic covers it."
+      n_source_districts: "Year-Y districts that each supply >= products.min_source_share of it."
+      primary_source_ck: "Year-Y district supplying the most of it."
+      primary_share_of_target: "Share of the 2025 district supplied by the primary source."
+      primary_source_area_km2: "Administrative area of the primary source then."
+      primary_source_name: "Name of the primary source (at its creation)."
+      target_name: "Name of the 2025 district."
+      target_state: "State of the 2025 district."
+  ck_reference_continuity:
+    stage: s10
+    meaning: "For each CK active in 2025: how much of its year-Y territory lies inside its own 2025 polygon. Same CK does not mean same territory."
+    columns:
+      area_then_km2: "Its area at year."
+      area_reference_km2: "Its area in 2025."
+      shared_km2: "Overlap of its year and 2025 polygons."
+      share_of_then_kept: "shared_km2 / area_then_km2."
+      share_of_reference_from_then: "shared_km2 / area_reference_km2."
+  ck_district_code:
+    stage: s10
+    meaning: "District codes carried by the source layers -> CK, for joining statistics published by code."
+    columns:
+      code_system: "census_<year> = census district code; census_2011_pc11 = Census 2011 PC11 code; lgd = Local Government Directory code; census_2011_series_extended = the 2021 layer's dtcode11 (2011 series extended to new districts); source_id_* = layer IDs not verified as an official code system."
+      source_field: "Column of the source layer the code came from."
+      code: "The code as text, as published (leading zeros kept). All-zero codes are treated as missing."
+      district_name: "Map name of the district in that vintage."
+  name_gazetteer:
+    stage: s10
+    meaning: "Every name a CK is known by, with its evidence. Join on name only when n_cks_with_name = 1."
+    columns:
+      name_norm: "Normalized name (lib.normalize_name): lower case, ASCII, no punctuation or 'district'."
+      evidence: "MAP = name on a map; ALIAS = documented alias (name_aliases.csv); EVENT = name used by the events compilation, linked with geometric support."
+      name_variant: "Raw spellings seen (semicolon-separated)."
+      state: "State(s) the name appears under."
+      first_year: "First vintage the name is attested for this CK."
+      last_year: "Last vintage the name is attested for this CK."
+      n_cks_with_name: "Number of CKs sharing this normalized name (> 1 = ambiguous join key)."
+      latest_name: "Current (latest) name of the CK."
+  ck_identity_confidence:
+    stage: s04
+    meaning: "How robust each identity is: distance of its decisions from the rule thresholds and stability when thresholds move."
+    columns:
+      n_continuations: "Windows in which it continued."
+      min_cliff_distance: "Smallest distance of any of its decisions' shares (or name similarity, when names decided) from a threshold; small = fragile."
+      n_name_decided: "Continuations where names chose among geometric candidates (rule 2)."
+      n_renamed_continuations: "Continuations across a name change (names did not agree)."
+      n_skip_vintage: "Continuations kept by the skip-vintage rule (one defective map)."
+      n_settings_changed: "Of the threshold settings tested, how many regroup its observations."
+      n_settings_tested: "Number of perturbed threshold settings (each identity threshold +/- identity.sensitivity_delta)."
+      confidence_grade: "A = stable and clear of every threshold, no name-decided or skip-rule continuation; B = stable; C = regroups under at least one setting."
+  census_attribute:
+    stage: s10h
+    meaning: "Census totals carried by the source layers with each district polygon."
+    columns:
+      geom_obs_id: "Observation (polygon) id in the silver layer."
+      population: "Enumerated persons. NULL where the source has 0 (not enumerated: Assam 1981, J&K 1991)."
+      census_area_raw: "Census-reported area as published, in its original unit."
+      census_area_km2: "Census-reported area in km2 (NULL where the unit could not be established)."
+      area_unit: "Unit detected for census_area_raw from the data (km2 / sq_mile)."
+  district_area_uncertainty:
+    stage: s10h
+    meaning: "Uncertainty of each mapped area, from a boundary error measured against census-reported areas."
+    columns:
+      area_km2: "Geodesic map area."
+      perimeter_km: "Geodesic perimeter."
+      census_area_km2: "Census-reported area where the layer carries one."
+      sigma_km: "Effective boundary error: median |map area - census area| / perimeter over all districts with both."
+      area_rel_uncertainty: "sigma_km * perimeter_km / area_km2."
+      area_km2_low: "area_km2 * (1 - area_rel_uncertainty)."
+      area_km2_high: "area_km2 * (1 + area_rel_uncertainty)."
+      rel_diff_vs_census: "(area_km2 - census_area_km2) / census_area_km2."
+      high_uncertainty: "area_rel_uncertainty > uncertainty.flag_rel."
+  comparable_unit:
+    stage: s10h
+    meaning: "Smallest groups of districts whose combined territory is the same in every vintage from start_year to 2025. Sums over a unit are comparable without interpolation."
+    columns:
+      n_district_observations: "District-vintage observations in the unit."
+      n_reference_districts: "2025 districts in the unit."
+      n_start_year_districts: "start_year districts in the unit."
+      area_reference_km2: "Area of the unit on the 2025 map."
+      max_leakage_share: "Largest share of the unit's area exchanged with other units in any window (small real transfers below units.min_share). Exactness holds up to this."
+      reference_districts: "Names of its 2025 districts."
+  comparable_unit_member:
+    stage: s10h
+    meaning: "Which district belongs to which comparable unit, per vintage."
+    columns:
+      area_km2: "Area of the member district at that vintage."
+  population_on_reference:
+    stage: s10h
+    meaning: "Census population of `year` restated onto 2025 districts by area weighting (harmonize.restate)."
+    columns:
+      population: "Restated population (point weights). Assumes uniform density within each source district; see harmonization_backtest for its measured error."
+      population_low: "With CORE + TRANSFER weights only (map-edition envelope, not a confidence interval)."
+      population_high: "With all-overlap weights (map-edition envelope, not a confidence interval)."
+      coverage_share: "Share of the 2025 district's area covered by enumerated source districts. < 1 = undercount."
+      n_sources: "Enumerated source districts contributing."
+      largest_source_share: "Share of the 2025 district from its largest source; 1 = no splitting needed."
+  population_on_units:
+    stage: s10h
+    meaning: "Census population summed exactly to comparable units (no interpolation)."
+    columns:
+      population: "Sum over the unit's member districts at `year`; NULL unless every member was enumerated."
+      complete: "Every member district of the unit has a population at `year`."
+      n_districts: "Member districts at `year`."
+  harmonization_backtest:
+    stage: s10h
+    meaning: "Measured error of area weighting: census population of Y restated onto census Y+10 districts versus what Y+10 enumerated, after state growth."
+    columns:
+      window: "Census pair (Y-Y+10) or pooled."
+      measure: "rmse_log_* / median_abs_log_* / share_off_by_factor_1_65_* for UNCHANGED (territory unchanged: differential growth only), RESTATED (area weighting needed), INTERMEDIATE; rmse_log_attributable_to_area_weighting = sqrt(MSE restated - MSE unchanged)."
+      n: "Districts in the group."
+      estimate: "Value of the measure (log error: 0.15 ~ 15% off)."
+      ci_low: "Bootstrap 2.5% quantile."
+      ci_high: "Bootstrap 97.5% quantile."

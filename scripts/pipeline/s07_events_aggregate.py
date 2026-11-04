@@ -15,6 +15,9 @@ Parsing never splits a name that occurs whole on a map or as a state/UT name
 lib.parse_multi_name. A
 1-parent-3-children split is therefore one event with three successors
 (conservation is testable only at this grain). RENAME rows are already 1:1.
+confidence_score_mean carries the compilation's own per-row confidence score
+(mean over the event's rows); s12 tests whether it predicts confirmation by
+the maps.
 
 `event_state` is the state the CSV files the event under. It describes the
 event's context at the time, not where each participant is mapped later: a
@@ -79,7 +82,8 @@ def main() -> None:
                        "event_state": state, "parent_district_raw": str(parent), "effective_year": int(year),
                        "n_predecessors": len(preds), "n_successors": len(succs),
                        "n_parent_spellings": len(raw),
-                       "n_csv_rows": len(grp), "sources_cited": ";".join(sorted(set(grp.source.astype(str))))})
+                       "n_csv_rows": len(grp), "sources_cited": ";".join(sorted(set(grp.source.astype(str)))),
+                       "confidence_score_mean": float(pd.to_numeric(grp.confidence_score, errors="coerce").mean())})
         for n in preds:
             add_participant(eid, "PREDECESSOR", n, state)
         for n in succs:
@@ -91,7 +95,8 @@ def main() -> None:
                        "event_state": r.event_state,
                        "parent_district_raw": str(r.parent_district), "effective_year": int(r.effective_year),
                        "n_predecessors": 1, "n_successors": 1, "n_parent_spellings": 1, "n_csv_rows": 1,
-                       "sources_cited": str(r.source)})
+                       "sources_cited": str(r.source),
+                       "confidence_score_mean": float(pd.to_numeric(pd.Series([r.confidence_score]), errors="coerce")[0])})
         add_participant(eid, "PREDECESSOR", str(r.parent_district), r.event_state)
         add_participant(eid, "SUCCESSOR", str(r.child_district), r.event_state)
 

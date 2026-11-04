@@ -17,6 +17,7 @@ for stage in \
   s08_event_linkage \
   s09_event_reconciliation \
   s10_census_products \
+  s10h_harmonization \
   s11_warehouse \
   s12_validate
 do

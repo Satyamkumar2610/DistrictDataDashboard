@@ -24,6 +24,9 @@ turns into the pass/fail gate:
   V24  area dip-and-recover with no lineage edge behind it (WARNING)
   V25  CK carrying a non-administrative name (ERROR)
   V26  identity break that is geometrically almost a continuation (WARNING)
+  V27  comparable units are not a partition of their period's observations (ERROR)
+  V28  restated population exceeds the enumerated total (ERROR)
+  V29  comparable unit leaking more than units.leakage_warn_share (WARNING)
 
 The spatial extension is loaded from the local DuckDB extension directory and
 only downloaded if it is missing; set DUCKDB_EXTENSION_DIRECTORY to point at a
@@ -81,7 +84,8 @@ CREATE TABLE continuity_decision (
   geom_obs_id_b VARCHAR NOT NULL REFERENCES geometry_observation(geom_obs_id),
   r_share DOUBLE NOT NULL CHECK (r_share BETWEEN 0 AND 1), h_share DOUBLE NOT NULL CHECK (h_share BETWEEN 0 AND 1),
   name_jw DOUBLE NOT NULL, names_agree BOOLEAN NOT NULL, continuity_class VARCHAR NOT NULL, continues BOOLEAN NOT NULL,
-  evidence_year INTEGER NOT NULL REFERENCES vintage(year), CHECK (evidence_year <= year_a),
+  evidence_year INTEGER NOT NULL REFERENCES vintage(year), cliff_distance DOUBLE NOT NULL,
+  CHECK (evidence_year <= year_a),
   PRIMARY KEY (year_a, year_b, geom_obs_id_a));
 
 CREATE TABLE transition_flow (
@@ -133,7 +137,8 @@ CREATE TABLE boundary_event (
   event_id VARCHAR PRIMARY KEY, event_type VARCHAR NOT NULL CHECK (event_type IN ('SPLIT','NEW_DISTRICT','RENAME')),
   recorded_as VARCHAR NOT NULL, event_state VARCHAR, parent_district_raw VARCHAR NOT NULL,
   effective_year INTEGER NOT NULL, n_predecessors INTEGER NOT NULL, n_successors INTEGER NOT NULL,
-  n_parent_spellings INTEGER NOT NULL, n_csv_rows INTEGER NOT NULL, sources_cited VARCHAR);
+  n_parent_spellings INTEGER NOT NULL, n_csv_rows INTEGER NOT NULL, sources_cited VARCHAR,
+  confidence_score_mean DOUBLE);
 
 CREATE TABLE event_participant (
   participant_id VARCHAR PRIMARY KEY, event_id VARCHAR NOT NULL REFERENCES boundary_event(event_id),
@@ -173,6 +178,8 @@ CREATE TABLE crosswalk_to_reference (
   share_of_target DOUBLE NOT NULL CHECK (share_of_target BETWEEN 0 AND 1),
   source_mapped_share DOUBLE NOT NULL CHECK (source_mapped_share BETWEEN 0 AND 1),
   source_depicted_year INTEGER NOT NULL CHECK (source_depicted_year >= year),
+  area_km2_low DOUBLE NOT NULL, area_km2_high DOUBLE NOT NULL,
+  CHECK (area_km2_low <= area_km2 + 1e-9 AND area_km2 <= area_km2_high + 1e-9),
   PRIMARY KEY (year, source_ck, target_ck));
 
 CREATE TABLE validation_result (
@@ -224,8 +231,34 @@ def load(con: duckdb.DuckDBPyConnection) -> None:
                         "ck_flow": G / "spatial/ck_flow.parquet",
                         "ck_reference_continuity": P / "ck_reference_continuity.parquet",
                         "minor_material_flow": G / "spatial/minor_material_flow.parquet",
-                        "event_flow": G / "events/event_flow.parquet"}.items():
+                        "event_flow": G / "events/event_flow.parquet",
+                        "crosswalk_adjacent": P / "crosswalk_adjacent.parquet",
+                        "ck_district_code": P / "ck_district_code.parquet",
+                        "name_gazetteer": P / "name_gazetteer.parquet",
+                        "ck_identity_confidence": P / "ck_identity_confidence.parquet",
+                        "census_attribute": P / "census_attribute.parquet",
+                        "district_area_uncertainty": P / "district_area_uncertainty.parquet",
+                        "comparable_unit": P / "comparable_unit.parquet",
+                        "comparable_unit_member": P / "comparable_unit_member.parquet",
+                        "population_on_reference": P / "population_on_reference.parquet",
+                        "population_on_units": P / "population_on_units.parquet",
+                        "harmonization_backtest": P / "harmonization_backtest.parquet"}.items():
         con.execute(f"CREATE TABLE {table} AS SELECT * FROM {pq(path)}")
+    con.execute(VIEWS)
+
+
+VIEWS = """
+-- Origin: what share of each reference district came from each year-Y district.
+CREATE VIEW v_origin_composition AS
+  SELECT x.target_ck, t.latest_name AS target_name, x.year, x.source_ck, s.display_name AS source_name,
+         x.share_of_target, x.area_km2, x.area_km2_low, x.area_km2_high
+  FROM crosswalk_to_reference x JOIN ck_registry t ON t.canonical_key = x.target_ck
+  JOIN ck_registry s ON s.canonical_key = x.source_ck;
+-- Join helper: a census code of year Y -> the reference districts its territory lies in today.
+CREATE VIEW v_code_to_reference AS
+  SELECT c.year, c.code_system, c.code, c.canonical_key AS source_ck, x.target_ck, x.share_of_source
+  FROM ck_district_code c JOIN crosswalk_to_reference x ON x.source_ck = c.canonical_key AND x.year = c.year;
+"""
 
 
 AN = lib.CFG["anomaly"]
@@ -338,6 +371,21 @@ def invariants(con: duckdb.DuckDBPyConnection) -> list[tuple]:
              WHERE regexp_matches(lower(district_name), '{lib.CFG['anomaly']['non_admin_name_regex']}')"""),
         ("V26", "identity break that is geometrically almost a continuation (alias curation queue)", "WARNING",
          f"SELECT count(*) FROM ({NEAR_CONTINUATION_SQL})"),
+        ("V27", "comparable units are not a partition of the district observations of their period", "ERROR",
+         """SELECT (SELECT count(*) FROM (SELECT start_year, year, canonical_key FROM comparable_unit_member
+                                           GROUP BY ALL HAVING count(*) > 1))
+                 + (SELECT count(*) FROM (SELECT DISTINCT start_year FROM comparable_unit_member) s
+                    JOIN ck_observation o ON o.year >= s.start_year
+                    WHERE NOT EXISTS (SELECT 1 FROM comparable_unit_member m WHERE m.start_year = s.start_year
+                                      AND m.year = o.year AND m.canonical_key = o.canonical_key))"""),
+        ("V28", "restated population exceeds the enumerated national total", "ERROR",
+         f"""SELECT count(*) FROM (SELECT r.year, sum(r.population) restated FROM population_on_reference r GROUP BY 1) r
+             JOIN (SELECT year, sum(population) enumerated FROM census_attribute GROUP BY 1) e USING (year)
+             WHERE restated > enumerated * (1 + {lib.CFG['validation']['declared_rel_tol']})"""),
+        ("V29", "comparable unit leaks more than units.leakage_warn_share of its area", "WARNING",
+         f"SELECT count(*) FROM comparable_unit WHERE max_leakage_share > {lib.CFG['units']['leakage_warn_share']}"),
+        ("INFO_GRADE_C", "identities that regroup under a +/- sensitivity_delta threshold change (grade C)", "INFO",
+         "SELECT count(*) FROM ck_identity_confidence WHERE confidence_grade = 'C'"),
         ("INFO_LINK", "event participants not linked to a district", "INFO",
          "SELECT count(*) FROM event_linkage WHERE link_status IN ('UNRESOLVED_NAME','NO_BRACKETING_VINTAGE')"),
         ("INFO_FOOTPRINT", "successor name matched only outside the predecessor's footprint (research queue)", "INFO",

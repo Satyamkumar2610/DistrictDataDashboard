@@ -30,12 +30,19 @@ jobs:
         run: pytest -q tests
 
       - name: Build pipeline (run 1) and validation gate
+        env:
+          PYTHONHASHSEED: "1"
         run: bash scripts/pipeline/run_all.sh
+
+      - name: Codebook covers every column of every built product
+        run: pytest -q tests/test_codebook.py
 
       - name: Golden historical cases against the built warehouse
         run: pytest -q tests/test_golden_history.py
 
-      - name: Determinism (V5) - rebuild and compare output hashes
+      - name: Determinism (V5) - rebuild under another hash seed and compare output hashes
+        env:
+          PYTHONHASHSEED: "2"   # set/dict iteration order must never reach an output
         run: |
           cp outputs/pipeline/s12_output_manifest.csv /tmp/manifest_run1.csv
           bash scripts/pipeline/run_all.sh
@@ -53,3 +60,6 @@ jobs:
             outputs/pipeline/s12_output_manifest.csv
             outputs/pipeline/s11_invariants.csv
             outputs/events/s08_splink_model.json
+            outputs/pipeline/s12_research_queue.csv
+            outputs/pipeline/s12_source_agreement.csv
+            outputs/pipeline/s10h_area_calibration.csv
