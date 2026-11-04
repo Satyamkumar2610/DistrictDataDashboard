@@ -16,8 +16,11 @@ Replaces v2's s8, s10 and s10b. For every event:
      source = declared_successor + retained + undeclared_neighbour
               + displacement + sliver + unmapped
 5. Identifiability. A predecessor's accounting is MEASURED only when it is the
-   only event touching that predecessor in that window; otherwise the window
-   total is an upper bound (UNIDENTIFIED_MULTI_EVENT_WINDOW).
+   only event touching that predecessor in that window AND no event of the
+   same state in that window has an unresolved predecessor (an unlinked event
+   could be the one that moved the territory). Otherwise the window total is
+   an upper bound: UNIDENTIFIED_MULTI_EVENT_WINDOW or
+   UNIDENTIFIED_UNLINKED_EVENT_IN_WINDOW.
 6. Lineage corroboration is written to its own table; lineage is not changed.
 """
 
@@ -33,7 +36,7 @@ import lib  # noqa: E402
 
 LK = lib.CFG["linkage"]
 MATERIAL = lib.CFG["lineage"]["material_km2"]
-ACCEPTED = {"LINKED", "LINKED_AMBIGUOUS", "RETAINED_SELF"}
+ACCEPTED = {"LINKED", "RETAINED_SELF"}
 
 
 class Data:
@@ -66,7 +69,23 @@ def best(d: Data, name: str, state: str, year: int, allowed: set[str] | None = N
     top = c.iloc[0]
     other = c[c.canonical_key != top.canonical_key]
     ambiguous = len(other) > 0 and top.match_probability - other.iloc[0].match_probability < LK["ambiguity_margin"]
-    return top.canonical_key, float(top.match_probability), bool(ambiguous)
+    near = c[top.match_probability - c.match_probability < LK["ambiguity_margin"]].drop_duplicates("canonical_key")
+    return top.canonical_key, float(top.match_probability), bool(ambiguous), dict(
+        zip(near.canonical_key, near.match_probability.astype(float)))
+
+
+def footprint(d: Data, cks: set[str], a: int) -> set[str]:
+    f = d.flow[(d.flow.year_a == a) & d.flow.from_ck.isin(cks)]
+    return set(f[(f.material_km2 >= MATERIAL) | (f.from_ck == f.to_ck)].to_ck)
+
+
+def resolve_by_footprint(d: Data, near: dict[str, float], succs: pd.DataFrame, a: int, b: int):
+    """Of near-tied predecessor candidates, the single one whose footprint holds a
+    declared successor (by name, at b), or None."""
+    fits = [ck for ck in sorted(near) if any(
+        (h := best(d, s.name_norm, s.event_state_norm, b, footprint(d, {ck}, a))) and not h[2] and h[0] != ck
+        for s in succs.itertuples())]
+    return (fits[0], near[fits[0]]) if len(fits) == 1 else None
 
 
 def candidate_windows(year: int, state: str = "") -> list[tuple[tuple[int, int], str]]:
@@ -81,20 +100,34 @@ def candidate_windows(year: int, state: str = "") -> list[tuple[tuple[int, int],
     return [(w, "PRIMARY") for w in primary] + [(w, "LAGGED") for w in later[:1]]
 
 
-def resolve_window(d: Data, preds: pd.DataFrame, succs: pd.DataFrame, a: int, b: int) -> tuple[list, set, int]:
-    rows, pred_cks = [], set()
+def givers(d: Data, a: int) -> set[str]:
+    """CKs that gave material territory to another CK in the window starting at a."""
+    f = d.flow[(d.flow.year_a == a) & (d.flow.from_ck != d.flow.to_ck) & (d.flow.material_km2 >= MATERIAL)]
+    return set(f.from_ck)
+
+
+def resolve_window(d: Data, etype: str, preds: pd.DataFrame, succs: pd.DataFrame,
+                   a: int, b: int) -> tuple[list, set, tuple]:
+    rows, pred_cks, n_giving = [], set(), 0
+    gave = givers(d, a) if etype != "RENAME" else None
     for p in preds.itertuples():
-        hit = best(d, p.name_norm, p.event_state_norm, a)
-        if hit:
+        hit = best(d, p.name_norm, p.event_state_norm, a, gave) if gave is not None else None
+        n_giving += hit is not None
+        hit = hit or best(d, p.name_norm, p.event_state_norm, a)
+        if hit and hit[2]:
+            fixed = resolve_by_footprint(d, hit[3], succs, a, b)
+            hit = (fixed[0], fixed[1], False, {}) if fixed else hit
+        if hit and not hit[2]:
             pred_cks.add(hit[0])
-            rows.append((p.participant_id, a, hit[0], hit[1], "LINKED_AMBIGUOUS" if hit[2] else "LINKED"))
+            rows.append((p.participant_id, a, hit[0], hit[1], "LINKED"))
+        elif hit:
+            rows.append((p.participant_id, a, hit[0], hit[1], "LINKED_AMBIGUOUS"))
         else:
             rows.append((p.participant_id, a, None, None, "UNRESOLVED_NAME"))
-    f = d.flow[(d.flow.year_a == a) & d.flow.from_ck.isin(pred_cks)]
-    footprint = set(f[(f.material_km2 >= MATERIAL) | (f.from_ck == f.to_ck)].to_ck)
+    fp = footprint(d, pred_cks, a)
     for s in succs.itertuples():
         if pred_cks:
-            hit = best(d, s.name_norm, s.event_state_norm, b, footprint)
+            hit = best(d, s.name_norm, s.event_state_norm, b, fp)
             if hit:
                 status = ("RETAINED_SELF" if hit[0] in pred_cks
                           else "LINKED_AMBIGUOUS" if hit[2] else "LINKED")
@@ -107,8 +140,8 @@ def resolve_window(d: Data, preds: pd.DataFrame, succs: pd.DataFrame, a: int, b:
             hit = best(d, s.name_norm, s.event_state_norm, b)
             rows.append((s.participant_id, b, hit[0] if hit else None, hit[1] if hit else None,
                          "LINKED_NAME_ONLY" if hit and not hit[2] else "UNRESOLVED_NAME"))
-    score = len(pred_cks) + sum(r[4] in ACCEPTED for r in rows[len(preds):])
-    return rows, pred_cks, score
+    in_footprint = sum(r[4] in ACCEPTED for r in rows[len(preds):]) if pred_cks else 0
+    return rows, pred_cks, (in_footprint, n_giving, len(pred_cks))
 
 
 def account(d: Data, event_id: str, p: str, a: int, b: int, succ_cks: set[str]) -> tuple[dict, list[dict]]:
@@ -158,7 +191,7 @@ def main() -> None:
     for ev in d.events.itertuples():
         parts = d.parts[d.parts.event_id == ev.event_id].sort_values("participant_id")
         preds, succs = parts[parts.role == "PREDECESSOR"], parts[parts.role == "SUCCESSOR"]
-        tries = [(w, tag, *resolve_window(d, preds, succs, *w))
+        tries = [(w, tag, *resolve_window(d, ev.event_type, preds, succs, *w))
                  for w, tag in candidate_windows(ev.effective_year, ev.event_state)]
         if not tries:
             links += [{"participant_id": x.participant_id, "event_id": ev.event_id, "role": x.role,
@@ -167,6 +200,7 @@ def main() -> None:
             summary.append({"event_id": ev.event_id, "bracket": "NONE", "spatial_class": "UNLINKED"})
             continue
         (a, b), tag, rows, pred_cks, _ = max(tries, key=lambda t: t[4])  # first max wins: earliest window
+        unresolved = sum(r[4] != "LINKED" for r in rows[:len(preds)])
         role = dict(zip(parts.participant_id, parts.role))
         succ = {}
         for pid, vint, ck, prob, status in rows:
@@ -174,7 +208,7 @@ def main() -> None:
                           "canonical_key": ck, "match_probability": prob, "link_status": status})
             if role[pid] == "SUCCESSOR" and ck:
                 succ[ck] = status
-        succ_cks = {ck for ck, st in succ.items() if st in {"LINKED", "LINKED_AMBIGUOUS"}}
+        succ_cks = {ck for ck, st in succ.items() if st == "LINKED"}
         ev_acc = []
         for p in sorted(pred_cks):
             row, fl = account(d, ev.event_id, p, a, b, succ_cks)
@@ -183,7 +217,7 @@ def main() -> None:
         accounting += ev_acc
         summary.append({
             "event_id": ev.event_id, "bracket": tag, "pre_vintage": a, "post_vintage": b,
-            "predecessors_linked": len(pred_cks),
+            "predecessors_linked": len(pred_cks), "predecessors_unresolved": unresolved,
             "successors_linked": sum(st in ACCEPTED for st in succ.values()),
             "successors_outside_footprint": sum(st == "OUTSIDE_FOOTPRINT" for st in succ.values()),
             "declared_successor_km2": sum(r["declared_successor_km2"] for r in ev_acc),
@@ -192,15 +226,25 @@ def main() -> None:
 
     acc = pd.DataFrame(accounting)
     acc["n_events_same_window"] = acc.groupby(["predecessor_ck", "pre_vintage"]).event_id.transform("nunique")
-    acc["measurement_status"] = acc.n_events_same_window.map(
-        lambda n: "MEASURED" if n == 1 else "UNIDENTIFIED_MULTI_EVENT_WINDOW")
+    sm = pd.DataFrame(summary).merge(d.events[["event_id", "event_state"]], on="event_id")
+    sm = sm[sm.bracket != "NONE"]
+    unlinked = sm[sm.predecessors_unresolved > 0].groupby(["event_state", "pre_vintage"]).event_id.apply(set)
+    acc = acc.merge(sm[["event_id", "event_state"]], on="event_id")
+    acc["n_unlinked_events_same_window"] = [
+        len(unlinked.get((st, a), set()) - {e}) for e, st, a in zip(acc.event_id, acc.event_state, acc.pre_vintage)]
+    acc = acc.drop(columns="event_state")
+    acc["measurement_status"] = [
+        "UNIDENTIFIED_MULTI_EVENT_WINDOW" if n > 1 else
+        "UNIDENTIFIED_UNLINKED_EVENT_IN_WINDOW" if u > 0 else "MEASURED"
+        for n, u in zip(acc.n_events_same_window, acc.n_unlinked_events_same_window)]
     link = pd.DataFrame(links)
     link = link.astype({"vintage": "float"})
     summ = d.events.merge(pd.DataFrame(summary), on="event_id", how="left")
     summ["n_participants"] = summ.event_id.map(d.parts.groupby("event_id").size())
-    measured = acc.groupby("event_id").measurement_status.apply(lambda s: (s == "MEASURED").all())
-    summ["measurement_status"] = summ.event_id.map(measured).map(
-        {True: "MEASURED", False: "UNIDENTIFIED_MULTI_EVENT_WINDOW"}).fillna("NOT_MEASURABLE")
+    worst = acc.groupby("event_id").measurement_status.apply(
+        lambda s: next((x for x in ("UNIDENTIFIED_MULTI_EVENT_WINDOW", "UNIDENTIFIED_UNLINKED_EVENT_IN_WINDOW")
+                        if (s == x).any()), "MEASURED"))
+    summ["measurement_status"] = summ.event_id.map(worst).fillna("NOT_MEASURABLE")
 
     # lineage corroboration: an edge is corroborated by an event in the same
     # window linking its source as predecessor and its target as successor
@@ -218,12 +262,12 @@ def main() -> None:
                     csv_copy=lib.EVENTS_OUTPUT_DIR / "s09_event_linkage.csv")
     lib.write_table(acc, lib.GOLD_EVENTS_DIR / "event_accounting.parquet", "event_accounting",
                     csv_copy=lib.EVENTS_OUTPUT_DIR / "s09_event_accounting.csv")
-    pd.DataFrame(flows).to_csv(lib.EVENTS_OUTPUT_DIR / "s09_event_flows.csv", index=False)
-    pd.DataFrame(flows).to_parquet(lib.GOLD_EVENTS_DIR / "event_flow.parquet", index=False)
-    summ.to_csv(lib.EVENTS_OUTPUT_DIR / "s09_event_summary.csv", index=False)
-    summ.to_parquet(lib.GOLD_EVENTS_DIR / "event_summary.parquet", index=False)
-    corr.to_parquet(lib.GOLD_EVENTS_DIR / "lineage_corroboration.parquet", index=False)
-    corr.to_csv(lib.EVENTS_OUTPUT_DIR / "s09_lineage_corroboration.csv", index=False)
+    lib.write_table(pd.DataFrame(flows), lib.GOLD_EVENTS_DIR / "event_flow.parquet", "event_flow",
+                    csv_copy=lib.EVENTS_OUTPUT_DIR / "s09_event_flows.csv")
+    lib.write_table(summ, lib.GOLD_EVENTS_DIR / "event_summary.parquet", "event_summary",
+                    csv_copy=lib.EVENTS_OUTPUT_DIR / "s09_event_summary.csv")
+    lib.write_table(corr, lib.GOLD_EVENTS_DIR / "lineage_corroboration.parquet", "lineage_corroboration",
+                    csv_copy=lib.EVENTS_OUTPUT_DIR / "s09_lineage_corroboration.csv")
 
     print(link.groupby("role").link_status.value_counts().unstack(0).fillna(0).astype(int).to_string())
     print(summ.spatial_class.value_counts().to_string())

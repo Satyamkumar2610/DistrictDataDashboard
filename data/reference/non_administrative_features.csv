@@ -1,0 +1,10 @@
+source_dataset,source_year,source_pk,name_in_source,reason,status,evidence
+soi,2025,801,DISPUTED (RATLAM & MANDSAUR),DISPUTED_TERRITORY,CONFIRMED,"SOI labels unresolved boundary patches 'DISPUTED (A & B)'. The label names two (or three) districts that both claim the land; the patch is not a district and has no administration of its own. Area 1.31 km2."
+soi,2025,802,DISPUTED (ALIRAJPUR & DAHOD),DISPUTED_TERRITORY,CONFIRMED,"Interstate disputed patch (Madhya Pradesh / Gujarat). Not a district. Area 4.39 km2."
+soi,2025,803,DISPUTED (RATLAM & BANSWARA),DISPUTED_TERRITORY,CONFIRMED,"Interstate disputed patch (Madhya Pradesh / Rajasthan). Not a district. Area 0.72 km2."
+soi,2025,804,"DISPUTED (SAHIBGANJ, MALDAH & KATIHAR)",DISPUTED_TERRITORY,CONFIRMED,"Interstate disputed patch (West Bengal / Bihar / Jharkhand). Not a district. Area 14.54 km2."
+soi,2025,805,DISPUTED (MANDSAUR & JHALAWAR),DISPUTED_TERRITORY,CONFIRMED,"Interstate disputed patch (Madhya Pradesh / Rajasthan). Not a district. Area 3.25 km2."
+soi,2025,808,DISPUTED (NIMACH & CHITTAURGARH ),DISPUTED_TERRITORY,CONFIRMED,"Interstate disputed patch (Madhya Pradesh / Rajasthan). Not a district. Area 3.54 km2."
+soi,2025,809,DISPUTED (BARAN & SHEOPUR,DISPUTED_TERRITORY,CONFIRMED,"Interstate disputed patch (Madhya Pradesh / Rajasthan). Not a district. Area 8.36 km2."
+soi,2025,810,DISPUTED (SABAR KANTHA & UDAIPUR),DISPUTED_TERRITORY,CONFIRMED,"Interstate disputed patch (Rajasthan / Gujarat). Not a district. Area 12.46 km2."
+soi,2025,811,DISPUTED (SABAR KANTHA & SIROHI),DISPUTED_TERRITORY,CONFIRMED,"Interstate disputed patch (Rajasthan / Gujarat). Not a district. Area 1.71 km2."

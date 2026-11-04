@@ -1,4 +1,4 @@
-# Pipeline v3 as a dependency DAG. `dvc repro` reruns only stages whose code,
+# Pipeline v4 as a dependency DAG. `dvc repro` reruns only stages whose code,
 # config, reference data, or inputs changed; dvc.lock records the md5 of every
 # dependency and output (provenance). Outputs are not cached (cache: false)
 # until a DVC remote is chosen — see docs/architecture/REVAMP_PLAN_V3.md §6.
@@ -14,6 +14,7 @@ stages:
       - config/pipeline.yaml
       - config/sources.yaml
       - data/reference/state_lineage.csv
+      - data/reference/non_administrative_features.csv
       - data/bronze/stanford
       - data/bronze/soi
     outs:
@@ -56,6 +57,7 @@ stages:
       - scripts/pipeline/schemas.py
       - config/pipeline.yaml
       - data/reference/name_aliases.csv
+      - data/reference/ck_pinned_registry.csv
       - data/silver/geometry
       - data/gold/spatial/transition_flow.parquet
     outs:
@@ -64,6 +66,7 @@ stages:
       - data/gold/core/continuity_decision.parquet: {cache: false}
       - outputs/pipeline/s04_ck_registry.csv: {cache: false}
       - outputs/pipeline/s04_continuity_decisions.csv: {cache: false}
+      - outputs/pipeline/s04_retired_pinned_cks.csv: {cache: false}
 
   s05_lineage:
     cmd: python scripts/pipeline/s05_lineage.py
@@ -82,6 +85,9 @@ stages:
       - data/gold/events/district_relationship.parquet: {cache: false}
       - data/gold/spatial/measured_area_transfer.parquet: {cache: false}
       - data/gold/spatial/boundary_displacement.parquet: {cache: false}
+      - data/gold/spatial/minor_material_flow.parquet: {cache: false}
+      - data/gold/core/ck_fate.parquet: {cache: false}
+      - outputs/pipeline/s05_ck_fate.csv: {cache: false}
       - outputs/pipeline/s05_district_relationship.csv: {cache: false}
       - outputs/pipeline/s05_measured_area_transfer.csv: {cache: false}
       - outputs/pipeline/s05_district_ancestry.csv: {cache: false}
@@ -90,6 +96,7 @@ stages:
     cmd: python scripts/pipeline/s06_area_ledger.py
     deps:
       - scripts/pipeline/s06_area_ledger.py
+      - config/pipeline.yaml
       - scripts/pipeline/lib.py
       - scripts/pipeline/schemas.py
       - data/gold/spatial/ck_flow.parquet
@@ -106,6 +113,10 @@ stages:
       - scripts/pipeline/s07_events_aggregate.py
       - scripts/pipeline/lib.py
       - scripts/pipeline/schemas.py
+      - config/pipeline.yaml
+      - data/reference/name_aliases.csv
+      - data/reference/state_lineage.csv
+      - data/gold/core/ck_observation.parquet
       - data/bronze/events/district_evolution_master.csv
     outs:
       - data/gold/events/boundary_event.parquet: {cache: false}
@@ -160,6 +171,7 @@ stages:
     deps:
       - data/reference/vintage_depiction.csv
       - scripts/pipeline/s10_census_products.py
+      - config/pipeline.yaml
       - scripts/pipeline/lib.py
       - scripts/pipeline/schemas.py
       - data/gold/spatial/transition_flow.parquet
@@ -174,6 +186,8 @@ stages:
       - data/products/district_reference_context.parquet: {cache: false}
       - data/products/district_reference_context.csv: {cache: false}
       - data/products/district_reference_context_wide.csv: {cache: false}
+      - data/products/ck_reference_continuity.parquet: {cache: false}
+      - data/products/ck_reference_continuity.csv: {cache: false}
 
   s11_warehouse:
     cmd: python scripts/pipeline/s11_warehouse.py
@@ -199,10 +213,15 @@ stages:
       - scripts/pipeline/s12_validate.py
       - scripts/pipeline/schemas.py
       - scripts/pipeline/lib.py
+      - scripts/pipeline/s11_warehouse.py
+      - config/pipeline.yaml
+      - data/reference/known_geometry_gaps.csv
       - data/gold/district_evolution.duckdb
       - outputs/pipeline/s02_topology_audit.csv
+      - outputs/pipeline/s05_ck_fate.csv
     outs:
       - outputs/pipeline/s12_checks.csv: {cache: false}
       - outputs/pipeline/s12_output_manifest.csv: {cache: false}
       - outputs/pipeline/s12_validation_report.md: {cache: false}
       - outputs/pipeline/s12_map_date_check.csv: {cache: false}
+      - outputs/pipeline/s12_research_queue.csv: {cache: false}

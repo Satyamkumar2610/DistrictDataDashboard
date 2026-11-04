@@ -48,3 +48,6 @@ Aurangabad,Chhatrapati Sambhajinagar,Maharashtra,RENAME,DOCUMENTARY,Renamed by s
 Osmanabad,Dharashiv,Maharashtra,RENAME,DOCUMENTARY,Renamed by state government 2023
 Pondicherry,Puducherry,Puducherry,RENAME,DOCUMENTARY,Renamed 2006
 Balasore,Baleshwar,Odisha,SPELLING,NAME_NORMALIZATION,Transliteration variant
+Reasi,Riasi,Jammu and Kashmir,SPELLING,DOCUMENTARY,"Same district (created 2006); Stanford 2011/2021 spell it Reasi, SOI 2025 Riasi. Geometry: r=0.895, h=0.984 into Riasi."
+Bametara,Bemetara,Chhattisgarh,SPELLING,DOCUMENTARY,"Same district (created 2012); Stanford 2021 spells it Bametara, SOI 2025 Bemetara. Geometry: h=0.999 into Bemetara."
+Nagore,Nagaur,Rajasthan,SPELLING,DOCUMENTARY,"Same district; the 1951 layer spells it Nagore. Geometry: r=0.866, h=1.000 into 1961 Nagaur. Found by s11 V26 (near-continuation queue); without it Nagaur got a new CK in 1961 and Nagore a false ABSORBED_INTO fate."

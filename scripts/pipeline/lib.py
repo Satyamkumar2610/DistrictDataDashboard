@@ -1,4 +1,4 @@
-"""Shared library for the District Evolution pipeline (v3).
+"""Shared library for the District Evolution pipeline (v4).
 
 Paths, configuration, the one area method, deterministic IDs, name/state
 normalization, reference tables, and the validated table writer. Every
@@ -155,12 +155,32 @@ def canonical_state(value: object) -> str:
     return STATE_SPELLINGS.get(norm) or display_name(norm)
 
 
-def parse_multi_name(value: object) -> list[str]:
-    """Split a comma/'and'-joined list of district names (events CSV parent_district)."""
+_PART_OF_RE = re.compile(r"^(parts?\s+of|portions?\s+of)\s+", re.IGNORECASE)
+_AND_RE = re.compile(r"\s+(?:and|&)\s+", re.IGNORECASE)
+
+
+def parse_multi_name(value: object, protected: frozenset[str] = frozenset()) -> list[str]:
+    """Split a comma/'and'-joined list of district names (events CSV parent_district).
+
+    `protected` holds normalized names that contain "and" but are ONE entity
+    ("Jammu And Kashmir", "Andaman And Nicobar Islands", "United Khasi And
+    Jaintia Hills"): a piece whose normalized form is protected is never split.
+    Callers pass every name that occurs whole on a map or as a state/UT name.
+    A leading "Parts of" is dropped: it qualifies the transfer, not the name."""
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return []
-    text = re.sub(r"\band\b", ",", str(value).strip(), flags=re.IGNORECASE)
-    return [p for p in (x.strip().rstrip(".").strip() for x in text.split(",")) if p]
+    text = str(value).strip()
+    if normalize_name(text) in protected:
+        return [text]
+    out = []
+    for piece in text.split(","):
+        piece = re.sub(r"^\s*(?:and|&)\s+", "", piece.strip(), flags=re.IGNORECASE)
+        piece = _PART_OF_RE.sub("", piece).strip().rstrip(".").strip()
+        if not piece:
+            continue
+        subs = [piece] if normalize_name(piece) in protected else _AND_RE.split(piece)
+        out += [_PART_OF_RE.sub("", x).strip().rstrip(".").strip() for x in subs]
+    return [x for x in out if x]
 
 
 def jaro_winkler(s1: str, s2: str, p: float = 0.1) -> float:

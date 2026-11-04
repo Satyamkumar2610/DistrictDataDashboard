@@ -15,11 +15,25 @@ turns into the pass/fail gate:
   V12  an event's declared transfer never exceeds its predecessors' area
   V13  active CKs == features in the reference vintage
   V15  crosswalk rows never exceed source or target area
+  V16  area ledger closure beyond tolerance, OUT side (WARNING)
+  V17  overlap repair removing > validation.overlap_repair_review_share (WARNING)
+  V20  closed CK without a fate in ck_fate (ERROR: "where did it go?" unanswerable)
+  V21  new CK without an origin lineage edge (WARNING: territory from unmapped area)
+  V22  overlap repair between non-enclave neighbours beyond closure tolerance (WARNING)
+  V23  area ledger closure beyond tolerance, IN side (WARNING)
+  V24  area dip-and-recover with no lineage edge behind it (WARNING)
+  V25  CK carrying a non-administrative name (ERROR)
+  V26  identity break that is geometrically almost a continuation (WARNING)
+
+The spatial extension is loaded from the local DuckDB extension directory and
+only downloaded if it is missing; set DUCKDB_EXTENSION_DIRECTORY to point at a
+pre-provisioned directory for offline / air-gapped builds.
 """
 
 from __future__ import annotations
 
 import hashlib
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -67,10 +81,11 @@ CREATE TABLE continuity_decision (
   geom_obs_id_b VARCHAR NOT NULL REFERENCES geometry_observation(geom_obs_id),
   r_share DOUBLE NOT NULL CHECK (r_share BETWEEN 0 AND 1), h_share DOUBLE NOT NULL CHECK (h_share BETWEEN 0 AND 1),
   name_jw DOUBLE NOT NULL, names_agree BOOLEAN NOT NULL, continuity_class VARCHAR NOT NULL, continues BOOLEAN NOT NULL,
+  evidence_year INTEGER NOT NULL REFERENCES vintage(year), CHECK (evidence_year <= year_a),
   PRIMARY KEY (year_a, year_b, geom_obs_id_a));
 
 CREATE TABLE transition_flow (
-  kind VARCHAR NOT NULL CHECK (kind IN ('ADJACENT','REFERENCE')), year_a INTEGER NOT NULL, year_b INTEGER NOT NULL,
+  kind VARCHAR NOT NULL CHECK (kind IN ('ADJACENT','SKIP','REFERENCE')), year_a INTEGER NOT NULL, year_b INTEGER NOT NULL,
   geom_obs_id_a VARCHAR NOT NULL REFERENCES geometry_observation(geom_obs_id),
   geom_obs_id_b VARCHAR NOT NULL REFERENCES geometry_observation(geom_obs_id),
   core_km2 DOUBLE NOT NULL CHECK (core_km2 >= 0), transfer_km2 DOUBLE NOT NULL CHECK (transfer_km2 >= 0),
@@ -93,8 +108,19 @@ CREATE TABLE district_relationship (
   year_a INTEGER NOT NULL, year_b INTEGER NOT NULL,
   period_start INTEGER NOT NULL, period_end INTEGER NOT NULL CHECK (period_end > period_start),
   transfer_km2 DOUBLE NOT NULL CHECK (transfer_km2 > 0),
-  outflow_share DOUBLE NOT NULL, inflow_share DOUBLE NOT NULL, lineage_basis VARCHAR NOT NULL,
-  CHECK (from_ck <> to_ck), UNIQUE (from_ck, to_ck, year_a, year_b));
+  outflow_share DOUBLE NOT NULL, inflow_share DOUBLE NOT NULL,
+  source_closes BOOLEAN NOT NULL, n_target_sources INTEGER NOT NULL CHECK (n_target_sources >= 1),
+  lineage_basis VARCHAR NOT NULL,
+  CHECK (from_ck <> to_ck), CHECK ((relationship_type = 'FORMED_FROM') = (NOT source_closes)),
+  UNIQUE (from_ck, to_ck, year_a, year_b));
+
+CREATE TABLE ck_fate (
+  canonical_key VARCHAR NOT NULL REFERENCES ck_registry(canonical_key), year_a INTEGER NOT NULL,
+  closed_year INTEGER NOT NULL REFERENCES vintage(year),
+  to_ck VARCHAR NOT NULL REFERENCES ck_registry(canonical_key),
+  fate_type VARCHAR NOT NULL CHECK (fate_type IN ('SPLIT_FROM','MERGED_INTO','ABSORBED_INTO')),
+  transfer_km2 DOUBLE NOT NULL CHECK (transfer_km2 > 0), outflow_share DOUBLE NOT NULL,
+  fate_share_rank INTEGER NOT NULL, CHECK (canonical_key <> to_ck), PRIMARY KEY (canonical_key, to_ck));
 
 CREATE TABLE measured_area_transfer (
   transfer_id VARCHAR PRIMARY KEY, from_ck VARCHAR NOT NULL REFERENCES ck_registry(canonical_key),
@@ -107,7 +133,7 @@ CREATE TABLE boundary_event (
   event_id VARCHAR PRIMARY KEY, event_type VARCHAR NOT NULL CHECK (event_type IN ('SPLIT','NEW_DISTRICT','RENAME')),
   recorded_as VARCHAR NOT NULL, event_state VARCHAR, parent_district_raw VARCHAR NOT NULL,
   effective_year INTEGER NOT NULL, n_predecessors INTEGER NOT NULL, n_successors INTEGER NOT NULL,
-  n_csv_rows INTEGER NOT NULL, sources_cited VARCHAR);
+  n_parent_spellings INTEGER NOT NULL, n_csv_rows INTEGER NOT NULL, sources_cited VARCHAR);
 
 CREATE TABLE event_participant (
   participant_id VARCHAR PRIMARY KEY, event_id VARCHAR NOT NULL REFERENCES boundary_event(event_id),
@@ -126,6 +152,7 @@ CREATE TABLE event_accounting (
   declared_successor_km2 DOUBLE NOT NULL, retained_km2 DOUBLE NOT NULL, undeclared_neighbour_km2 DOUBLE NOT NULL,
   displacement_km2 DOUBLE NOT NULL, sliver_km2 DOUBLE NOT NULL, unmapped_km2 DOUBLE NOT NULL,
   closure_error_km2 DOUBLE NOT NULL, closure_ok BOOLEAN NOT NULL, n_events_same_window INTEGER NOT NULL,
+  n_unlinked_events_same_window INTEGER NOT NULL,
   measurement_status VARCHAR NOT NULL, PRIMARY KEY (event_id, predecessor_ck));
 
 CREATE TABLE lineage_corroboration (
@@ -144,6 +171,7 @@ CREATE TABLE crosswalk_to_reference (
   area_km2 DOUBLE NOT NULL CHECK (area_km2 > 0),
   share_of_source DOUBLE NOT NULL CHECK (share_of_source BETWEEN 0 AND 1),
   share_of_target DOUBLE NOT NULL CHECK (share_of_target BETWEEN 0 AND 1),
+  source_mapped_share DOUBLE NOT NULL CHECK (source_mapped_share BETWEEN 0 AND 1),
   source_depicted_year INTEGER NOT NULL CHECK (source_depicted_year >= year),
   PRIMARY KEY (year, source_ck, target_ck));
 
@@ -182,6 +210,7 @@ def load(con: duckdb.DuckDBPyConnection) -> None:
         "event_linkage": G / "events/event_linkage.parquet",
         "event_accounting": G / "events/event_accounting.parquet",
         "lineage_corroboration": G / "events/lineage_corroboration.parquet",
+        "ck_fate": G / "core/ck_fate.parquet",
         "district_area_admin": P / "district_area_admin.parquet",
         "crosswalk_to_reference": P / "crosswalk_to_reference.parquet",
     }
@@ -192,8 +221,54 @@ def load(con: duckdb.DuckDBPyConnection) -> None:
                         "district_reference_context": P / "district_reference_context.parquet",
                         "event_summary": G / "events/event_summary.parquet",
                         "participant_ck_candidate": G / "events/participant_ck_candidate.parquet",
-                        "ck_flow": G / "spatial/ck_flow.parquet"}.items():
+                        "ck_flow": G / "spatial/ck_flow.parquet",
+                        "ck_reference_continuity": P / "ck_reference_continuity.parquet",
+                        "minor_material_flow": G / "spatial/minor_material_flow.parquet",
+                        "event_flow": G / "events/event_flow.parquet"}.items():
         con.execute(f"CREATE TABLE {table} AS SELECT * FROM {pq(path)}")
+
+
+AN = lib.CFG["anomaly"]
+
+# CK area at vintage k vs k-1 and k+1 (consecutive vintages; V7 guarantees no gaps).
+# Measured transfers do NOT exempt a dip: a defective map manufactures them
+# (Kolkata 2021 "gives" ~98 km2 to North 24 Parganas and takes it back in 2025).
+AREA_ANOMALY_SQL = f"""
+  WITH a AS (
+    SELECT o.canonical_key, o.year, o.area_km2,
+           lag(o.area_km2) OVER w AS prev_km2, lead(o.area_km2) OVER w AS next_km2,
+           lag(o.year) OVER w AS prev_year, lead(o.year) OVER w AS next_year
+    FROM ck_observation o WINDOW w AS (PARTITION BY o.canonical_key ORDER BY o.year))
+  SELECT a.* FROM a
+  WHERE prev_km2 IS NOT NULL AND next_km2 IS NOT NULL
+    AND abs(next_km2 - prev_km2) <= {AN['neighbour_agree_rel']} * greatest(prev_km2, next_km2)
+    AND abs(area_km2 - prev_km2) > {AN['dip_rel']} * prev_km2
+    AND abs(area_km2 - next_km2) > {AN['dip_rel']} * next_km2
+    AND NOT EXISTS (SELECT 1 FROM district_relationship r WHERE (r.from_ck = a.canonical_key OR r.to_ck = a.canonical_key)
+                    AND r.year_b IN (a.year, a.next_year))
+"""
+
+NEAR_CONTINUATION_SQL = f"""
+  SELECT d.* FROM continuity_decision d
+  WHERE d.continuity_class = 'BREAK_NAME_DIFFERS'
+    AND d.r_share >= {AN['near_r']} AND d.h_share >= {AN['near_h']}"""
+
+
+def load_spatial(con: duckdb.DuckDBPyConnection) -> None:
+    """LOAD first (works offline once installed); INSTALL only when missing."""
+    ext_dir = os.environ.get("DUCKDB_EXTENSION_DIRECTORY")
+    if ext_dir:
+        con.execute(f"SET extension_directory = '{Path(ext_dir).as_posix()}'")
+    try:
+        con.execute("LOAD spatial")
+    except duckdb.Error:
+        try:
+            con.execute("INSTALL spatial")
+            con.execute("LOAD spatial")
+        except duckdb.Error as exc:
+            sys.exit("s11: the DuckDB 'spatial' extension is not installed and could not be downloaded "
+                     f"({str(exc).splitlines()[0]}). Install it once with network access, or set "
+                     "DUCKDB_EXTENSION_DIRECTORY to a directory that already holds it.")
 
 
 def invariants(con: duckdb.DuckDBPyConnection) -> list[tuple]:
@@ -214,7 +289,8 @@ def invariants(con: duckdb.DuckDBPyConnection) -> list[tuple]:
         ("V8", "MEASURED status inconsistent with events per predecessor-window", "ERROR",
          """SELECT count(*) FROM event_accounting a JOIN (SELECT predecessor_ck, pre_vintage, count(DISTINCT event_id) n
              FROM event_accounting GROUP BY 1, 2) c USING (predecessor_ck, pre_vintage)
-             WHERE (a.measurement_status = 'MEASURED') <> (c.n = 1) OR a.n_events_same_window <> c.n"""),
+             WHERE (a.measurement_status = 'MEASURED') <> (c.n = 1 AND a.n_unlinked_events_same_window = 0)
+                OR a.n_events_same_window <> c.n"""),
         ("V9", "lineage edge into a CK not established in that window (L-3)", "ERROR",
          """SELECT count(*) FROM district_relationship r JOIN ck_registry c ON c.canonical_key = r.to_ck
              WHERE c.established_year <> r.year_b"""),
@@ -226,8 +302,8 @@ def invariants(con: duckdb.DuckDBPyConnection) -> list[tuple]:
                WHERE w.depth < 64)
              SELECT count(*) FROM walk WHERE ck = start_ck"""),
         ("V12", "event declared transfer exceeds predecessor area", "ERROR",
-         """SELECT count(*) FROM (SELECT event_id, sum(declared_successor_km2) d, sum(source_area_km2) s
-             FROM event_accounting GROUP BY 1) WHERE d > s * 1.0000001"""),
+         f"""SELECT count(*) FROM (SELECT event_id, sum(declared_successor_km2) d, sum(source_area_km2) s
+             FROM event_accounting GROUP BY 1) WHERE d > s * (1 + {lib.CFG['validation']['declared_rel_tol']})"""),
         ("V13", "active CK count differs from reference-vintage features", "ERROR",
          f"""SELECT abs((SELECT count(*) FROM ck_registry WHERE is_active)
                    - (SELECT count(*) FROM geometry_observation WHERE source_year = {ref}))"""),
@@ -242,7 +318,26 @@ def invariants(con: duckdb.DuckDBPyConnection) -> list[tuple]:
          "SELECT count(*) FROM district_ledger WHERE NOT closure_ok"),
         ("V17", "overlap repair changed a polygon's area by more than 0.1% (review)", "WARNING",
          f"""SELECT count(*) FROM read_csv('{(lib.OUTPUT_DIR / "s01_overlap_repairs.csv").as_posix()}')
-             WHERE area_removed_km2 / area_before_km2 > 0.001"""),
+             WHERE area_removed_km2 / area_before_km2 > {lib.CFG['validation']['overlap_repair_review_share']}"""),
+        ("V20", "closed CK without a fate (no SPLIT_FROM / MERGED_INTO / ABSORBED_INTO)", "ERROR",
+         """SELECT count(*) FROM ck_registry c WHERE NOT c.is_active
+             AND NOT EXISTS (SELECT 1 FROM ck_fate f WHERE f.canonical_key = c.canonical_key)"""),
+        ("V21", "new CK without an origin lineage edge", "WARNING",
+         """SELECT count(*) FROM ck_registry c WHERE c.origin_kind = 'NEW'
+             AND NOT EXISTS (SELECT 1 FROM district_relationship r WHERE r.to_ck = c.canonical_key)"""),
+        ("V22", "overlap repair between non-enclave neighbours beyond closure tolerance (review)", "WARNING",
+         f"""SELECT count(*) FROM read_csv('{(lib.OUTPUT_DIR / "s01_overlap_repairs.csv").as_posix()}')
+             WHERE area_removed_km2 > {lib.CFG['closure']['tol_km2']}
+               AND smaller_contained_share < {lib.CFG['topology']['enclave_min_contained_share']}"""),
+        ("V23", "area ledger forward (IN side) closure beyond tolerance", "WARNING",
+         "SELECT count(*) FROM district_ledger WHERE NOT forward_closure_ok"),
+        ("V24", "area dip-and-recover with no lineage edge behind it (single-map defect)", "WARNING",
+         f"SELECT count(*) FROM ({AREA_ANOMALY_SQL})"),
+        ("V25", "CK carrying a non-administrative name (curate non_administrative_features.csv)", "ERROR",
+         f"""SELECT count(*) FROM ck_observation
+             WHERE regexp_matches(lower(district_name), '{lib.CFG['anomaly']['non_admin_name_regex']}')"""),
+        ("V26", "identity break that is geometrically almost a continuation (alias curation queue)", "WARNING",
+         f"SELECT count(*) FROM ({NEAR_CONTINUATION_SQL})"),
         ("INFO_LINK", "event participants not linked to a district", "INFO",
          "SELECT count(*) FROM event_linkage WHERE link_status IN ('UNRESOLVED_NAME','NO_BRACKETING_VINTAGE')"),
         ("INFO_FOOTPRINT", "successor name matched only outside the predecessor's footprint (research queue)", "INFO",
@@ -266,7 +361,7 @@ def main() -> None:
     tmp = lib.WAREHOUSE_PATH.with_suffix(".building.duckdb")
     tmp.unlink(missing_ok=True)
     con = duckdb.connect(str(tmp))
-    con.execute("INSTALL spatial; LOAD spatial;")
+    load_spatial(con)
     con.execute(DDL)
     load(con)
     results = invariants(con)

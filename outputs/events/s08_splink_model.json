@@ -1,18 +1,6 @@
 {
-    "link_type": "link_only",
-    "probability_two_random_records_match": 0.0011149641188652891,
-    "retain_matching_columns": true,
-    "retain_intermediate_calculation_columns": false,
     "additional_columns_to_retain": [],
-    "sql_dialect": "duckdb",
-    "linker_uid": "2klxyrg9",
-    "em_convergence": 0.0001,
-    "max_iterations": 25,
     "bayes_factor_column_prefix": "bf_",
-    "term_frequency_adjustment_column_prefix": "tf_",
-    "comparison_vector_value_column_prefix": "gamma_",
-    "unique_id_column_name": "uid",
-    "source_dataset_column_name": "source_dataset",
     "blocking_rules_to_generate_predictions": [
         {
             "blocking_rule": "l.\"name_norm\" = r.\"name_norm\"",
@@ -31,104 +19,116 @@
             "sql_dialect": "duckdb"
         }
     ],
+    "comparison_vector_value_column_prefix": "gamma_",
     "comparisons": [
         {
-            "output_column_name": "name",
+            "comparison_description": "CustomComparison",
             "comparison_levels": [
                 {
-                    "sql_condition": "\"name_norm_l\" IS NULL OR \"name_norm_r\" IS NULL",
-                    "label_for_charts": "name_norm is NULL",
                     "fix_m_probability": false,
                     "fix_u_probability": false,
-                    "is_null_level": true
+                    "is_null_level": true,
+                    "label_for_charts": "name_norm is NULL",
+                    "sql_condition": "\"name_norm_l\" IS NULL OR \"name_norm_r\" IS NULL"
                 },
                 {
-                    "sql_condition": "\"name_norm_l\" = \"name_norm_r\"",
+                    "fix_m_probability": false,
+                    "fix_u_probability": false,
                     "label_for_charts": "Exact match on name_norm",
-                    "m_probability": 0.6376324424601347,
-                    "u_probability": 0.000922359264334893,
-                    "fix_m_probability": false,
-                    "fix_u_probability": false
+                    "m_probability": 0.6315504949680819,
+                    "sql_condition": "\"name_norm_l\" = \"name_norm_r\"",
+                    "u_probability": 0.0009237697207100227
                 },
                 {
-                    "sql_condition": "\"alias_norm_l\" = \"alias_norm_r\"",
+                    "fix_m_probability": false,
+                    "fix_u_probability": false,
                     "label_for_charts": "documentary alias",
-                    "m_probability": 0.04457394994131367,
-                    "u_probability": 8.487968690198402e-05,
-                    "fix_m_probability": false,
-                    "fix_u_probability": false
+                    "m_probability": 0.04455756796650053,
+                    "sql_condition": "\"alias_norm_l\" = \"alias_norm_r\"",
+                    "u_probability": 7.659526343115937e-05
                 },
                 {
-                    "sql_condition": "jaro_winkler_similarity(\"name_norm_l\", \"name_norm_r\") >= 0.95",
+                    "fix_m_probability": false,
+                    "fix_u_probability": false,
                     "label_for_charts": "Jaro-Winkler distance of name_norm >= 0.95",
-                    "m_probability": 0.04822873156627527,
-                    "u_probability": 6.893259421130823e-05,
-                    "fix_m_probability": false,
-                    "fix_u_probability": false
+                    "m_probability": 0.047744570121277786,
+                    "sql_condition": "jaro_winkler_similarity(\"name_norm_l\", \"name_norm_r\") >= 0.95",
+                    "u_probability": 7.299682823640691e-05
                 },
                 {
-                    "sql_condition": "jaro_winkler_similarity(\"name_norm_l\", \"name_norm_r\") >= 0.88",
+                    "fix_m_probability": false,
+                    "fix_u_probability": false,
                     "label_for_charts": "Jaro-Winkler distance of name_norm >= 0.88",
-                    "m_probability": 0.10714270947918508,
-                    "u_probability": 0.0006738932717672671,
-                    "fix_m_probability": false,
-                    "fix_u_probability": false
+                    "m_probability": 0.10541048975248213,
+                    "sql_condition": "jaro_winkler_similarity(\"name_norm_l\", \"name_norm_r\") >= 0.88",
+                    "u_probability": 0.0006374370916418632
                 },
                 {
-                    "sql_condition": "jaro_winkler_similarity(\"name_norm_l\", \"name_norm_r\") >= 0.8",
+                    "fix_m_probability": false,
+                    "fix_u_probability": false,
                     "label_for_charts": "Jaro-Winkler distance of name_norm >= 0.8",
-                    "m_probability": 0.1539091500694728,
-                    "u_probability": 0.0037161870192723187,
-                    "fix_m_probability": false,
-                    "fix_u_probability": false
+                    "m_probability": 0.16211113602964802,
+                    "sql_condition": "jaro_winkler_similarity(\"name_norm_l\", \"name_norm_r\") >= 0.8",
+                    "u_probability": 0.0035182414961265414
                 },
                 {
-                    "sql_condition": "ELSE",
-                    "label_for_charts": "All other comparisons",
-                    "m_probability": 0.008513016483618633,
-                    "u_probability": 0.9945337481635123,
                     "fix_m_probability": false,
-                    "fix_u_probability": false
+                    "fix_u_probability": false,
+                    "label_for_charts": "All other comparisons",
+                    "m_probability": 0.008625741162009518,
+                    "sql_condition": "ELSE",
+                    "u_probability": 0.994770959599854
                 }
             ],
-            "comparison_description": "CustomComparison"
+            "output_column_name": "name"
         },
         {
-            "output_column_name": "state",
+            "comparison_description": "CustomComparison",
             "comparison_levels": [
                 {
-                    "sql_condition": "\"state_norm_l\" IS NULL OR \"state_norm_r\" IS NULL",
-                    "label_for_charts": "state_norm is NULL",
                     "fix_m_probability": false,
                     "fix_u_probability": false,
-                    "is_null_level": true
+                    "is_null_level": true,
+                    "label_for_charts": "state_norm is NULL",
+                    "sql_condition": "\"state_norm_l\" IS NULL OR \"state_norm_r\" IS NULL"
                 },
                 {
-                    "sql_condition": "\"state_norm_l\" = \"state_norm_r\"",
+                    "fix_m_probability": false,
+                    "fix_u_probability": false,
                     "label_for_charts": "Exact match on state_norm",
-                    "m_probability": 0.8934173645199381,
-                    "u_probability": 0.042597256688519325,
-                    "fix_m_probability": false,
-                    "fix_u_probability": false
+                    "m_probability": 0.8946194195885997,
+                    "sql_condition": "\"state_norm_l\" = \"state_norm_r\"",
+                    "u_probability": 0.04159431241614361
                 },
                 {
-                    "sql_condition": "list_contains(state_compat_l, state_norm_r) OR list_contains(state_compat_r, state_norm_l)",
+                    "fix_m_probability": false,
+                    "fix_u_probability": false,
                     "label_for_charts": "compatible via state lineage",
-                    "m_probability": 0.09662203073309014,
-                    "u_probability": 0.07281956944907425,
-                    "fix_m_probability": false,
-                    "fix_u_probability": false
+                    "m_probability": 0.09542122571246928,
+                    "sql_condition": "list_contains(state_compat_l, state_norm_r) OR list_contains(state_compat_r, state_norm_l)",
+                    "u_probability": 0.0748263755018532
                 },
                 {
-                    "sql_condition": "ELSE",
+                    "fix_m_probability": true,
+                    "fix_u_probability": false,
                     "label_for_charts": "All other comparisons",
                     "m_probability": 0.01,
-                    "u_probability": 0.8845831738624065,
-                    "fix_m_probability": true,
-                    "fix_u_probability": false
+                    "sql_condition": "ELSE",
+                    "u_probability": 0.8835793120820032
                 }
             ],
-            "comparison_description": "CustomComparison"
+            "output_column_name": "state"
         }
-    ]
+    ],
+    "em_convergence": 0.0001,
+    "link_type": "link_only",
+    "linker_uid": "district-evolution-s08",
+    "max_iterations": 25,
+    "probability_two_random_records_match": 0.0011204562986673401,
+    "retain_intermediate_calculation_columns": false,
+    "retain_matching_columns": true,
+    "source_dataset_column_name": "source_dataset",
+    "sql_dialect": "duckdb",
+    "term_frequency_adjustment_column_prefix": "tf_",
+    "unique_id_column_name": "uid"
 }

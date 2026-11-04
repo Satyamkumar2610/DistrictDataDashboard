@@ -5,6 +5,12 @@ re-validates every gold/product table on disk against its pandera contract
 (V11), writes a sha256 manifest of all outputs (two runs with identical
 manifests prove determinism, V5), writes the report, and exits non-zero if any
 ERROR-severity check has violations.
+
+It also writes ONE typed research queue (outputs/pipeline/s12_research_queue.csv):
+every finding that needs a documentary check or a curated reference row, from
+any stage, with its kind, the CK(s) involved and the evidence. Disagreements
+between sources are findings; this is where they are collected, never where
+they are "fixed".
 """
 
 from __future__ import annotations
@@ -38,6 +44,14 @@ CONTRACTS = {
     "district_area_admin": lib.PRODUCTS_DIR / "district_area_admin.parquet",
     "crosswalk_to_reference": lib.PRODUCTS_DIR / "crosswalk_to_reference.parquet",
     "district_reference_context": lib.PRODUCTS_DIR / "district_reference_context.parquet",
+    "ck_reference_continuity": lib.PRODUCTS_DIR / "ck_reference_continuity.parquet",
+    "ck_fate": G / "core/ck_fate.parquet",
+    "ck_flow": G / "spatial/ck_flow.parquet",
+    "boundary_displacement": G / "spatial/boundary_displacement.parquet",
+    "minor_material_flow": G / "spatial/minor_material_flow.parquet",
+    "event_flow": G / "events/event_flow.parquet",
+    "event_summary": G / "events/event_summary.parquet",
+    "lineage_corroboration": G / "events/lineage_corroboration.parquet",
 }
 
 
@@ -77,19 +91,87 @@ def map_date_check() -> dict:
 
 
 def merge_check() -> dict:
-    """V19: MERGED_INTO edges (real district mergers are rare in India, see
-    REVAMP_PLAN_V3 F2) whose target vintage is not a documented geometry gap
-    (data/reference/known_geometry_gaps.csv), e.g. SOI 2025 still showing
-    Mizoram's pre-2018 8 districts."""
-    rel = pd.read_csv(lib.OUTPUT_DIR / "s05_district_relationship.csv")
+    """V19: closures INTO an existing or merged district at the reference vintage
+    (MERGED_INTO edges and ABSORBED_INTO fates) that are not a documented
+    geometry gap (data/reference/known_geometry_gaps.csv). Real mergers are
+    rare in India (REVAMP_PLAN_V3 F2); at the map every product is restated
+    onto, such a closure is the signature of a map lagging its own label (SOI
+    2025 still showing Mizoram's pre-2018 8 districts). Earlier absorptions are
+    historical findings and go to the research queue instead."""
+    fate = pd.read_csv(lib.OUTPUT_DIR / "s05_ck_fate.csv")
     reg = pd.read_csv(lib.OUTPUT_DIR / "s04_ck_registry.csv").set_index("canonical_key").latest_state
-    m = rel[rel.relationship_type == "MERGED_INTO"].copy()
+    m = fate[fate.fate_type.isin(["MERGED_INTO", "ABSORBED_INTO"]) & (fate.closed_year == lib.REFERENCE_YEAR)].copy()
     m["target_state"] = m.to_ck.map(reg)
-    unexplained = m[[not lib.is_documented_geometry_gap(s, y) for s, y in zip(m.target_state, m.year_b)]]
-    return {"check_id": "V19", "description": "MERGED_INTO edge into an undocumented geometry gap (see known_geometry_gaps.csv)",
+    unexplained = m[[not lib.is_documented_geometry_gap(s, y) for s, y in zip(m.target_state, m.closed_year)]]
+    return {"check_id": "V19", "description": "closure into an existing/merged district at the reference vintage, "
+                                              "not a documented geometry gap (known_geometry_gaps.csv)",
             "severity": "WARNING", "n_violations": len(unexplained),
-            "detail": "; ".join(f"{a}->{b} ({y})" for a, b, y in
-                                 unexplained[["from_ck", "to_ck", "year_b"]].itertuples(index=False)) or None}
+            "detail": "; ".join(f"{a}->{b} {t} ({y})" for a, b, t, y in
+                                 unexplained[["canonical_key", "to_ck", "fate_type", "closed_year"]]
+                                 .itertuples(index=False)) or None}
+
+
+def research_queue(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
+    """Every finding that needs a documentary check, one typed row each."""
+    import s11_warehouse as w  # the same SQL the V-checks count
+    q = []
+
+    def add(kind: str, sql: str) -> None:
+        df = con.execute(sql).df()
+        if len(df):
+            q.append(df.assign(kind=kind))
+
+    add("OUTSIDE_FOOTPRINT", """
+        SELECT l.canonical_key AS ck, NULL AS other_ck, b.effective_year AS year,
+               'event names ' || p.district_name_raw || ' as successor of ' || b.parent_district_raw
+               || '; best name match lies outside the parent''s territory' AS evidence
+        FROM event_linkage l JOIN event_participant p USING (participant_id)
+        JOIN boundary_event b ON b.event_id = l.event_id WHERE l.link_status = 'OUTSIDE_FOOTPRINT'""")
+    add("AMBIGUOUS_LINK", """
+        SELECT l.canonical_key AS ck, NULL AS other_ck, b.effective_year AS year,
+               'name ' || p.district_name_raw || ' has near-tied candidates; not used' AS evidence
+        FROM event_linkage l JOIN event_participant p USING (participant_id)
+        JOIN boundary_event b ON b.event_id = l.event_id WHERE l.link_status = 'LINKED_AMBIGUOUS'""")
+    add("AREA_ANOMALY", f"""
+        SELECT canonical_key AS ck, NULL AS other_ck, year,
+               printf('area %.1f km2 vs %.1f (%d) and %.1f (%d): one-map defect?', area_km2, prev_km2, prev_year,
+                      next_km2, next_year) AS evidence FROM ({w.AREA_ANOMALY_SQL})""")
+    add("NEAR_CONTINUATION", f"""
+        SELECT ca.canonical_key AS ck, cb.canonical_key AS other_ck, n.year_b AS year,
+               printf('%s -> %s: r=%.3f h=%.3f but names differ; alias?', ca.district_name, cb.district_name,
+                      n.r_share, n.h_share) AS evidence
+        FROM ({w.NEAR_CONTINUATION_SQL}) n
+        JOIN ck_observation ca ON ca.geom_obs_id = n.geom_obs_id_a
+        JOIN ck_observation cb ON cb.geom_obs_id = n.geom_obs_id_b""")
+    add("ABSORPTION", """
+        SELECT f.canonical_key AS ck, f.to_ck AS other_ck, f.closed_year AS year,
+               printf('%s closed; %.0f km2 (%.0f%%) went to existing %s', a.latest_name, f.transfer_km2,
+                      100 * f.outflow_share, b.latest_name) AS evidence
+        FROM ck_fate f JOIN ck_registry a ON a.canonical_key = f.canonical_key
+        JOIN ck_registry b ON b.canonical_key = f.to_ck WHERE f.fate_type = 'ABSORBED_INTO'""")
+    add("ORPHAN_NEW_CK", """
+        SELECT c.canonical_key AS ck, NULL AS other_ck, c.established_year AS year,
+               'new district with no origin lineage edge' AS evidence FROM ck_registry c
+        WHERE c.origin_kind = 'NEW' AND NOT EXISTS (SELECT 1 FROM district_relationship r WHERE r.to_ck = c.canonical_key)""")
+    rep = pd.read_csv(lib.OUTPUT_DIR / "s01_overlap_repairs.csv")
+    rep = rep[(rep.area_removed_km2 > lib.CFG["closure"]["tol_km2"])
+              & (rep.smaller_contained_share < lib.CFG["topology"]["enclave_min_contained_share"])]
+    if len(rep):
+        ck = dict(con.execute("SELECT geom_obs_id, canonical_key FROM ck_observation").fetchall())
+        q.append(pd.DataFrame({"kind": "NON_ENCLAVE_REPAIR", "ck": rep.geom_obs_id.map(ck), "other_ck": None,
+                               "year": rep.source_year, "evidence": [
+                                   f"overlap repair removed {a:.1f} km2 from a neighbour (not an enclave)"
+                                   for a in rep.area_removed_km2]}))
+    md = pd.read_csv(lib.OUTPUT_DIR / "s12_map_date_check.csv")
+    md = md[md.shown_before_creation]
+    if len(md):
+        q.append(pd.DataFrame({"kind": "SHOWN_BEFORE_CREATION", "ck": md.canonical_key, "other_ck": None,
+                               "year": md.first_map, "evidence": [
+                                   f"{n} first mapped {y}, events CSV dates creation {int(c)}"
+                                   for n, y, c in zip(md.latest_name, md.first_map, md.csv_year)]}))
+    out = pd.concat(q, ignore_index=True)[["kind", "ck", "other_ck", "year", "evidence"]]
+    out["year"] = out.year.astype("Int64")
+    return out.sort_values(["kind", "year", "ck", "evidence"], na_position="last").reset_index(drop=True)
 
 
 def manifest() -> pd.DataFrame:
@@ -109,6 +191,9 @@ def metrics(con: duckdb.DuckDBPyConnection) -> dict:
         "  FORMED_FROM / SPLIT_FROM / MERGED_INTO": " / ".join(str(q(
             f"SELECT count(*) FROM district_relationship WHERE relationship_type = '{t}'"))
             for t in ("FORMED_FROM", "SPLIT_FROM", "MERGED_INTO")),
+        "closed CKs with a fate (SPLIT_FROM / MERGED_INTO / ABSORBED_INTO)": " / ".join(str(q(
+            f"SELECT count(DISTINCT canonical_key) FROM ck_fate WHERE fate_type = '{t}'"))
+            for t in ("SPLIT_FROM", "MERGED_INTO", "ABSORBED_INTO")),
         "lineage edges corroborated by an event": q(
             "SELECT count(*) FROM lineage_corroboration WHERE corroboration = 'EVENT_CORROBORATED'"),
         "measured transfers between existing districts": q("SELECT count(*) FROM measured_area_transfer"),
@@ -124,15 +209,25 @@ def metrics(con: duckdb.DuckDBPyConnection) -> dict:
             "SELECT count(*) FROM event_summary WHERE measurement_status = 'MEASURED'"),
         "events UNIDENTIFIED (shared window, bound only)": q(
             "SELECT count(*) FROM event_summary WHERE measurement_status = 'UNIDENTIFIED_MULTI_EVENT_WINDOW'"),
+        "events UNIDENTIFIED (an unlinked event shares the window)": q(
+            "SELECT count(*) FROM event_summary WHERE measurement_status = 'UNIDENTIFIED_UNLINKED_EVENT_IN_WINDOW'"),
     }
 
 
 def main() -> None:
     topo = pd.read_csv(lib.OUTPUT_DIR / "s02_topology_audit.csv")
     rows = [{"check_id": "V1", "description": "layer self-overlap beyond error threshold", "severity": "ERROR",
-             "n_violations": int((topo.status == "ERROR").sum()), "detail": None}]
+             "n_violations": int((topo.status == "ERROR").sum()), "detail": None},
+            {"check_id": "V2", "description": "layer has unassigned interior land beyond topology.gap_warn_fraction",
+             "severity": "WARNING", "n_violations": int((topo.gap_status == "WARNING").sum()),
+             "detail": "; ".join(f"{y}: {g:.0f} km2" for y, g in
+                                 zip(topo.year[topo.gap_status == "WARNING"], topo.gap_km2[topo.gap_status == "WARNING"]))
+             or None}]
     con = duckdb.connect(str(lib.WAREHOUSE_PATH), read_only=True)
-    con.execute("LOAD spatial")
+    try:  # no spatial function is used here; loading only keeps GEOMETRY columns typed
+        con.execute("LOAD spatial")
+    except duckdb.Error:
+        pass
     rows += con.execute("SELECT * FROM validation_result").df().to_dict("records")
     rows += contract_checks()
     rows.append(map_date_check())
@@ -141,6 +236,8 @@ def main() -> None:
     checks.to_csv(lib.OUTPUT_DIR / "s12_checks.csv", index=False)
     man = manifest()
     man.to_csv(lib.OUTPUT_DIR / "s12_output_manifest.csv", index=False)
+    queue_all = research_queue(con)
+    queue_all.to_csv(lib.OUTPUT_DIR / "s12_research_queue.csv", index=False)
     m = metrics(con)
     spatial = con.execute("SELECT spatial_class, count(*) n FROM event_summary GROUP BY 1 ORDER BY 2 DESC").df()
     queue = con.execute("""
@@ -177,10 +274,17 @@ V5 determinism: `outputs/pipeline/s12_output_manifest.csv` holds the sha256 of e
 
 {spatial.to_markdown(index=False)}
 
-## Research queue: successor matched only outside the predecessor's footprint
+## Research queue
+
+Every finding that needs a documentary check or a curated reference row, from
+any stage: `outputs/pipeline/s12_research_queue.csv` ({len(queue_all)} rows).
+
+{queue_all.kind.value_counts().rename("rows").to_frame().to_markdown()}
+
+### Successor matched only outside the predecessor's footprint (first 25)
 
 The events CSV names a successor whose territory did not come from the named
-parent, according to the maps. Each case needs a documentary check.
+parent, according to the maps.
 
 {queue.to_markdown(index=False)}
 """

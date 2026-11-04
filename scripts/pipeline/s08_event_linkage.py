@@ -10,7 +10,24 @@ are estimated from the data and written out for inspection.
 Comparisons
   name   exact / documentary alias (data/reference/name_aliases.csv) /
          Jaro-Winkler >= 0.95 / >= 0.88 / >= 0.80 / else
+         (Jaro-Winkler on a word-sorted key was tried in v4 development and
+         rejected: sorting moves a qualifier to the front, e.g. "Uttara
+         Kannada" -> "kannada uttara", and the prefix bonus then pairs it with
+         "Kanara", pushing the correct exact-name record below threshold.)
   state  exact / historically compatible (data/reference/state_lineage.csv) / else
+
+Identification. With only two comparisons an unrestricted two-class EM is not
+identifiable; here each comparison's m is estimated by EM BLOCKED on the other
+(state m from exact-name pairs, name m from same-state pairs), so the blocking
+variable acts as an approximate label and u comes from random sampling. That
+is the assumption the model rests on. A third comparison was tried in v4
+development: "record vintage near the event year" came out uninformative
+(m ~= u at every level), because a matching CK has a record at EVERY vintage,
+so it was not kept.
+
+Determinism: DuckDB runs single-threaded here (parallel float sums made m
+values differ in the last digits between runs) and the model's random
+linker_uid is replaced by a fixed one before saving.
 
 The output lists every candidate record with its match probability. Choosing
 among candidates is not done here: s09 restricts candidates to districts that
@@ -22,6 +39,9 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import json
+
+import duckdb
 import pandas as pd
 import splink.comparison_level_library as cll
 import splink.comparison_library as cl
@@ -69,6 +89,7 @@ def settings() -> SettingsCreator:
             cll.JaroWinklerLevel("name_norm", 0.80),
             cll.ElseLevel(),
         ])
+
     state = cl.CustomComparison(
         output_column_name="state",
         comparison_levels=[
@@ -98,14 +119,18 @@ def settings() -> SettingsCreator:
 def main() -> None:
     left, right = build_inputs()
     model_cols = ["uid", "name_norm", "alias_norm", "state_norm", "state_compat"]
-    linker = Linker([left[model_cols], right[model_cols]], settings(), db_api=DuckDBAPI(),
+    con = duckdb.connect()
+    con.execute("SET threads = 1")
+    linker = Linker([left[model_cols], right[model_cols]], settings(), db_api=DuckDBAPI(connection=con),
                     input_table_aliases=["events", "districts"])
     linker.training.estimate_probability_two_random_records_match(
         [block_on("name_norm", "state_norm")], recall=0.7)
     linker.training.estimate_u_using_random_sampling(max_pairs=LK["u_sampling_max_pairs"], seed=LK["seed"])
     linker.training.estimate_parameters_using_expectation_maximisation(block_on("state_norm"))
     linker.training.estimate_parameters_using_expectation_maximisation(block_on("name_norm"))
-    linker.misc.save_model_to_json(str(lib.EVENTS_OUTPUT_DIR / "s08_splink_model.json"), overwrite=True)
+    model = linker.misc.save_model_to_json(overwrite=True)
+    model["linker_uid"] = "district-evolution-s08"
+    (lib.EVENTS_OUTPUT_DIR / "s08_splink_model.json").write_text(json.dumps(model, indent=4, sort_keys=True) + "\n")
 
     pred = linker.inference.predict(threshold_match_probability=0.01).as_pandas_dataframe()
     ev = pred.uid_l.str.startswith("P")

@@ -1,7 +1,7 @@
-# Pipeline v3 configuration. Every threshold used by any stage lives here with
+# Pipeline v4 configuration. Every threshold used by any stage lives here with
 # its rationale; code reads it via lib.CFG. See docs/architecture/REVAMP_PLAN_V3.md.
 
-pipeline_version: "3.0.0"
+pipeline_version: "4.0.0"
 
 vintages:
   # (source, year) in chronological order. The last entry is the reference
@@ -47,7 +47,14 @@ closure:
 topology:
   self_overlap_warn_fraction: 0.001
   self_overlap_error_fraction: 0.01
+  # Share of a layer's outline (holes in the union of its districts) covered by
+  # no district. Above this the layer has unassigned interior land (V2 WARNING).
   gap_warn_fraction: 0.01
+  # s01 assigns a pairwise overlap to the smaller polygon. That is right for an
+  # enclave (the smaller polygon lies mostly inside the larger one). A repair
+  # where the smaller polygon is less than this share inside the larger one is
+  # two neighbours overlapping, where "smaller wins" is arbitrary: V22 WARNING.
+  enclave_min_contained_share: 0.5
 
 identity:
   # Banded continuity rule (plan section 3.3). r = share of source i going to
@@ -67,10 +74,26 @@ lineage:
   # Minimum TRANSFER-class area for a cross-CK flow to count as a lineage edge
   # or a measured transfer. Displacement and sliver parcels never count.
   material_km2: 0.5
+  # A LINEAGE EDGE (a claim of parentage) also needs this share of its source
+  # OR of its target. Measured on v3.0.0: 31 edges carried < 1% of the new
+  # district's area; the km2 floor alone let a narrow edit along a long
+  # boundary become a "parent". Measured transfers between existing districts
+  # are measurements, not claims, and keep only the km2 floor. Sub-threshold
+  # flows stay in the ledger and in minor_material_flow; no km2 is dropped.
+  material_share: 0.01
 
 linkage:
   # splink event-name -> CK record linkage (s08) and resolution (s09).
-  min_match_probability: 0.50
+  # Placed in the widest gap of the fitted probability distribution, not on a
+  # mode. v3 used 0.50, but the commonest true pattern for historical events
+  # (exact name + historically compatible state, e.g. Karimnagar filed under
+  # Telangana, mapped under Andhra Pradesh in 2011) scores 0.49-0.51 depending
+  # on training noise: in v4 development it moved 0.506 -> 0.494 and ~70
+  # Telangana/Kerala/Jharkhand links flipped. Measured clusters (v4): 0.94,
+  # 0.80, 0.53, 0.49, 0.46 | gap | 0.19, 0.06. A name-level match below the
+  # gap is never accepted; above it, s09 still requires geometric support
+  # (footprint for successors, territory given away for predecessors).
+  min_match_probability: 0.30
   ambiguity_margin: 0.10
   u_sampling_max_pairs: 2000000
   seed: 20260923
@@ -89,6 +112,39 @@ map_dates:
   # data/reference/vintage_depiction.csv.
   min_districts: 3
   min_share: 0.5
+
+products:
+  # district_reference_context.n_source_districts counts a year-Y district as
+  # "drawn on" by a reference district when it supplies at least this share of
+  # the reference district (was hard-coded in s10 before v4).
+  min_source_share: 0.01
+
+anomaly:
+  # V24 area anomaly: a CK whose area at one vintage differs from its area at
+  # BOTH neighbouring vintages by more than dip_rel, while the two neighbours
+  # agree within neighbour_agree_rel, and no lineage edge touches it in either
+  # window (measured transfers do not exempt it: a defective map creates
+  # them). That is a dip-and-recover with no event behind it: a digitization
+  # defect in that one map (v3: Kolkata 2021 drawn at
+  # 98.6 km2 against 196 km2 in every other vintage), not territorial change.
+  dip_rel: 0.25
+  neighbour_agree_rel: 0.10
+  # V26 near-continuation: a BREAK_NAME_DIFFERS decision whose geometry is
+  # almost a continuation (r >= near_r and h >= near_h) is listed for alias
+  # curation (v3: Reasi/Riasi r = 0.895, h = 0.984).
+  near_r: 0.85
+  near_h: 0.95
+  # V25: names that mark a non-administrative feature. A CK must never carry
+  # one; curate the feature into data/reference/non_administrative_features.csv.
+  non_admin_name_regex: "^(disputed|undisputed|unclaimed|claimed|data not available|not available|area under)"
+
+validation:
+  # V12: tolerance on "declared transfer never exceeds predecessor area"
+  # (relative, floating-point summation noise only).
+  declared_rel_tol: 1.0e-7
+  # V17: an overlap repair removing more than this share of a polygon is listed
+  # for review.
+  overlap_repair_review_share: 0.001
 
 area_check:
   # pyproj geodesic area vs DuckDB ST_Area_Spheroid (independent GeographicLib

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs the District Evolution pipeline v3 end to end.
+# Runs the District Evolution pipeline v4 end to end.
 # Setup once: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 # Design: docs/architecture/REVAMP_PLAN_V3.md. Equivalent DAG run: dvc repro
 set -euo pipefail

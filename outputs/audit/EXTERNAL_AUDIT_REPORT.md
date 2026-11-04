@@ -11,27 +11,27 @@ Current Wikidata district items with coordinates: 779.
 
 | verdict                    |   n |
 |:---------------------------|----:|
-| GEOMETRY_AND_NAME          | 624 |
-| GEOMETRY_ONLY_NAME_DIFFERS | 154 |
+| GEOMETRY_AND_NAME          | 625 |
+| GEOMETRY_ONLY_NAME_DIFFERS | 153 |
 | NO_POLYGON                 |   1 |
 
-Our 742 active districts matched to a Wikidata item by geometry and name:
-**624** (84.1%).
-Not matched: 118. Wikidata items whose point falls in one of our districts but whose
+Our 733 active districts matched to a Wikidata item by geometry and name:
+**625** (85.3%).
+Not matched: 108. Wikidata items whose point falls in one of our districts but whose
 name differs are listed in `wikidata_match.csv`. They are mostly districts formed after the SOI
 2025 map, or outdated coordinates.
 
 ## 2. Area (our 2025 geodesic area vs Wikidata)
 
-Compared: 565 districts. Median absolute difference: 1.61%.
+Compared: 566 districts. Median absolute difference: 1.62%.
 
 | verdict                           |   n |
 |:----------------------------------|----:|
 | AGREE_WITHIN_2PCT                 | 300 |
 | MINOR_2_TO_10PCT                  | 124 |
-| DISTRICT_REORGANISED_AFTER_2011   |  49 |
-| UNEXPLAINED_OVER_10PCT            |  46 |
-| WIKIDATA_MATCHES_OUR_EARLIER_AREA |  40 |
+| UNEXPLAINED_OVER_10PCT            |  51 |
+| DISTRICT_REORGANISED_AFTER_2011   |  44 |
+| WIKIDATA_MATCHES_OUR_EARLIER_AREA |  41 |
 | WIKIDATA_MAGNITUDE_ERROR          |   6 |
 
 How to read the verdicts:
@@ -45,13 +45,14 @@ How to read the verdicts:
   so an undated Wikidata figure may predate it.
 
 Share of compared districts that agree or whose difference is explained:
-**91.9%**.
+**91.0%**.
 
-Unexplained differences over 10% (46). These are leads to check against official figures:
+Unexplained differences over 10% (51). These are leads to check against official figures:
 
 | label                        | our_name       |   wd_area_km2 |   our_area_2025_km2 |   our_area_2011_km2 |   rel_diff_2025 |
 |:-----------------------------|:---------------|--------------:|--------------------:|--------------------:|----------------:|
 | Harda district               | Harda          |         26    |            3341.42  |            3316.49  |         127.516 |
+| Chennai district             | Chennai        |        174    |             334.375 |             177.646 |           0.922 |
 | Srinagar district            | Srinagar       |       1979    |             281.804 |             477.218 |          -0.858 |
 | Shravasti district           | Shrawasti      |       1126    |            1931.14  |            1953.7   |           0.715 |
 | Faridabad district           | Faridabad      |       2151    |             743.339 |             751.944 |          -0.654 |
@@ -59,6 +60,8 @@ Unexplained differences over 10% (46). These are leads to check against official
 | Kaimur district              | Kaimur         |       8268    |            3369.55  |            3338.54  |          -0.592 |
 | Kota district                | Kota           |      12436    |            5089.69  |            5101.02  |          -0.591 |
 | Bongaigaon district          | Bongaigaon     |       2510    |            1118.1   |            1061.85  |          -0.555 |
+| Alirajpur district           | Alirajpur      |       2165    |            3332.52  |            3317.19  |           0.539 |
+| Narayanpur district          | Narainpur      |       6640    |            3900.61  |            4910.95  |          -0.413 |
 | Bijapur District             | Bijapur        |       6555    |            9248.37  |            8191.76  |           0.411 |
 | Sahebganj district           | Sahibganj      |       1599    |            2191.23  |            1915.82  |           0.37  |
 | Sri Ganganagar district      | Ganganagar     |       7984    |           10930.9   |           10443.8   |           0.369 |
@@ -78,19 +81,16 @@ Unexplained differences over 10% (46). These are leads to check against official
 | Kulgam district              | Kulgam         |       1067    |            1265.72  |            1165.83  |           0.186 |
 | Nuh district                 | Mewat          |       1860    |            1515.06  |            1531.02  |          -0.185 |
 | Rudraprayag district         | Rudraprayag    |       2439    |            1987.94  |            1985.48  |          -0.185 |
-| Nandurbar district           | Nandurbar      |       5035    |            5955.6   |            5905.83  |           0.183 |
-| Ganderbal district           | Ganderbal      |       1979    |            1620.89  |            1286.54  |          -0.181 |
-| Dimapur district             | Dimapur        |        927    |             762.799 |             875.489 |          -0.177 |
 
 ## 3. Formation year (Wikidata inception vs the map where our CK first appears)
 
-Compared: 141 districts with inception ≥ 1947.
+Compared: 142 districts with inception ≥ 1947.
 
 | verdict                     |   n |
 |:----------------------------|----:|
-| CONSISTENT                  | 121 |
+| CONSISTENT                  | 126 |
 | CONSISTENT_WITH_ONE_MAP_LAG |  10 |
-| OURS_EARLIER_THAN_INCEPTION |   8 |
+| OURS_EARLIER_THAN_INCEPTION |   4 |
 | OURS_LATER_THAN_INCEPTION   |   2 |
 
 ## 4. Lineage (Wikidata separated-from / replaces / replaced-by)
@@ -107,30 +107,31 @@ coverage.
 
 For each new district we take its creation year from the events compilation. That source is
 independent of the maps. Where Wikidata also has an inception year, it is used to corroborate.
-Of 402 new districts with a recorded creation year, **32**
-already appear on a map dated before that year.
+Dates confirmed in `data/reference/vintage_depiction.csv` are applied first. Of 398 new
+districts with a recorded creation year, **19** still appear on a
+map depicting a date before that year.
 
-| latest_state      |   first_map |   new_on_map |   wikidata_confirms |   named_new_districts |
+| state             |   first_map |   new_on_map |   wikidata_confirms |   named_new_districts |
 |:------------------|------------:|-------------:|--------------------:|----------------------:|
-| Assam             |        1981 |           13 |                   3 |                    14 |
 | Manipur           |        1971 |            4 |                   0 |                     5 |
-| Arunachal Pradesh |        1981 |            2 |                   0 |                     6 |
 | Jammu And Kashmir |        1961 |            2 |                   0 |                     8 |
+| Arunachal Pradesh |        1981 |            2 |                   0 |                     6 |
 | Uttar Pradesh     |        2001 |            2 |                   0 |                    13 |
 | Arunachal Pradesh |        1961 |            1 |                   0 |                     2 |
+| Assam             |        1981 |            1 |                   0 |                    14 |
 | Assam             |        1971 |            1 |                   0 |                     2 |
-| Jharkhand         |        1991 |            1 |                   0 |                     7 |
 | Manipur           |        1981 |            1 |                   0 |                     2 |
+| Jharkhand         |        1991 |            1 |                   0 |                     7 |
 | Punjab            |        1961 |            1 |                   0 |                     1 |
 | Punjab            |        2001 |            1 |                   0 |                     5 |
-| Rajasthan         |        1961 |            1 |                   0 |                     1 |
+| Tamil Nadu        |        1981 |            1 |                   0 |                     2 |
 
-The concentration in one state-year points at the map layer, not at scattered errors. For
-example, the Stanford "1981" Assam layer has the same 23 districts as its 1991 layer, and
-Wikidata's inception years agree with the events compilation there. A layer like that depicts
-later boundaries than its label says. Change in that state is then assigned to the wrong
-decade, and events dated inside the gap cannot be matched to it (compare the research queue in
-the s12 report).
+When the cases concentrate in one state-map, the map layer is the likely problem, not scattered
+event errors. Confirmed case: the Stanford "1981" Assam layer has the same 23 districts as its
+1991 layer, and 13 of its 14 new districts were created 1983–1989. Wikidata's inception years
+agree with the events compilation there. The pipeline therefore treats that layer as depicting
+1989, so the table above no longer shows it. Any remaining concentration is flagged by s12
+check V18 until a second source confirms or rejects it.
 
 ## Files
 

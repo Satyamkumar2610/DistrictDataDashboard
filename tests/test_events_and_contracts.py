@@ -62,7 +62,8 @@ def accounting_row(**kw):
     row = dict(event_id="a" * 32, predecessor_ck="IND-000001", pre_vintage=1991, post_vintage=2001,
                source_area_km2=100.0, declared_successor_km2=40.0, retained_km2=60.0,
                undeclared_neighbour_km2=0.0, displacement_km2=0.0, sliver_km2=0.0, unmapped_km2=0.0,
-               closure_error_km2=0.0, closure_ok=True, n_events_same_window=1, measurement_status="MEASURED")
+               closure_error_km2=0.0, closure_ok=True, n_events_same_window=1,
+               n_unlinked_events_same_window=0, measurement_status="MEASURED")
     row.update(kw)
     return pd.DataFrame([row])
 
@@ -71,6 +72,10 @@ def test_contract_rejects_measured_row_in_shared_window():
     schemas.validate("event_accounting", accounting_row())
     with pytest.raises(RuntimeError, match="V8"):
         schemas.validate("event_accounting", accounting_row(n_events_same_window=2))
+    with pytest.raises(RuntimeError, match="V8"):  # an unlinked event shares the window
+        schemas.validate("event_accounting", accounting_row(n_unlinked_events_same_window=1))
+    schemas.validate("event_accounting", accounting_row(
+        n_unlinked_events_same_window=1, measurement_status="UNIDENTIFIED_UNLINKED_EVENT_IN_WINDOW"))
 
 
 def test_contract_rejects_bad_canonical_key():

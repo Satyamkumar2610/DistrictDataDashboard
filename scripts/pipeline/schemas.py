@@ -45,7 +45,7 @@ SCHEMAS: dict[str, DataFrameSchema] = {
 
     # ---- s03 transition primitive ------------------------------------------
     "transition_flow": DataFrameSchema({
-        "kind": Column(str, Check.isin(["ADJACENT", "REFERENCE"])),
+        "kind": Column(str, Check.isin(["ADJACENT", "SKIP", "REFERENCE"])),
         "year_a": _year(), "year_b": _year(),
         "geom_obs_id_a": Column(str, SHA), "geom_obs_id_b": Column(str, SHA),
         "core_km2": _km2(), "transfer_km2": _km2(),
@@ -58,7 +58,7 @@ SCHEMAS: dict[str, DataFrameSchema] = {
             Check(lambda d: d.year_a < d.year_b, error="year_a < year_b"),
         ]),
     "transition_residual": DataFrameSchema({
-        "kind": Column(str, Check.isin(["ADJACENT", "REFERENCE"])),
+        "kind": Column(str, Check.isin(["ADJACENT", "SKIP", "REFERENCE"])),
         "side": Column(str, Check.isin(["SOURCE", "TARGET"])),
         "year_a": _year(), "year_b": _year(),
         "geom_obs_id": Column(str, SHA),
@@ -110,8 +110,9 @@ SCHEMAS: dict[str, DataFrameSchema] = {
         "names_agree": Column(bool),
         "continuity_class": Column(str, Check.isin([
             "STRONG", "CARVE_OUT_CORE", "ABSORPTION_CORE", "REORGANISED_CORE",
-            "NAME_RETAINED_CORE", "BREAK_NAME_DIFFERS", "BREAK_NO_CORE"])),
+            "NAME_RETAINED_CORE", "SKIP_VINTAGE_CORE", "BREAK_NAME_DIFFERS", "BREAK_NO_CORE"])),
         "continues": Column(bool),
+        "evidence_year": _year(),
     }, unique=["year_a", "year_b", "geom_obs_id_a"]),
 
     # ---- s05 lineage -------------------------------------------------------
@@ -123,8 +124,34 @@ SCHEMAS: dict[str, DataFrameSchema] = {
         "period_start": Column(int), "period_end": Column(int),
         "transfer_km2": Column(float, Check.gt(0)),
         "outflow_share": Column(float, SHARE), "inflow_share": Column(float, SHARE),
+        "source_closes": Column(bool),
+        "n_target_sources": Column(int, Check.ge(1)),
         "lineage_basis": Column(str, Check.isin(["SPATIAL"])),
-    }, checks=[Check(lambda d: d.from_ck != d.to_ck, error="no self edges")]),
+    }, checks=[Check(lambda d: d.from_ck != d.to_ck, error="no self edges"),
+               Check(lambda d: (d.relationship_type == "FORMED_FROM") == ~d.source_closes,
+                     error="FORMED_FROM iff the source continues")]),
+    "ck_fate": DataFrameSchema({
+        "canonical_key": Column(str, CK), "year_a": _year(), "closed_year": _year(),
+        "to_ck": Column(str, CK),
+        "fate_type": Column(str, Check.isin(["SPLIT_FROM", "MERGED_INTO", "ABSORBED_INTO"])),
+        "transfer_km2": Column(float, Check.gt(0)), "outflow_share": Column(float, SHARE),
+        "fate_share_rank": Column(int, Check.ge(1)),
+    }, unique=["canonical_key", "to_ck"],
+        checks=[Check(lambda d: d.canonical_key != d.to_ck, error="no self fate")]),
+    "ck_flow": DataFrameSchema({
+        "year_a": _year(), "year_b": _year(), "from_ck": Column(str, CK), "to_ck": Column(str, CK),
+        "material_km2": _km2(), "displacement_km2": _km2(), "sliver_km2": _km2(), "total_km2": _km2(),
+        "from_area": Column(float, Check.gt(0)), "to_area": Column(float, Check.gt(0)),
+    }, unique=["year_a", "year_b", "from_ck", "to_ck"]),
+    "boundary_displacement": DataFrameSchema({
+        "year_a": _year(), "year_b": _year(), "from_ck": Column(str, CK), "to_ck": Column(str, CK),
+        "displacement_km2": Column(float, Check.gt(0)),
+    }, unique=["year_a", "year_b", "from_ck", "to_ck"]),
+    "minor_material_flow": DataFrameSchema({
+        "year_a": _year(), "year_b": _year(), "from_ck": Column(str, CK), "to_ck": Column(str, CK),
+        "material_km2": Column(float, Check.gt(0)),
+        "outflow_share": Column(float, SHARE), "inflow_share": Column(float, SHARE),
+    }, unique=["year_a", "year_b", "from_ck", "to_ck"]),
     "measured_area_transfer": DataFrameSchema({
         "transfer_id": Column(str, SHA, unique=True),
         "from_ck": Column(str, CK), "to_ck": Column(str, CK),
@@ -138,13 +165,18 @@ SCHEMAS: dict[str, DataFrameSchema] = {
     "area_ledger": DataFrameSchema({
         "canonical_key": Column(str, CK),
         "year_a": _year(), "year_b": _year(),
-        "area_before_km2": Column(float, Check.gt(0)),
+        "area_before_km2": _km2(),
         "retained_km2": _km2(), "to_new_districts_km2": _km2(),
         "to_existing_districts_km2": _km2(), "displacement_km2": _km2(),
         "sliver_km2": _km2(), "unmapped_km2": _km2(),
-        "received_km2": _km2(),
         "closure_error_km2": _km2(), "closure_ok": Column(bool),
-    }, unique=["canonical_key", "year_a", "year_b"]),
+        "area_after_km2": _km2(),
+        "kept_in_km2": _km2(), "received_km2": _km2(), "received_displacement_km2": _km2(),
+        "received_sliver_km2": _km2(), "coverage_gain_km2": _km2(),
+        "forward_closure_error_km2": _km2(), "forward_closure_ok": Column(bool),
+    }, unique=["canonical_key", "year_a", "year_b"],
+        checks=[Check(lambda d: (d.area_before_km2 > 0) | (d.area_after_km2 > 0),
+                      error="a ledger row is a CK present at one end of the window")]),
 
     # ---- s07 events --------------------------------------------------------
     "boundary_event": DataFrameSchema({
@@ -156,6 +188,7 @@ SCHEMAS: dict[str, DataFrameSchema] = {
         "effective_year": Column(int, Check.in_range(1947, 2030)),
         "n_predecessors": Column(int, Check.ge(0)),
         "n_successors": Column(int, Check.ge(0)),
+        "n_parent_spellings": Column(int, Check.ge(1)),
         "n_csv_rows": Column(int, Check.ge(1)),
     }),
     "event_participant": DataFrameSchema({
@@ -198,11 +231,36 @@ SCHEMAS: dict[str, DataFrameSchema] = {
         "sliver_km2": _km2(), "unmapped_km2": _km2(),
         "closure_error_km2": _km2(), "closure_ok": Column(bool),
         "n_events_same_window": Column(int, Check.ge(1)),
+        "n_unlinked_events_same_window": Column(int, Check.ge(0)),
         "measurement_status": Column(str, Check.isin([
-            "MEASURED", "UNIDENTIFIED_MULTI_EVENT_WINDOW"])),
+            "MEASURED", "UNIDENTIFIED_MULTI_EVENT_WINDOW", "UNIDENTIFIED_UNLINKED_EVENT_IN_WINDOW"])),
     }, unique=["event_id", "predecessor_ck"],
-        checks=[Check(lambda d: (d.n_events_same_window == 1) == (d.measurement_status == "MEASURED"),
-                      error="V8: MEASURED iff exactly one event in window")]),
+        checks=[Check(lambda d: ((d.n_events_same_window == 1) & (d.n_unlinked_events_same_window == 0))
+                      == (d.measurement_status == "MEASURED"),
+                      error="V8: MEASURED iff exactly one event in window and no unlinked event beside it")]),
+    "event_flow": DataFrameSchema({
+        "event_id": Column(str, SHA), "predecessor_ck": Column(str, CK), "target_ck": Column(str, CK),
+        "year_a": _year(), "year_b": _year(),
+        "target_role": Column(str, Check.isin(["RETAINED", "DECLARED_SUCCESSOR", "UNDECLARED_NEIGHBOUR"])),
+        "material_km2": _km2(), "displacement_km2": _km2(), "sliver_km2": _km2(),
+    }, unique=["event_id", "predecessor_ck", "target_ck"]),
+    "event_summary": DataFrameSchema({
+        "event_id": Column(str, SHA, unique=True),
+        "event_type": Column(str, Check.isin(["SPLIT", "NEW_DISTRICT", "RENAME"])),
+        "bracket": Column(str, Check.isin(["PRIMARY", "LAGGED", "NONE"])),
+        "spatial_class": Column(str, Check.isin([
+            "UNLINKED", "SAME_IDENTITY", "IDENTITY_CHANGED", "NO_TRANSFER_OBSERVED", "CLEAN_SPLIT",
+            "CARVE_OUT", "TRANSFER_BETWEEN_EXISTING"])),
+        "measurement_status": Column(str, Check.isin([
+            "MEASURED", "UNIDENTIFIED_MULTI_EVENT_WINDOW", "UNIDENTIFIED_UNLINKED_EVENT_IN_WINDOW",
+            "NOT_MEASURABLE"])),
+    }),
+    "lineage_corroboration": DataFrameSchema({
+        "rel_id": Column(str, SHA, unique=True),
+        "supporting_event_ids": Column(str),
+        "corroboration": Column(str, Check.isin(["EVENT_CORROBORATED", "GEOMETRY_ONLY"])),
+    }, checks=[Check(lambda d: (d.corroboration == "EVENT_CORROBORATED") == (d.supporting_event_ids != ""),
+                     error="corroborated iff it names an event")]),
 
     # ---- s10 products ------------------------------------------------------
     "district_area_admin": DataFrameSchema({
@@ -217,8 +275,15 @@ SCHEMAS: dict[str, DataFrameSchema] = {
         "area_km2": Column(float, Check.gt(0)),
         "share_of_source": Column(float, SHARE),
         "share_of_target": Column(float, SHARE),
+        "source_mapped_share": Column(float, SHARE),
         "source_depicted_year": Column(int, Check.ge(1947)),
     }, unique=["year", "source_ck", "target_ck"]),
+    "ck_reference_continuity": DataFrameSchema({
+        "canonical_key": Column(str, CK), "year": _year(),
+        "area_then_km2": Column(float, Check.gt(0)), "area_reference_km2": Column(float, Check.gt(0)),
+        "shared_km2": _km2(),
+        "share_of_then_kept": Column(float, SHARE), "share_of_reference_from_then": Column(float, SHARE),
+    }, unique=["canonical_key", "year"]),
     "district_reference_context": DataFrameSchema({
         "target_ck": Column(str, CK), "year": _year(),
         "mapped_km2": _km2(),

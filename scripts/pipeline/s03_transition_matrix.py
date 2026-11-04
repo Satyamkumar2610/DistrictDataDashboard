@@ -1,8 +1,9 @@
 """Stage 03 — Transition matrix: the one primitive every product derives from.
 
-For each consecutive vintage pair (ADJACENT) and for every vintage against the
-reference vintage (REFERENCE, used by the census crosswalk), compute the planar
-overlay. Overlay parts partition the shared footprint, so conservation holds by
+For each consecutive vintage pair (ADJACENT), each pair two vintages apart
+(SKIP, used only by s04 to stop one defective map from breaking an identity),
+and every vintage against the reference vintage (REFERENCE, used by the census
+crosswalk), compute the planar overlay. Overlay parts partition the shared footprint, so conservation holds by
 construction: for every source polygon,
 
     sum(parts, all classes) + unmapped == area(source)      (within closure tol)
@@ -108,6 +109,7 @@ def summarize(flow, res, kind, year_a, year_b) -> dict:
 
 def main() -> None:
     pairs = [("ADJACENT", a, b) for a, b in lib.WINDOWS]
+    pairs += [("SKIP", a, b) for a, b in zip(lib.YEARS[:-2], lib.YEARS[2:])]
     pairs += [("REFERENCE", y, lib.REFERENCE_YEAR) for y in lib.YEARS if y != lib.REFERENCE_YEAR]
     flows, residuals, summary, inspect = [], [], [], []
     cache: dict[tuple[int, int], gpd.GeoDataFrame] = {}

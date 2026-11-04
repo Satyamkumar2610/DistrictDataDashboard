@@ -7,7 +7,16 @@ carrying material (CORE + TRANSFER) area >= lineage.material_km2:
       FORMED_FROM   source continues (carve-out)
       SPLIT_FROM    source closes and is the only closing source of the target
       MERGED_INTO   source closes and >= 2 closing sources feed the target
+    an edge also needs >= lineage.material_share of its source OR its target:
+    a parent must be more than a boundary nudge. Flows below it are kept in
+    minor_material_flow (and in the ledger), never dropped.
   into a CK that already existed      -> measured_area_transfer (L-3: no edge)
+
+Every closed CK gets its fate in ck_fate: its SPLIT_FROM / MERGED_INTO edges,
+plus ABSORBED_INTO for material it handed to districts that already existed
+(that territory is a measured transfer, not a lineage edge, so the lineage
+graph alone cannot answer "where did it go?"; ck_fate can). s11 V20 fails if a
+closed CK has no fate.
 
 BOUNDARY_DISPLACEMENT and SLIVER area never create edges or transfers; it is
 reported separately. Event corroboration is added by s09 in its own table, so
@@ -48,16 +57,21 @@ def main() -> None:
     closed = dict(zip(reg.canonical_key, reg.closed_year))
 
     f = ck_flows()
-    f.to_parquet(lib.GOLD_SPATIAL_DIR / "ck_flow.parquet", index=False)
-    cross = f[(f.from_ck != f.to_ck) & (f.material_km2 >= lib.CFG["lineage"]["material_km2"])].copy()
+    f = lib.write_table(f.sort_values(["year_a", "from_ck", "to_ck"]), lib.GOLD_SPATIAL_DIR / "ck_flow.parquet",
+                        "ck_flow")
+    lin = lib.CFG["lineage"]
+    cross = f[(f.from_ck != f.to_ck) & (f.material_km2 >= lin["material_km2"])].copy()
     cross["outflow_share"] = (cross.material_km2 / cross.from_area).clip(upper=1.0)
     cross["inflow_share"] = (cross.material_km2 / cross.to_area).clip(upper=1.0)
+    small = (cross.outflow_share < lin["material_share"]) & (cross.inflow_share < lin["material_share"])
     cross["transfer_km2"] = cross.material_km2
     # the change happened between the dates the two maps DEPICT for these districts
     state = pd.read_parquet(lib.GOLD_CORE_DIR / "ck_observation.parquet").set_index(["canonical_key", "year"]).state
     cross["period_start"] = [lib.depicted_year(state[(c, y)], y) for c, y in zip(cross.from_ck, cross.year_a)]
     cross["period_end"] = [lib.depicted_year(state[(c, y)], y) for c, y in zip(cross.to_ck, cross.year_b)]
     is_new = cross.apply(lambda r: established[r.to_ck] == r.year_b, axis=1)
+    minor = cross[is_new & small]
+    cross, is_new = cross[~(is_new & small)], is_new[~(is_new & small)]
 
     rel = cross[is_new].copy()
     rel["source_closes"] = rel.apply(lambda r: closed[r.from_ck] == r.year_b, axis=1)
@@ -66,10 +80,12 @@ def main() -> None:
         "FORMED_FROM" if not r.source_closes
         else ("MERGED_INTO" if n_closing.get((r.to_ck, r.year_b), 0) >= 2 else "SPLIT_FROM")
         for r in rel.itertuples()]
+    rel["n_target_sources"] = rel.groupby(["to_ck", "year_b"]).from_ck.transform("nunique").astype(int)
     rel["rel_id"] = [lib.stable_id("REL", r.from_ck, r.to_ck, r.year_a, r.year_b) for r in rel.itertuples()]
     rel["lineage_basis"] = "SPATIAL"
     rel = rel[["rel_id", "from_ck", "to_ck", "relationship_type", "year_a", "year_b",
-               "period_start", "period_end", "transfer_km2", "outflow_share", "inflow_share", "lineage_basis"]
+               "period_start", "period_end", "transfer_km2", "outflow_share", "inflow_share",
+               "source_closes", "n_target_sources", "lineage_basis"]
               ].sort_values(["year_b", "from_ck", "to_ck"])
 
     xfer = cross[~is_new].copy()
@@ -79,6 +95,17 @@ def main() -> None:
 
     disp = f[(f.from_ck != f.to_ck) & (f.displacement_km2 > 0)][
         ["year_a", "year_b", "from_ck", "to_ck", "displacement_km2"]]
+
+    # fate of every closed CK: lineage edges out of it, plus absorption into existing CKs
+    closes_here = pd.Series([closed[c] == y for c, y in zip(cross.from_ck, cross.year_b)], index=cross.index)
+    xf_closing = cross[~is_new & closes_here]
+    fate = pd.concat([
+        rel[rel.source_closes].assign(fate_type=rel.relationship_type),
+        xf_closing.assign(fate_type="ABSORBED_INTO"),
+    ], ignore_index=True)[["from_ck", "year_a", "year_b", "to_ck", "fate_type", "transfer_km2", "outflow_share"]]
+    fate = fate.rename(columns={"from_ck": "canonical_key", "year_b": "closed_year"}).sort_values(
+        ["canonical_key", "transfer_km2", "to_ck"], ascending=[True, False, True])
+    fate["fate_share_rank"] = fate.groupby("canonical_key").cumcount() + 1
 
     dag = lineage_graph.lineage_dag(rel, reg)
     lineage_graph.assert_acyclic(dag)
@@ -90,12 +117,20 @@ def main() -> None:
                     csv_copy=lib.OUTPUT_DIR / "s05_district_relationship.csv")
     lib.write_table(xfer, lib.GOLD_SPATIAL_DIR / "measured_area_transfer.parquet", "measured_area_transfer",
                     csv_copy=lib.OUTPUT_DIR / "s05_measured_area_transfer.csv")
-    disp.to_parquet(lib.GOLD_SPATIAL_DIR / "boundary_displacement.parquet", index=False)
+    lib.write_table(fate, lib.GOLD_CORE_DIR / "ck_fate.parquet", "ck_fate",
+                    csv_copy=lib.OUTPUT_DIR / "s05_ck_fate.csv")
+    lib.write_table(disp, lib.GOLD_SPATIAL_DIR / "boundary_displacement.parquet", "boundary_displacement")
+    lib.write_table(minor[["year_a", "year_b", "from_ck", "to_ck", "material_km2", "outflow_share", "inflow_share"]]
+                    .sort_values(["year_a", "from_ck", "to_ck"]),
+                    lib.GOLD_SPATIAL_DIR / "minor_material_flow.parquet", "minor_material_flow")
     lineage_graph.ancestry(dag).to_csv(lib.OUTPUT_DIR / "s05_district_ancestry.csv", index=False)
 
     print(rel.relationship_type.value_counts().to_string())
     print(f"lineage edges: {len(rel)}  measured transfers: {len(xfer)} ({xfer.transfer_km2.sum():,.0f} km2)  "
           f"displacement pairs: {len(disp)} ({disp.displacement_km2.sum():,.0f} km2)  DAG: acyclic")
+    print(f"minor flows into new CKs (below lineage.material_share, no edge): {len(minor)} "
+          f"({minor.material_km2.sum():,.1f} km2)  closed CKs with a fate: {fate.canonical_key.nunique()} / "
+          f"{int((~reg.is_active).sum())}")
 
 
 if __name__ == "__main__":

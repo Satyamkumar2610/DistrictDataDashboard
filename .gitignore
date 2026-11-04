@@ -18,3 +18,6 @@ __pycache__/
 !data/reference/ck_migration_v2_to_v3.csv
 !data/reference/vintage_depiction.csv
 !data/reference/known_geometry_gaps.csv
+!data/reference/non_administrative_features.csv
+!data/reference/ck_pinned_registry.csv
+!data/reference/ck_migration_v3_to_v4.csv

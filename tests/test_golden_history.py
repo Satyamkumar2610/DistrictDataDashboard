@@ -54,6 +54,44 @@ def test_carve_outs_keep_the_parent(warehouse):
     assert {"mancherial", "nirmal"} <= children(warehouse, "Adilabad", "FORMED_FROM")
 
 
+@pytest.mark.parametrize("name, first", [
+    ("Kolkata", 1951),   # Stanford 2021 draws it at half size; must not re-key (v4 rule 4)
+    ("Chennai", 1951),   # Stanford 2011 draws it small, 2018 expansion real; one identity
+    ("Riasi", 2011),     # spelled Reasi in Stanford 2011/2021
+    ("Bemetara", 2021),  # spelled Bametara in Stanford 2021
+    ("Nagaur", 1951),    # spelled Nagore in the 1951 layer
+])
+def test_one_identity_despite_map_defects_and_respellings(warehouse, name, first):
+    cks = cks_named(warehouse, name)
+    assert len(cks) == 1, f"{name} fragmented into {cks}"
+    assert span(warehouse, cks[0]) == (first, 2025)
+
+
+def test_non_administrative_features_are_not_districts(warehouse):
+    assert warehouse.execute(
+        "SELECT count(*) FROM ck_observation WHERE lower(district_name) LIKE 'disputed%'").fetchone()[0] == 0
+
+
+def test_every_closed_district_has_a_fate(warehouse):
+    assert warehouse.execute("""SELECT count(*) FROM ck_registry c WHERE NOT is_active AND NOT EXISTS
+        (SELECT 1 FROM ck_fate f WHERE f.canonical_key = c.canonical_key)""").fetchone()[0] == 0
+
+
+def test_mizoram_soi_lag_is_absorption_into_continuing_districts(warehouse):
+    # SOI 2025 lacks Khawzawl / Saitual / Hnahthial (known_geometry_gaps.csv). With
+    # Champhai keeping its identity, the gap shows as ABSORBED_INTO fates, not merges.
+    rows = warehouse.execute("""SELECT lower(a.latest_name), lower(b.latest_name) FROM ck_fate f
+        JOIN ck_registry a ON a.canonical_key = f.canonical_key JOIN ck_registry b ON b.canonical_key = f.to_ck
+        WHERE f.closed_year = 2025 AND f.fate_type = 'ABSORBED_INTO' AND f.fate_share_rank = 1""").fetchall()
+    assert {("khawzawl", "champhai"), ("saitual", "aizawl"), ("hnahthial", "lunglei")} <= set(rows)
+
+
+def test_ledger_closes_in_both_directions(warehouse):
+    bad = warehouse.execute(
+        "SELECT count(*) FROM district_ledger WHERE NOT closure_ok OR NOT forward_closure_ok").fetchone()[0]
+    assert bad == 0
+
+
 def test_no_error_level_invariant_fails(warehouse):
     bad = warehouse.execute(
         "SELECT check_id FROM validation_result WHERE severity = 'ERROR' AND n_violations > 0").fetchall()

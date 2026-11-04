@@ -11,11 +11,24 @@ crosswalk_to_reference
     assumption. Sliver noise is excluded; boundary displacement is kept (it is
     where the older map places that district). This is the area weight that
     statistical harmonization starts from.
+    source_mapped_share is how much of the source district (year Y) the
+    crosswalk places anywhere in the reference map (sum of share_of_source over
+    its rows). It is below 1 where the reference map does not cover the old
+    territory or the overlap is sliver noise; for a COUNT statistic, restated
+    totals undercount by exactly that share, which this column makes visible
+    instead of renormalizing it away.
 district_reference_context
     For each reference-year district and each year Y: how much of it was
     mapped, how many Y districts it drew on, and its primary Y container
     with that container's administrative area. Replaces v2's backfill, which
     mixed "district extent then" with "today's land then" in one column.
+ck_reference_continuity
+    For each CK active at the reference year and each year Y it was mapped:
+    how much of its year-Y territory lies inside its own reference polygon,
+    and how much of the reference polygon that is. A CK is one administrative
+    identity, not constant territory (Bastar keeps its CK from 1951 to 2025
+    with 14% of its 1951 area); this is the measure a user needs before
+    treating a CK's statistics as comparable across years.
 """
 
 from __future__ import annotations
@@ -29,7 +42,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lib  # noqa: E402
 
 REF = lib.REFERENCE_YEAR
-MIN_SOURCE_SHARE = 0.01  # a source counts as "drawn on" if it supplies >= 1% of the target
+MIN_SOURCE_SHARE = lib.CFG["products"]["min_source_share"]
 
 
 def main() -> None:
@@ -62,6 +75,7 @@ def main() -> None:
     tgt_area = ref.set_index("canonical_key").area_km2
     xw["share_of_source"] = (xw.area_km2 / [src_area[(c, y)] for c, y in zip(xw.source_ck, xw.year)]).clip(upper=1.0)
     xw["share_of_target"] = (xw.area_km2 / xw.target_ck.map(tgt_area)).clip(upper=1.0)
+    xw["source_mapped_share"] = xw.groupby(["year", "source_ck"]).share_of_source.transform("sum").clip(upper=1.0)
     depicted = admin.set_index(["canonical_key", "year"]).depicted_year
     xw["source_depicted_year"] = [depicted[(c, y)] for c, y in zip(xw.source_ck, xw.year)]
     xw = xw.sort_values(["year", "target_ck", "area_km2"], ascending=[True, True, False])
@@ -92,7 +106,20 @@ def main() -> None:
     view.add_prefix("contained_in_").reset_index().to_csv(
         lib.PRODUCTS_DIR / "district_reference_context_wide.csv", index=False)
 
-    print(f"admin rows: {len(admin)}  crosswalk rows: {len(xw)}  context rows: {len(ctx)}")
+    active = set(ref.canonical_key)
+    cont = admin[admin.canonical_key.isin(active)][["canonical_key", "year", "area_km2"]].rename(
+        columns={"area_km2": "area_then_km2"})
+    cont["area_reference_km2"] = cont.canonical_key.map(tgt_area)
+    diag = xw[xw.source_ck == xw.target_ck].set_index(["source_ck", "year"]).area_km2
+    cont["shared_km2"] = [float(diag.get((c, y), 0.0)) for c, y in zip(cont.canonical_key, cont.year)]
+    cont["share_of_then_kept"] = (cont.shared_km2 / cont.area_then_km2).clip(upper=1.0)
+    cont["share_of_reference_from_then"] = (cont.shared_km2 / cont.area_reference_km2).clip(upper=1.0)
+    lib.write_table(cont.sort_values(["canonical_key", "year"]), lib.PRODUCTS_DIR / "ck_reference_continuity.parquet",
+                    "ck_reference_continuity", csv_copy=lib.PRODUCTS_DIR / "ck_reference_continuity.csv")
+
+    print(f"admin rows: {len(admin)}  crosswalk rows: {len(xw)}  context rows: {len(ctx)}  "
+          f"continuity rows: {len(cont)}")
+    print(f"sources with < 99% mapped into the reference map: {(xw.drop_duplicates(['year', 'source_ck']).source_mapped_share < 0.99).sum()}")
     print(xw.groupby("year").agg(rows=("area_km2", "size"), km2=("area_km2", "sum")).round(0).to_string())
 
 

@@ -7,13 +7,21 @@ vintage. Bronze is only read.
 
 Unnamed / sentinel-named features (e.g. the ~80,520 km2 "DATA NOT AVAILABLE"
 polygon in J&K) are non-administrative placeholders: a district identity
-requires a name. They are excluded and logged, never silently dropped.
+requires a name. Named features that are still not districts (SOI 2025's
+interstate "DISPUTED (A & B)" patches) are listed, with evidence, in
+data/reference/non_administrative_features.csv. Both kinds are excluded and
+logged, never silently dropped; their area appears downstream as unmapped
+(coverage) area, so nothing is lost from the accounting.
 
 Each layer is then made a true partition. Where two polygons overlap (source
 digitization; e.g. the 2011 layer never cut the Tamil Nadu districts around
 the Puducherry enclaves), the overlap is assigned to the smaller polygon (the
-enclave) and removed from the larger one. Every repair is logged with its area
-change in outputs/pipeline/s01_overlap_repairs.csv.
+enclave) and removed from the larger one. That rule is only meaningful for
+enclaves, so every repair also logs how much of the smaller polygon lies inside
+the larger one (`smaller_contained_share`); a repair between two neighbours
+that merely overlap (share below topology.enclave_min_contained_share) is a
+WARNING in s11 (V22), not silently accepted. Every repair is logged with its
+area change in outputs/pipeline/s01_overlap_repairs.csv.
 """
 
 from __future__ import annotations
@@ -70,9 +78,11 @@ def resolve_overlaps(geoms: list, areas: list[float], ids: list[str]) -> tuple[l
         if repaired is None or repaired.is_empty:
             continue
         out[i] = repaired
+        contained = max(lib.geodesic_area_km2(geoms[j].intersection(geoms[i])) / areas[j] if areas[j] else 0.0
+                        for j in js)
         log.append({"geom_obs_id": ids[i], "area_before_km2": areas[i],
                     "area_removed_km2": areas[i] - lib.geodesic_area_km2(repaired),
-                    "n_smaller_overlapping": len(js)})
+                    "n_smaller_overlapping": len(js), "smaller_contained_share": contained})
     return out, log
 
 
@@ -92,21 +102,34 @@ def read_source(source: str, cfg: dict) -> gpd.GeoDataFrame:
         "state_name_original": state.astype(str).str.strip(),
         "geometry": gdf.geometry,
     }, geometry="geometry", crs=gdf.crs)
-    return out.to_crs(epsg=4326) if source == "soi" else out
+    if out.crs is None:
+        raise ValueError(f"{source} {cfg['path']}: layer has no CRS; refusing to assume EPSG:4326")
+    return out if out.crs.to_epsg() == 4326 else out.to_crs(epsg=4326)
+
+
+def curated_non_administrative() -> dict[tuple[str, int, str], str]:
+    """(source, year, source_pk) -> reason, for CONFIRMED rows only."""
+    ref = pd.read_csv(lib.REFERENCE_DIR / "non_administrative_features.csv", dtype={"source_pk": str})
+    ref = ref[ref.status == "CONFIRMED"]
+    return {(s, int(y), pk): r for s, y, pk, r in zip(ref.source_dataset, ref.source_year, ref.source_pk, ref.reason)}
 
 
 def process_vintage(source: str, year: int, cfg: dict) -> tuple[dict, list[dict]]:
     gdf = read_source(source, cfg)
     n_raw = len(gdf)
 
-    unnamed = gdf["district_name_original"].str.lower().str.match(SENTINEL_RE)
+    curated = curated_non_administrative()
+    reason = pd.Series([curated.get((source, year, pk)) for pk in gdf["source_pk"]], index=gdf.index, dtype=object)
+    reason[gdf["district_name_original"].str.lower().str.match(SENTINEL_RE)] = "UNNAMED_NON_ADMINISTRATIVE_FEATURE"
+    drop = reason.notna()
     excluded = [{
         "source_dataset": source, "source_year": year, "source_pk": r.source_pk,
+        "district_name_original": r.district_name_original,
         "state_name_original": r.state_name_original,
         "area_km2": round(lib.geodesic_area_km2(r.geometry), 2),
-        "reason": "UNNAMED_NON_ADMINISTRATIVE_FEATURE",
-    } for r in gdf[unnamed].itertuples()]
-    gdf = gdf[~unnamed]
+        "reason": reason[r.Index],
+    } for r in gdf[drop].itertuples()]
+    gdf = gdf[~drop]
 
     kept, n_repaired, n_empty = [], 0, 0
     for r in gdf.sort_values("source_pk", kind="stable").itertuples():
@@ -147,7 +170,7 @@ def process_vintage(source: str, year: int, cfg: dict) -> tuple[dict, list[dict]
     out = out.sort_values("source_pk", kind="stable").reset_index(drop=True)
     lib.write_table(out, lib.silver_path(year), "silver_geometry")
     summary = {"source": source, "year": year, "raw": n_raw, "usable": len(out),
-               "excluded_unnamed": len(excluded), "empty_dropped": n_empty,
+               "excluded_non_administrative": len(excluded), "empty_dropped": n_empty,
                "invalid_repaired": n_repaired, "overlap_trimmed": len(overlap_log),
                "overlap_removed_km2": round(sum(x["area_removed_km2"] for x in overlap_log), 3),
                "multipart": int((out["n_parts"] > 1).sum())}
@@ -167,8 +190,10 @@ def main() -> None:
         excluded.extend(e)
         repairs.extend(o)
     pd.DataFrame(summaries).to_csv(lib.OUTPUT_DIR / "s01_silver_summary.csv", index=False)
-    pd.DataFrame(repairs).to_csv(lib.OUTPUT_DIR / "s01_overlap_repairs.csv", index=False)
-    pd.DataFrame(excluded, columns=["source_dataset", "source_year", "source_pk",
+    pd.DataFrame(repairs, columns=["geom_obs_id", "area_before_km2", "area_removed_km2", "n_smaller_overlapping",
+                                   "smaller_contained_share", "source_dataset", "source_year"]
+                 ).to_csv(lib.OUTPUT_DIR / "s01_overlap_repairs.csv", index=False)
+    pd.DataFrame(excluded, columns=["source_dataset", "source_year", "source_pk", "district_name_original",
                                     "state_name_original", "area_km2", "reason"]
                  ).to_csv(lib.OUTPUT_DIR / "s01_excluded_non_administrative.csv", index=False)
     print(f"excluded non-administrative features: {len(excluded)}")

@@ -5,7 +5,14 @@ twice: once as NEW_DISTRICT (parent -> new child) and once as SPLIT (parent ->
 parent + new child), same parent, state and year (313 of 364 multi-event
 predecessor-windows in the v3 run were exactly this pair). One administrative
 change = one (parent_district as written, state, effective_year) group across
-both types; `recorded_as` keeps the original types for provenance. A
+both types; `recorded_as` keeps the original types for provenance.
+The grouping key is the SET of predecessors after parsing, normalization and
+alias resolution, not the raw string, so "A and B" / "B, A" / a respelled
+parent are one event. `parent_district_raw` keeps every raw spelling seen.
+
+Parsing never splits a name that occurs whole on a map or as a state/UT name
+("Jammu And Kashmir", "Andaman And Nicobar Islands", "Daman And Diu"); see
+lib.parse_multi_name. A
 1-parent-3-children split is therefore one event with three successors
 (conservation is testable only at this grain). RENAME rows are already 1:1.
 
@@ -26,9 +33,30 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lib  # noqa: E402
 
 
+def protected_names() -> frozenset[str]:
+    """Normalized names containing 'and' that denote ONE entity: every district
+    name mapped in any vintage, every alias, and every state/UT name."""
+    obs = pd.read_parquet(lib.GOLD_CORE_DIR / "ck_observation.parquet", columns=["district_name"])
+    names = set(obs.district_name.map(lib.normalize_name))
+    a = lib.name_aliases()
+    names |= set(a.alias_norm) | set(a.canonical_norm)
+    sl = pd.read_csv(lib.REFERENCE_DIR / "state_lineage.csv")
+    names |= {lib.normalize_name(x) for x in pd.concat([sl.parent_state, sl.child_state])}
+    names |= {lib.normalize_name(x) for x in lib.PC11_STATE_CODES.values()}
+    return frozenset(n for n in names if " and " in f" {n} ")
+
+
+def predecessor_key(parent: object, protected: frozenset[str]) -> tuple[list[str], str]:
+    preds = lib.parse_multi_name(parent, protected)
+    key = "+".join(sorted({lib.alias_key(lib.normalize_name(n)) for n in preds}))
+    return preds, key
+
+
 def main() -> None:
     df = pd.read_csv(lib.EVENTS_CSV)
     df["event_state"] = df["state"].map(lib.canonical_state)
+    protected = protected_names()
+    df["pred_key"] = [predecessor_key(p, protected)[1] for p in df.parent_district]
     events, parts = [], []
 
     def add_participant(event_id: str, role: str, name: str, state: str) -> None:
@@ -38,16 +66,19 @@ def main() -> None:
                       "event_state_norm": lib.normalize_name(state)})
 
     sub = df[df.event_type.isin(["SPLIT", "NEW_DISTRICT"])]
-    for (parent, state, year), grp in sub.groupby(["parent_district", "event_state", "effective_year"],
-                                                  dropna=False, sort=True):
+    for (pkey, state, year), grp in sub.groupby(["pred_key", "event_state", "effective_year"],
+                                                dropna=False, sort=True):
         types = sorted(set(grp.event_type))
         etype = "SPLIT" if "SPLIT" in types else "NEW_DISTRICT"
-        eid = lib.stable_id("EVENT", parent, state, year)
-        preds = lib.parse_multi_name(parent)
+        eid = lib.stable_id("EVENT", pkey, state, year)
+        raw = sorted(set(grp.parent_district.astype(str)))
+        parent = "; ".join(raw)
+        preds = predecessor_key(raw[0], protected)[0]
         succs = sorted(set(grp.child_district.dropna().astype(str)))
         events.append({"event_id": eid, "event_type": etype, "recorded_as": "+".join(types),
                        "event_state": state, "parent_district_raw": str(parent), "effective_year": int(year),
                        "n_predecessors": len(preds), "n_successors": len(succs),
+                       "n_parent_spellings": len(raw),
                        "n_csv_rows": len(grp), "sources_cited": ";".join(sorted(set(grp.source.astype(str))))})
         for n in preds:
             add_participant(eid, "PREDECESSOR", n, state)
@@ -59,7 +90,8 @@ def main() -> None:
         events.append({"event_id": eid, "event_type": "RENAME", "recorded_as": "RENAME",
                        "event_state": r.event_state,
                        "parent_district_raw": str(r.parent_district), "effective_year": int(r.effective_year),
-                       "n_predecessors": 1, "n_successors": 1, "n_csv_rows": 1, "sources_cited": str(r.source)})
+                       "n_predecessors": 1, "n_successors": 1, "n_parent_spellings": 1, "n_csv_rows": 1,
+                       "sources_cited": str(r.source)})
         add_participant(eid, "PREDECESSOR", str(r.parent_district), r.event_state)
         add_participant(eid, "SUCCESSOR", str(r.child_district), r.event_state)
 
