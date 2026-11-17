@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import Chart, { axis } from "../components/Chart";
 import DistrictSearch from "../components/DistrictSearch";
 import MapView from "../components/MapView";
 import Term from "../components/Term";
+import Trace from "../components/Trace";
 import { fmt, get, pct, YEARS, type CrosswalkRow, type DistrictRow, type Registry } from "../api";
 
 function csv(rows: CrosswalkRow[]): string {
@@ -13,6 +14,30 @@ function csv(rows: CrosswalkRow[]): string {
 }
 
 export default function Crosswalk() {
+  const [params, setParams] = useSearchParams();
+  const view = params.get("view") === "weights" ? "weights" : "trace";
+  const year = YEARS.includes(Number(params.get("year"))) ? Number(params.get("year")) : YEARS[YEARS.length - 1];
+  const ck = /^IND-\d{6}$/.test(params.get("ck") ?? "") ? params.get("ck") : null;
+  return (
+    <main className="page">
+      <div className="page-head">
+        <p className="eyebrow">Restating statistics</p>
+        <h1>Crosswalk</h1>
+        <p className="lede">Where a district's land lies on other maps. Trace one district through every map from 1951 to today, or take
+          the <Term k="crosswalk">crosswalk</Term> weights that restate an old statistic on the 2025 districts.</p>
+      </div>
+      <div className="seg view-toggle" role="group" aria-label="View">
+        <button type="button" aria-pressed={view === "trace"} onClick={() => setParams({})}>Trace through every map</button>
+        <button type="button" aria-pressed={view === "weights"} onClick={() => setParams({ view: "weights" })}>Weights to 2025</button>
+      </div>
+      {view === "trace"
+        ? <Trace year={year} ck={ck} onChange={(y, c) => setParams(c ? { year: String(y), ck: c } : { year: String(y) })} />
+        : <Weights />}
+    </main>
+  );
+}
+
+function Weights() {
   const [year, setYear] = useState(1951);
   const [dir, setDir] = useState<"forward" | "reverse">("forward");
   const [pick, setPick] = useState<DistrictRow | null>(null);
@@ -38,14 +63,9 @@ export default function Crosswalk() {
   const example = async () => { setYear(1951); setDir("forward"); setPick(await get<Registry>("/districts/IND-000202")); };
 
   return (
-    <main className="page">
-      <div className="page-head">
-        <p className="eyebrow">Restating statistics</p>
-        <h1>Crosswalk to the 2025 districts</h1>
-        <p className="lede">Where a past district's land lies on today's map. These shares, the <Term k="crosswalk">crosswalk</Term>, are
-          the weights for restating an old statistic on the 2025 districts. They come from laying each old map directly over the 2025
-          map, without passing through the maps in between.</p>
-      </div>
+    <>
+      <p className="muted">These shares are the weights for restating an old statistic on the 2025 districts. They come from laying each
+        old map directly over the 2025 map, without passing through the maps in between.</p>
       <div className="panel controls">
         <label className="field">Map<select value={year} onChange={(e) => { setYear(+e.target.value); setPick(null); }}>
           {YEARS.slice(0, -1).map((y) => <option key={y}>{y}</option>)}</select></label>
@@ -59,7 +79,8 @@ export default function Crosswalk() {
           <DistrictSearch key={`${year}-${dir}`} year={dir === "forward" ? year : 2025} onPick={setPick} /></label>
       </div>
       <div className="grid2">
-        <div className="dmap"><MapView year={2025} mode="highlight" highlight={highlight} selected={dir === "reverse" ? pick?.canonical_key ?? null : null} testId="crosswalk-map" /></div>
+        <div className="dmap"><MapView year={2025} mode="highlight" highlight={highlight} selected={dir === "reverse" ? pick?.canonical_key ?? null : null}
+          onSelect={dir === "reverse" ? async (c) => setPick(await get<Registry>(`/districts/${c}`)) : undefined} testId="crosswalk-map" /></div>
         <section className="panel">
           {pick ? <>
             <h2>{pick.latest_name} {dir === "forward" ? `on the ${year} map` : "today"}</h2>
@@ -89,12 +110,12 @@ export default function Crosswalk() {
           </> : (
             <div className="stack">
               <h2>Choose a map and a district</h2>
-              <p className="muted">Pick a year and search for a district on that year's map. The map on the left shades today's districts by how
-                much of its land they hold.</p>
+              <p className="muted">Pick a year and search for a district on that year's map, or choose "A district today" and click it on the
+                map. The map on the left shades today's districts by how much of its land they hold.</p>
               <p><button type="button" className="btn" onClick={example}>Show an example: Kangra on the 1951 map</button></p>
             </div>)}
         </section>
       </div>
-    </main>
+    </>
   );
 }

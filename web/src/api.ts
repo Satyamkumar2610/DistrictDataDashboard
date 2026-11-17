@@ -91,6 +91,14 @@ export type CrosswalkRow = {
   year: number; source_ck: string; target_ck: string; area_km2: number; share_of_source: number; share_of_target: number;
   target_name?: string; target_state?: string; source_name?: string; source_state?: string;
 };
+export type TracePart = {
+  ck: string; name: string; state: string; area_km2: number; share_of_focus: number; share_of_other: number;
+  same_identity: boolean; geometry: GeoJSON.Geometry;
+};
+export type Trace = {
+  focus: { canonical_key: string; year: number; district_name: string; state: string; area_km2: number; geometry: GeoJSON.Geometry };
+  maps: { year: number; method: "self" | "crosswalk" | "overlay"; parts: TracePart[] }[];
+};
 export type Overview = {
   maps: { year: number; districts: number; mapped_km2: number; new_identities: number }[];
   lineage: { year: number; relationship_type: string; edges: number; km2: number }[];

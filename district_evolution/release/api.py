@@ -370,6 +370,80 @@ def crosswalk(from_year: int, ck: str, direction: str = Query("forward", pattern
                        WHERE x.year = ? AND x.{col} = ? ORDER BY x.area_km2 DESC""", [from_year, ck]))
 
 
+# Shapes drawn in the trace's small maps: simplified to ~500 m and rounded to ~10 m. For drawing only.
+TRACE_SIMPLIFY_DEG, TRACE_PRECISION_DEG = 0.005, 0.0001
+
+
+@api.get("/districts/{ck}/trace")
+def trace(year: int, ck: str = PathParam(pattern=CK)):
+    """Where one district's land lies on every map, 1951 to 2025: for each map, the districts that hold it.
+
+    Pairs that involve 2025 are read from crosswalk_to_reference (full-resolution geodesic overlay,
+    method "crosswalk"). Pairs between two historical maps have no release table, so they are overlaid
+    here from the release's simplified polygons (method "overlay", areas by ST_Area_Spheroid): good to
+    a fraction of a percent, for exploring. Every part is returned, border slivers included, so the
+    shares of a map add up to the land that map covers.
+    """
+    if year not in YEARS:
+        raise HTTPException(404, f"no map for {year}")
+    return Response(content=_trace(ck, year), media_type="application/json")
+
+
+@functools.lru_cache(maxsize=256)
+def _trace(ck: str, year: int) -> bytes:
+    focus = rows(f"""SELECT canonical_key, year, district_name, state, area_km2,
+                            ST_AsGeoJSON(ST_ReducePrecision(ST_SimplifyPreserveTopology(geometry, {TRACE_SIMPLIFY_DEG}),
+                                                            {TRACE_PRECISION_DEG})) AS geom
+                     FROM district_geometry WHERE canonical_key = ? AND year = ?""", [ck, year])
+    if not focus:
+        raise HTTPException(404, f"{ck} is not on the {year} map")
+    ref = YEARS[-1]
+    shape = f"""ST_AsGeoJSON(ST_ReducePrecision(ST_SimplifyPreserveTopology(g.geometry, {TRACE_SIMPLIFY_DEG}),
+                                                 {TRACE_PRECISION_DEG})) AS geom"""
+    # Overlay of the release polygons against every historical map but the focus's own.
+    overlay = rows(f"""WITH f AS (SELECT geometry, ST_Area_Spheroid(ST_FlipCoordinates(geometry)) / 1e6 AS km2
+                                  FROM district_geometry WHERE canonical_key = ? AND year = ?),
+                        p AS (SELECT g.year, g.canonical_key, g.district_name, g.state, g.geometry,
+                                     ST_Area_Spheroid(ST_FlipCoordinates(ST_Intersection(g.geometry, f.geometry))) / 1e6 AS km2,
+                                     ST_Area_Spheroid(ST_FlipCoordinates(g.geometry)) / 1e6 AS other_km2, f.km2 AS focus_km2
+                              FROM district_geometry g, f
+                              WHERE g.year NOT IN (?, ?) AND ST_Intersects(g.geometry, f.geometry))
+                   SELECT year, canonical_key AS ck, district_name AS name, state, km2 AS area_km2,
+                          km2 / focus_km2 AS share_of_focus, km2 / other_km2 AS share_of_other,
+                          {shape.replace('g.geometry', 'p.geometry')}
+                   FROM p WHERE km2 > 0""", [ck, year, year, ref]) if year != ref else []
+    # Exact weights for every pair that involves 2025.
+    if year == ref:
+        exact = rows(f"""SELECT x.year, x.source_ck AS ck, g.district_name AS name, g.state, x.area_km2,
+                                x.share_of_target AS share_of_focus, x.share_of_source AS share_of_other, {shape}
+                         FROM crosswalk_to_reference x
+                         JOIN district_geometry g ON g.canonical_key = x.source_ck AND g.year = x.year
+                         WHERE x.target_ck = ?""", [ck])
+    else:
+        exact = rows(f"""SELECT {ref} AS year, x.target_ck AS ck, g.district_name AS name, g.state, x.area_km2,
+                                x.share_of_source AS share_of_focus, x.share_of_target AS share_of_other, {shape}
+                         FROM crosswalk_to_reference x
+                         JOIN district_geometry g ON g.canonical_key = x.target_ck AND g.year = {ref}
+                         WHERE x.year = ? AND x.source_ck = ?""", [year, ck])
+    f = focus[0]
+    f_geom = json.loads(f.pop("geom"))
+    own = {"year": year, "ck": ck, "name": f["district_name"], "state": f["state"], "area_km2": f["area_km2"],
+           "share_of_focus": 1.0, "share_of_other": 1.0, "geom": None}
+    maps = []
+    for y in YEARS:
+        if y == year:
+            parts, method = [own], "self"
+        else:
+            method = "crosswalk" if ref in (y, year) else "overlay"
+            parts = sorted((p for p in (exact if method == "crosswalk" else overlay) if p["year"] == y),
+                           key=lambda p: (-p["area_km2"], p["ck"]))
+        maps.append({"year": y, "method": method,
+                     "parts": [{**{k: v for k, v in p.items() if k not in ("year", "geom")},
+                                "same_identity": p["ck"] == ck,
+                                "geometry": f_geom if p["geom"] is None else json.loads(p["geom"])} for p in parts]})
+    return json.dumps(ok({"focus": {**f, "geometry": f_geom}, "maps": maps}), separators=(",", ":")).encode()
+
+
 @api.get("/events")
 def events(ck: str | None = None, year: int | None = None, limit: int = Query(200, le=2000)):
     where: list[str] = ["1=1"]

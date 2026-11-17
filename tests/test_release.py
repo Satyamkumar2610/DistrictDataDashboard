@@ -72,6 +72,23 @@ def test_kangra_one_identity_with_its_carve_outs(api):
     assert sum(r["share_of_source"] for r in xw) == pytest.approx(1.0, abs=0.01)
 
 
+def test_trace_goes_back_to_1951_and_forward_to_2025(api):
+    back = api.get("/api/districts/IND-000202/trace", params={"year": 2025}).json()["data"]
+    assert [m["year"] for m in back["maps"]] == core.YEARS
+    by_year = {m["year"]: m for m in back["maps"]}
+    assert by_year[2025]["method"] == "self" and by_year[1951]["method"] == "crosswalk"
+    top_1951 = by_year[1951]["parts"][0]
+    assert top_1951["same_identity"] and top_1951["share_of_focus"] > 0.95  # today's Kangra was 1951 Kangra
+    fwd = api.get("/api/districts/IND-000202/trace", params={"year": 1951}).json()["data"]
+    by_year = {m["year"]: m for m in fwd["maps"]}
+    assert by_year[1961]["method"] == "overlay" and by_year[2025]["method"] == "crosswalk"
+    names = {p["name"] for p in by_year[2025]["parts"] if p["share_of_focus"] > 0.01}
+    assert {"Kangra", "Kullu", "Hamirpur", "Una"} <= names
+    for m in fwd["maps"]:  # shares of the traced land never exceed the whole of it
+        assert sum(p["share_of_focus"] for p in m["parts"]) <= 1.005
+    assert api.get("/api/districts/IND-000202/trace", params={"year": 1801}).status_code == 404
+
+
 def test_geometry_is_geojson_with_full_resolution_area(api):
     f = api.get("/api/districts/IND-000202/geometry", params={"year": 2025}).json()["data"]
     assert f["type"] == "Feature" and f["geometry"]["type"] in {"Polygon", "MultiPolygon"}

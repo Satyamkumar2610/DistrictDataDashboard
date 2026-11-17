@@ -417,3 +417,18 @@ table.data td.r, table.data th.r { text-align: right }
   .btn:hover, .iconbtn:hover { border-color: var(--line-strong) }
   .nav a:not(.active):hover { background: none; color: var(--ink-2) }
 }
+
+/* Crosswalk: trace one district through every map */
+.view-toggle { margin-bottom: var(--s4) }
+.small-answer { font-size: var(--t-base) }
+.trace-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: var(--s3); margin-top: var(--s5) }
+.trace-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s3); min-width: 0 }
+.trace-card[aria-current="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent) }
+.trace-card header { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s2); margin-bottom: var(--s2) }
+.trace-year { font-weight: 600; font-size: var(--t-lg) }
+.trace-svg { display: block; width: 100%; height: auto; background: var(--sunk); border-radius: var(--r) }
+.trace-part { fill: var(--accent); stroke: var(--surface); stroke-width: 0.8; vector-effect: non-scaling-stroke }
+.trace-focus { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke }
+.trace-list { list-style: none; margin: var(--s2) 0 0; padding: 0; font-size: var(--t-sm) }
+.trace-list li { display: flex; align-items: baseline; gap: 6px; padding: 2px 0 }
+.trace-list .num { margin-left: auto; font-variant-numeric: tabular-nums }

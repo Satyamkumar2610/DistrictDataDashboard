@@ -80,8 +80,8 @@ parent, according to the maps. Each case needs a documentary check.
 |   1956 | Nimar              | East Nimar         | East Nimar          | Madhya Pradesh    |
 |   1957 | Tuensang           | Mokokchung         | Mokokchung          | Nagaland          |
 |   1964 | Mehsana            | Gandhinagar        | Gandhinagar         | Gujarat           |
-|   1966 | Ambala             | Chandigarh         | Chandigarh          | Chandigarh        |
 |   1966 | Ambala             | Ropar              | Rupnagar            | Punjab            |
+|   1966 | Ambala             | Chandigarh         | Chandigarh          | Chandigarh        |
 |   1972 | Simla              | Simla              | Shimla              | Himachal Pradesh  |
 |   1979 | Srinagar           | Pulwama            | Pulwama             | Jammu And Kashmir |
 |   1982 | Alappuzha          | Pathanamthitta     | Pattanamthitta      | Kerala            |

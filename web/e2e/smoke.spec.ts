@@ -33,13 +33,27 @@ test("district page draws the carved-out land with exact figures", async ({ page
 });
 
 test("crosswalk restates a 1951 district on 2025 districts", async ({ page }) => {
-  await page.goto("/crosswalk");
+  await page.goto("/crosswalk?view=weights");
   await page.getByLabel("Search districts").fill("Kangra");
   await page.getByRole("option", { name: /Kangra/ }).first().click();
   await expect(page.getByTestId("crosswalk-chart").locator("svg")).toBeVisible();
   await expect(page.getByText("Lahul & Spiti").first()).toBeVisible();
   await page.waitForTimeout(1500);
   await page.screenshot({ path: `${shots}/crosswalk.png`, fullPage: true });
+});
+
+test("crosswalk traces today's Kangra back to 1951, and 1951 Kangra forward", async ({ page }) => {
+  await page.goto("/crosswalk");
+  await page.getByRole("button", { name: /Today's Kangra, back to 1951/ }).click();
+  await expect(page.getByTestId("trace-1951")).toContainText("Kangra");
+  await expect(page.getByTestId("trace-1991")).toContainText("Una");
+  await expect(page).toHaveURL(/year=2025&ck=IND-000202/);
+  // pick the 1951 map as the start: the trace re-anchors on 1951 Kangra and reads forward
+  await page.getByLabel("Start on the map of").selectOption("1951");
+  await expect(page.getByTestId("trace-2025")).toContainText("Lahul & Spiti");
+  await expect(page.getByTestId("trace-2025")).toContainText("Kullu");
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: `${shots}/crosswalk-trace.png`, fullPage: true });
 });
 
 test("research queue and data pages load", async ({ page }) => {
